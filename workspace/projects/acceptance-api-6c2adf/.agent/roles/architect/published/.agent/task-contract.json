@@ -1,0 +1,142 @@
+{
+  "title": "Acceptance api-platform",
+  "description": "Acceptance validation for api-platform.",
+  "project_name": "acceptance-api-6c2adf",
+  "template_id": "api-platform",
+  "objective": "Acceptance validation for api-platform.",
+  "success_definition": [
+    "Requirement is decomposed into concrete deliverables",
+    "Architecture and contracts are explicit",
+    "Implementation stays within role boundaries",
+    "Verification has evidence",
+    "Review captures residual risk",
+    "Delivery requires human approval"
+  ],
+  "constraints": [
+    "API contracts must be explicit before implementation.",
+    "Integration boundaries should be documented as contracts.",
+    "Do not auto-release without approval.",
+    "Operational readiness is part of delivery.",
+    "contract stability",
+    "integration traceability",
+    "operational visibility",
+    "approval gating",
+    "artifact evidence"
+  ],
+  "key_modules": [
+    "identity-and-service-auth",
+    "public-api-surface",
+    "internal-service-layer",
+    "integration-adapters",
+    "contract-testing",
+    "release-and-runtime-ops"
+  ],
+  "execution_order": [
+    "planner",
+    "architect",
+    "backend",
+    "qa",
+    "integration-auditor",
+    "reviewer",
+    "devops"
+  ],
+  "subsystem_ids": [
+    "ss-01",
+    "ss-02",
+    "ss-03",
+    "ss-04",
+    "ss-05",
+    "ss-06"
+  ],
+  "work_package_ids": [
+    "wp-plan",
+    "wp-arch",
+    "wp-ss-01",
+    "wp-ss-02",
+    "wp-ss-03",
+    "wp-ss-04",
+    "wp-ss-05",
+    "wp-ss-06",
+    "wp-verify",
+    "wp-review",
+    "wp-delivery"
+  ],
+  "proof_stage_ids": [
+    "proof-01",
+    "proof-02",
+    "proof-03",
+    "proof-04"
+  ],
+  "partition_plan": {
+    "partitions": {
+      "planning": [],
+      "architecture": [],
+      "frontend": [],
+      "backend": [
+        "ss-01",
+        "ss-02",
+        "ss-03",
+        "ss-04"
+      ],
+      "domain": [
+        "ss-05"
+      ],
+      "integration": [
+        "ss-06"
+      ],
+      "verification": [],
+      "review": [],
+      "delivery": []
+    },
+    "ownership": {
+      "ss-01": {
+        "primary_role": "backend",
+        "owned_surfaces": [
+          "apps/api",
+          "docs/api-contract.md"
+        ]
+      },
+      "ss-02": {
+        "primary_role": "backend",
+        "owned_surfaces": [
+          "apps/api",
+          "docs/api-contract.md"
+        ]
+      },
+      "ss-03": {
+        "primary_role": "backend",
+        "owned_surfaces": [
+          "apps/api",
+          "docs/api-contract.md"
+        ]
+      },
+      "ss-04": {
+        "primary_role": "backend",
+        "owned_surfaces": [
+          "apps/api",
+          "docs/api-contract.md"
+        ]
+      },
+      "ss-05": {
+        "primary_role": "architect",
+        "owned_surfaces": [
+          "docs"
+        ]
+      },
+      "ss-06": {
+        "primary_role": "devops",
+        "owned_surfaces": [
+          "docs/integration.md",
+          "infra",
+          "apps/api",
+          "apps/web"
+        ]
+      }
+    }
+  },
+  "approval_profile": {
+    "app_code": "auto_apply",
+    "infra": "auto_apply"
+  },
+  "requires_human_approval": false
+}

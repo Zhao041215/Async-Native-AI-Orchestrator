@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0.0",
+  "kind": "delivery-history-index",
+  "count": 1,
+  "latest_bundle_id": "20260506T193213Z-299169",
+  "bundles": [
+    {
+      "bundle_id": "20260506T193213Z-299169",
+      "sequence": 1,
+      "decision": "HOLD",
+      "external_status": "blocked",
+      "exported_at": "2026-05-06T19:32:13.584538+00:00"
+    }
+  ]
+}

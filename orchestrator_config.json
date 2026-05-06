@@ -1,0 +1,50 @@
+{
+  "server": {
+    "host": "127.0.0.1",
+    "port": 8787
+  },
+  "llm": {
+    "use_mock": true,
+    "api_base": "https://www.papaclaoud.top",
+    "api_key": "sk-b73e971c157ca983011337cf1bae79fa07c5024dcf02e798197ff767271743cb",
+    "model": "gpt-5.4",
+    "wire_api": "responses",
+    "temperature": 0.2,
+    "max_tokens": 3200,
+    "timeout_seconds": 30,
+    "retry_attempts": 2,
+    "retry_backoff_seconds": 4
+  },
+  "runtime": {
+    "workspace_root": "workspace/projects",
+    "db_path": "workspace/orchestrator.db",
+    "logs_path": "logs",
+    "python_cmd": "python",
+    "max_shell_seconds": 120,
+    "max_role_runs_per_task": 64,
+    "max_llm_calls_per_task": 160,
+    "max_conflicts_per_task": 16,
+    "max_resume_attempts_per_task": 20,
+    "max_failures_per_task": 20,
+    "deployment_mode": "hosted-multi-user-local",
+    "queue_mode": "local-adapter",
+    "sandbox_mode": "tenant-governed-worktree"
+  },
+  "identity": {
+    "mode": "hosted-dev-session",
+    "user_header": "X-Local-User",
+    "tenant_header": "X-Tenant-Id",
+    "default_user": "local-operator",
+    "tenant_mode": "required-tenant",
+    "default_tenant": "local-workspace",
+    "require_identity": true,
+    "require_tenant": true
+  },
+  "production": {
+    "queue_backend": "sqlite-durable",
+    "worker_model": "hosted-worker",
+    "deployment_target": "hosted-local",
+    "diagnostics_enabled": true,
+    "future_auth_enabled": false
+  }
+}

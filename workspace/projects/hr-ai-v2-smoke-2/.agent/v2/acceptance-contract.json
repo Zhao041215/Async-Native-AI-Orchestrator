@@ -1,0 +1,52 @@
+{
+  "schema_version": "2.0.0",
+  "kind": "acceptance-contract",
+  "requirements": [
+    {
+      "id": "REQ-0001",
+      "text": "Must support resume parsing, HR policy Q&A RAG, attrition prediction, tenant isolation, SSO, audit logs, and zh-CN frontend labels.",
+      "priority": "must",
+      "category": "ai",
+      "source_section": "prd",
+      "owner_role": "ai-ml-engineer",
+      "acceptance_refs": [
+        "AC-0001"
+      ],
+      "keywords": [
+        "frontend",
+        "zh-cn",
+        "sso",
+        "tenant",
+        "rag",
+        "prediction",
+        "resume parsing",
+        "attrition",
+        "audit log",
+        "audit",
+        "must",
+        "support"
+      ]
+    }
+  ],
+  "contracts": [
+    {
+      "id": "AC-0001",
+      "requirement_id": "REQ-0001",
+      "statement": "Implementation and tests demonstrate: Must support resume parsing, HR policy Q&A RAG, attrition prediction, tenant isolation, SSO, audit logs, and zh-CN frontend labels.",
+      "validation_method": "traceability+runtime+review",
+      "required_evidence": [
+        "code_reference",
+        "test_reference",
+        "review_finding_or_clearance"
+      ]
+    }
+  ],
+  "coverage": {
+    "must_total": 1,
+    "must_covered": 1,
+    "must_coverage_percent": 100.0,
+    "uncovered_must": [],
+    "traceability_ready": true
+  },
+  "findings": []
+}

@@ -1,0 +1,52 @@
+{
+  "schema_version": "2.0.0",
+  "kind": "acceptance-contract",
+  "requirements": [
+    {
+      "id": "REQ-0001",
+      "text": "Must support tenant-scoped projects, audit logs, worker job records, approval persistence, and quality gates.",
+      "priority": "must",
+      "category": "backend",
+      "source_section": "prd",
+      "owner_role": "backend-lead",
+      "acceptance_refs": [
+        "AC-0001"
+      ],
+      "keywords": [
+        "tenant",
+        "audit log",
+        "audit",
+        "must",
+        "support",
+        "tenant-scoped",
+        "projects",
+        "logs",
+        "worker",
+        "job",
+        "records",
+        "approval"
+      ]
+    }
+  ],
+  "contracts": [
+    {
+      "id": "AC-0001",
+      "requirement_id": "REQ-0001",
+      "statement": "Implementation and tests demonstrate: Must support tenant-scoped projects, audit logs, worker job records, approval persistence, and quality gates.",
+      "validation_method": "traceability+runtime+review",
+      "required_evidence": [
+        "code_reference",
+        "test_reference",
+        "review_finding_or_clearance"
+      ]
+    }
+  ],
+  "coverage": {
+    "must_total": 1,
+    "must_covered": 1,
+    "must_coverage_percent": 100.0,
+    "uncovered_must": [],
+    "traceability_ready": true
+  },
+  "findings": []
+}

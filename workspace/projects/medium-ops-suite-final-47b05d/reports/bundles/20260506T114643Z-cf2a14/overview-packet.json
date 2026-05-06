@@ -1,0 +1,290 @@
+{
+  "schema_version": "1.0.0",
+  "kind": "overview-packet",
+  "consumer": "dashboard-system",
+  "decision": "GO",
+  "external_status": "approved",
+  "headline": "Current conclusion: task `completed` with no major governance blockers recorded.",
+  "stable_fields": {
+    "identity": [
+      "task.id",
+      "task.title",
+      "task.template_id",
+      "decision",
+      "external_status"
+    ],
+    "overview": [
+      "headline",
+      "queue_stats",
+      "files"
+    ]
+  },
+  "compatibility": {
+    "contract_level": "stable-core",
+    "preferred_fields": [
+      "decision",
+      "headline",
+      "queue_stats",
+      "task",
+      "files"
+    ]
+  },
+  "contract": {
+    "kind": "overview-packet",
+    "schema_version": "1.0.0",
+    "contract_level": "stable-core"
+  },
+  "task": {
+    "id": "a64cd6ba-d60f-47e6-92f0-2fbb3709c909",
+    "title": "Build a medium-sized operations management platform",
+    "template_id": "web-saas",
+    "status": "completed"
+  },
+  "queue_stats": {
+    "manual_review_count": 0,
+    "conflict_count": 0,
+    "blocked_high_risk_count": 0,
+    "failed_validation_count": 0
+  },
+  "repository_readiness": {
+    "status": "not_repo",
+    "can_prepare_pr": false,
+    "reasons": [
+      "No git repository detected from the current project root."
+    ]
+  },
+  "decomposition": {
+    "subsystem_count": 6,
+    "work_package_count": 11
+  },
+  "proof_stages": {
+    "schema_version": "1.0.0",
+    "kind": "proof-stage-overview",
+    "contract": {
+      "kind": "proof-stage-overview",
+      "schema_version": "1.0.0",
+      "contract_level": "stable-core"
+    },
+    "task": {
+      "id": "a64cd6ba-d60f-47e6-92f0-2fbb3709c909",
+      "title": "Build a medium-sized operations management platform",
+      "template_id": "web-saas"
+    },
+    "proof_stage_count": 4,
+    "proof_stages": [
+      {
+        "id": "proof-01",
+        "title": "Real planner and architect compatibility",
+        "success_signal": "Planner and architect complete under real-model execution with valid governed artifacts.",
+        "evidence_targets": [
+          "docs/plan.md",
+          "docs/architecture.md",
+          "docs/api-contract.md"
+        ],
+        "status": "proven",
+        "matched_evidence_targets": [
+          "docs/plan.md",
+          "docs/architecture.md",
+          "docs/api-contract.md"
+        ]
+      },
+      {
+        "id": "proof-02",
+        "title": "Bounded package implementation proof",
+        "success_signal": "At least one bounded implementation package completes with governed artifacts and validation.",
+        "evidence_targets": [
+          "apps/web",
+          "apps/api",
+          "tests/qa-report.md"
+        ],
+        "status": "planned",
+        "matched_evidence_targets": [
+          "tests/qa-report.md"
+        ]
+      },
+      {
+        "id": "proof-03",
+        "title": "Multi-package verification proof",
+        "success_signal": "Cross-package QA and review evidence complete without collapsing the workflow.",
+        "evidence_targets": [
+          "tests/package-verification.md",
+          "docs/review.md",
+          "docs/package-review.md"
+        ],
+        "status": "proven",
+        "matched_evidence_targets": [
+          "tests/package-verification.md",
+          "docs/review.md",
+          "docs/package-review.md"
+        ]
+      },
+      {
+        "id": "proof-04",
+        "title": "Large-system delivery proof",
+        "success_signal": "Delivery artifacts, memory, decomposition, and approval state are exported for the large-system task.",
+        "evidence_targets": [
+          "reports/",
+          "infra/",
+          "task-memory.json"
+        ],
+        "status": "planned",
+        "matched_evidence_targets": [
+          "reports/",
+          "infra/"
+        ]
+      }
+    ]
+  },
+  "memory": {
+    "schema_version": "1.0.0",
+    "kind": "task-memory",
+    "task_id": "a64cd6ba-d60f-47e6-92f0-2fbb3709c909",
+    "project_name": "medium-ops-suite-final-47b05d",
+    "current_known_state": {
+      "status": "completed",
+      "latest_completed_role": "devops",
+      "failed_roles": [],
+      "open_change_count": 0,
+      "artifacts_count": 39,
+      "large_scale_task": false,
+      "delivery_gate_ok": true
+    },
+    "continuation": {
+      "recommended_resume_role": "",
+      "reason": ""
+    },
+    "recent_events": [
+      {
+        "ts": "2026-05-06T11:46:24.445239+00:00",
+        "source": "qa",
+        "level": "info",
+        "message": "QA completed."
+      },
+      {
+        "ts": "2026-05-06T11:46:24.461506+00:00",
+        "source": "security-review",
+        "level": "info",
+        "message": "Security Review started."
+      },
+      {
+        "ts": "2026-05-06T11:46:24.488371+00:00",
+        "source": "security-review",
+        "level": "info",
+        "message": "Security Review completed."
+      },
+      {
+        "ts": "2026-05-06T11:46:24.498940+00:00",
+        "source": "reviewer",
+        "level": "info",
+        "message": "Reviewer started."
+      },
+      {
+        "ts": "2026-05-06T11:46:24.543392+00:00",
+        "source": "reviewer",
+        "level": "info",
+        "message": "Reviewer completed."
+      },
+      {
+        "ts": "2026-05-06T11:46:24.554996+00:00",
+        "source": "devops",
+        "level": "info",
+        "message": "DevOps started."
+      },
+      {
+        "ts": "2026-05-06T11:46:24.594006+00:00",
+        "source": "devops",
+        "level": "info",
+        "message": "DevOps completed."
+      },
+      {
+        "ts": "2026-05-06T11:46:24.599302+00:00",
+        "source": "orchestrator",
+        "level": "info",
+        "message": "Workflow stopped at completed."
+      }
+    ],
+    "recent_checkpoints": [
+      {
+        "role": "backend",
+        "phase": "implementation",
+        "status": "started",
+        "created_at": "2026-05-06T11:46:23.501738+00:00"
+      },
+      {
+        "role": "backend",
+        "phase": "implementation",
+        "status": "completed",
+        "created_at": "2026-05-06T11:46:23.672222+00:00"
+      },
+      {
+        "role": "qa",
+        "phase": "verification",
+        "status": "started",
+        "created_at": "2026-05-06T11:46:23.684254+00:00"
+      },
+      {
+        "role": "qa",
+        "phase": "verification",
+        "status": "completed",
+        "created_at": "2026-05-06T11:46:24.442704+00:00"
+      },
+      {
+        "role": "security-review",
+        "phase": "review",
+        "status": "started",
+        "created_at": "2026-05-06T11:46:24.457892+00:00"
+      },
+      {
+        "role": "security-review",
+        "phase": "review",
+        "status": "completed",
+        "created_at": "2026-05-06T11:46:24.486107+00:00"
+      },
+      {
+        "role": "reviewer",
+        "phase": "review",
+        "status": "started",
+        "created_at": "2026-05-06T11:46:24.496270+00:00"
+      },
+      {
+        "role": "reviewer",
+        "phase": "review",
+        "status": "completed",
+        "created_at": "2026-05-06T11:46:24.540682+00:00"
+      },
+      {
+        "role": "devops",
+        "phase": "approval_required",
+        "status": "started",
+        "created_at": "2026-05-06T11:46:24.553214+00:00"
+      },
+      {
+        "role": "devops",
+        "phase": "approval_required",
+        "status": "completed",
+        "created_at": "2026-05-06T11:46:24.591263+00:00"
+      }
+    ],
+    "open_changes": [],
+    "rerun_guidance": {},
+    "progress_snapshot": {
+      "completed_role_count": 8,
+      "workflow_role_count": 8,
+      "delivery_gate_ok": true,
+      "source_lines": 5689,
+      "source_file_count": 15,
+      "normalized_roles": []
+    }
+  },
+  "files": {
+    "governance-report.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T114643Z-cf2a14\\governance-report.md",
+    "pr-summary.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T114643Z-cf2a14\\pr-summary.md",
+    "approval-brief.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T114643Z-cf2a14\\approval-brief.md",
+    "release-checklist.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T114643Z-cf2a14\\release-checklist.md",
+    "stakeholder-summary.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T114643Z-cf2a14\\stakeholder-summary.md",
+    "delivery-index.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T114643Z-cf2a14\\delivery-index.md",
+    "delivery-pack.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T114643Z-cf2a14\\delivery-pack.json",
+    "pr-packet.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T114643Z-cf2a14\\pr-packet.json",
+    "approval-packet.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T114643Z-cf2a14\\approval-packet.json"
+  }
+}

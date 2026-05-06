@@ -1,0 +1,2592 @@
+{
+  "schema_version": "1.0.0",
+  "kind": "latest-delivery-overview",
+  "export_state": "ready",
+  "history_count": 2,
+  "latest_bundle_id": "20260506T180612Z-2b296d",
+  "latest_bundle_manifest": {
+    "schema_version": "1.0.0",
+    "kind": "delivery-bundle-manifest",
+    "bundle_id": "20260506T180612Z-2b296d",
+    "sequence": 2,
+    "exported_at": "2026-05-06T18:06:12.898195+00:00",
+    "task_id": "a64cd6ba-d60f-47e6-92f0-2fbb3709c909",
+    "template_id": "web-saas",
+    "decision": "HOLD",
+    "status": "completed",
+    "external_status": "blocked",
+    "file_count": 24,
+    "files": {
+      "governance-report.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\governance-report.md",
+      "pr-summary.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\pr-summary.md",
+      "approval-brief.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\approval-brief.md",
+      "release-checklist.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\release-checklist.md",
+      "stakeholder-summary.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\stakeholder-summary.md",
+      "delivery-index.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\delivery-index.md",
+      "delivery-pack.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\delivery-pack.json",
+      "pr-packet.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\pr-packet.json",
+      "approval-packet.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\approval-packet.json",
+      "overview-packet.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\overview-packet.json",
+      "github-pr-mapping.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\github-pr-mapping.json",
+      "approval-request-mapping.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\approval-request-mapping.json",
+      "dashboard-card-mapping.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\dashboard-card-mapping.json",
+      "repository-context.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\repository-context.json",
+      "connector-hooks.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\connector-hooks.json",
+      "task-decomposition-overview.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\task-decomposition-overview.json",
+      "proof-stage-overview.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\proof-stage-overview.json",
+      "task-memory.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\task-memory.json",
+      "productionization-scaffold.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\productionization-scaffold.json",
+      "contract-descriptors.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\contract-descriptors.json",
+      "mapping-descriptors.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\mapping-descriptors.json",
+      "code-metrics.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\code-metrics.json",
+      "implementation-ledger.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\implementation-ledger.json",
+      "repair-history.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\repair-history.json",
+      "bundle-manifest.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\bundle-manifest.json",
+      "latest-delivery-pack.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\latest-delivery-pack.json"
+    },
+    "file_inventory": {
+      "governance-report.md": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\governance-report.md",
+        "size_bytes": 1482,
+        "sha256": "902d6ae2e6d75c433f509ce2ca68ef2a095d459d759cd63339594cf88b665da8",
+        "kind": "md"
+      },
+      "pr-summary.md": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\pr-summary.md",
+        "size_bytes": 1836,
+        "sha256": "4bd33517a4c91bf58915002d5096dc87b066eefebb0d4009b1e547f5a1097843",
+        "kind": "md"
+      },
+      "approval-brief.md": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\approval-brief.md",
+        "size_bytes": 501,
+        "sha256": "598706035d2a0bfbf45c0e200227df92bc35ed65a579c05780fbe80651399cb7",
+        "kind": "md"
+      },
+      "release-checklist.md": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\release-checklist.md",
+        "size_bytes": 473,
+        "sha256": "e50263012626486d4da3ef445459d0eb34e024be807fd8dd2fdcfa6b44b8a95b",
+        "kind": "md"
+      },
+      "stakeholder-summary.md": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\stakeholder-summary.md",
+        "size_bytes": 477,
+        "sha256": "6a01a626fae9270e5ae9804cc7b92dd4e0990513b504b7126e562706dc36641d",
+        "kind": "md"
+      },
+      "delivery-index.md": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\delivery-index.md",
+        "size_bytes": 995,
+        "sha256": "c81940a3bf015641d16ae857ffeb7cf33fb21bdec17baa6cda964d0c4ee77c91",
+        "kind": "md"
+      },
+      "delivery-pack.json": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\delivery-pack.json",
+        "size_bytes": 38853,
+        "sha256": "7eb0de8d5c296410b042d172f26478d77c0d26357aa3ed1b1fcc5e2a384f4aa2",
+        "kind": "json"
+      },
+      "pr-packet.json": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\pr-packet.json",
+        "size_bytes": 7374,
+        "sha256": "43307a33010b61f425d64691af1db6244ae3af7064687b507ee8d22b63c040d0",
+        "kind": "json"
+      },
+      "approval-packet.json": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\approval-packet.json",
+        "size_bytes": 2203,
+        "sha256": "1c179b15111ec55e82f8a5c020ef4c18031f2075aaffa6ae3ac8f09f6402d512",
+        "kind": "json"
+      },
+      "overview-packet.json": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\overview-packet.json",
+        "size_bytes": 10173,
+        "sha256": "5e5a1585f88d1338641bf2bf63869cc269c2d2759383ff456fbd4214754ded9c",
+        "kind": "json"
+      },
+      "github-pr-mapping.json": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\github-pr-mapping.json",
+        "size_bytes": 1607,
+        "sha256": "67b142571875c5c13e727bbe94a222bf86637ee1651512cef4586bbc76f2cf51",
+        "kind": "json"
+      },
+      "approval-request-mapping.json": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\approval-request-mapping.json",
+        "size_bytes": 511,
+        "sha256": "e809d12b57b3633a798f08c69910aa94605384207af7a9b91cf15151e0c2fd17",
+        "kind": "json"
+      },
+      "dashboard-card-mapping.json": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\dashboard-card-mapping.json",
+        "size_bytes": 562,
+        "sha256": "f41f39ebe1468a76d0a8fd03fb77f0ff70593eb5bb7d5fe16cea2141faab6626",
+        "kind": "json"
+      },
+      "repository-context.json": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\repository-context.json",
+        "size_bytes": 732,
+        "sha256": "26b45df2622afe818c4763c95839ba98e26e07bcaed028ea1194ae1aca4c133c",
+        "kind": "json"
+      },
+      "connector-hooks.json": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\connector-hooks.json",
+        "size_bytes": 621,
+        "sha256": "34e06052356b0cddeca284fecb8337f14c3da5ec2117bfca18d4ae3f34d5ecdc",
+        "kind": "json"
+      },
+      "task-decomposition-overview.json": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\task-decomposition-overview.json",
+        "size_bytes": 16012,
+        "sha256": "6199c8552b7b238c1ca0ea13f604555fb8a3308aff8dc2d08ee1159a72e1b8ad",
+        "kind": "json"
+      },
+      "proof-stage-overview.json": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\proof-stage-overview.json",
+        "size_bytes": 2316,
+        "sha256": "908d8b99eb54c78a5c06a9ef4e0da4733e64be85c5988c94b2b955cd35ba683f",
+        "kind": "json"
+      },
+      "task-memory.json": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\task-memory.json",
+        "size_bytes": 4325,
+        "sha256": "467e3b20bb9c314846ef58e612e8652612c36aad103650810efd3874376d7c9c",
+        "kind": "json"
+      },
+      "productionization-scaffold.json": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\productionization-scaffold.json",
+        "size_bytes": 1152,
+        "sha256": "f93bd2b5a67e530d57750e0870d01a7b4f6e232bea542e9593d155c131179d1a",
+        "kind": "json"
+      },
+      "contract-descriptors.json": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\contract-descriptors.json",
+        "size_bytes": 9706,
+        "sha256": "6989baa8aca6abccbb3f59c6065a01afcfbc20ee0ebe4169b0ee71b24daed855",
+        "kind": "json"
+      },
+      "mapping-descriptors.json": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\mapping-descriptors.json",
+        "size_bytes": 1661,
+        "sha256": "9dcea972ecacd49e54e37e2f573c2602c94227a670cb0b356f41e44a47be7559",
+        "kind": "json"
+      },
+      "code-metrics.json": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\code-metrics.json",
+        "size_bytes": 763,
+        "sha256": "efce645c8e07c799b5ecfe9d44f8b097f8ffdeed93c57062a2efab3c5d4af055",
+        "kind": "json"
+      },
+      "implementation-ledger.json": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\implementation-ledger.json",
+        "size_bytes": 24302,
+        "sha256": "4048a2422f9bf0b9029f46ac157d611432b2ec1304b6221237208bf18cf40c55",
+        "kind": "json"
+      },
+      "repair-history.json": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\repair-history.json",
+        "size_bytes": 435,
+        "sha256": "ad351938e6eccbd9f64ab9c5e054bc3bed33000aa2a065a7a2b03984520ffbb8",
+        "kind": "json"
+      }
+    },
+    "repository_context": {
+      "schema_version": "1.0.0",
+      "kind": "repository-context",
+      "repository_present": false,
+      "repository_root": "",
+      "project_root": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d",
+      "branch": "",
+      "working_tree": {
+        "is_dirty": false,
+        "tracked_change_count": 0,
+        "staged_change_count": 0,
+        "unstaged_change_count": 0,
+        "untracked_count": 0
+      },
+      "diff_summary": {
+        "has_tracked_changes": false,
+        "staged_paths": [],
+        "unstaged_paths": [],
+        "untracked_paths": []
+      },
+      "readiness": {
+        "status": "not_repo",
+        "can_prepare_pr": false,
+        "reasons": [
+          "No git repository detected from the current project root."
+        ]
+      }
+    },
+    "connector_hooks": {
+      "schema_version": "1.0.0",
+      "kind": "connector-hooks",
+      "repository_state": "not_repo",
+      "hooks": {
+        "github_pull_request": {
+          "ready": false,
+          "recommended_input_fields": [
+            "title",
+            "body",
+            "labels",
+            "base_branch",
+            "head_branch"
+          ],
+          "requires_human_review": true
+        },
+        "gitlab_merge_request": {
+          "ready": false,
+          "recommended_input_fields": [
+            "title",
+            "description",
+            "labels",
+            "target_branch",
+            "source_branch"
+          ],
+          "requires_human_review": true
+        }
+      }
+    },
+    "productionization_scaffold": {
+      "schema_version": "1.0.0",
+      "kind": "productionization-scaffold",
+      "identity_boundary": {
+        "mode": "single-local-operator",
+        "user_header": "X-Local-User",
+        "default_user": "local-user",
+        "tenant_mode": "single-tenant",
+        "default_tenant": "local-workspace",
+        "future_ready": false
+      },
+      "queue_boundary": {
+        "queue_mode": "in_process",
+        "queue_backend": "in-process",
+        "worker_model": "same-process-thread",
+        "future_ready": false
+      },
+      "sandbox_boundary": {
+        "sandbox_mode": "role-governed-local",
+        "max_shell_seconds": 120,
+        "governed": true,
+        "future_ready": false
+      },
+      "deployment_scaffold": {
+        "deployment_mode": "local-single-user",
+        "deployment_target": "local-dev",
+        "diagnostics_enabled": true,
+        "future_auth_enabled": false
+      },
+      "operational_diagnostics": {
+        "logs_path": "E:\\ProgramProjects\\AI_Agent\\logs",
+        "workspace_root": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects",
+        "db_path": "E:\\ProgramProjects\\AI_Agent\\workspace\\orchestrator.db",
+        "diagnostics_enabled": true,
+        "hosted_execution_ready": false
+      }
+    },
+    "compatibility": {
+      "machine_payload_file": "delivery-pack.json",
+      "pr_packet_file": "pr-packet.json",
+      "approval_packet_file": "approval-packet.json",
+      "overview_packet_file": "overview-packet.json",
+      "github_pr_mapping_file": "github-pr-mapping.json",
+      "approval_request_mapping_file": "approval-request-mapping.json",
+      "dashboard_card_mapping_file": "dashboard-card-mapping.json",
+      "repository_context_file": "repository-context.json",
+      "connector_hooks_file": "connector-hooks.json",
+      "task_decomposition_overview_file": "task-decomposition-overview.json",
+      "proof_stage_overview_file": "proof-stage-overview.json",
+      "task_memory_file": "task-memory.json",
+      "productionization_scaffold_file": "productionization-scaffold.json",
+      "contract_descriptors_file": "contract-descriptors.json",
+      "mapping_descriptors_file": "mapping-descriptors.json",
+      "code_metrics_file": "code-metrics.json",
+      "implementation_ledger_file": "implementation-ledger.json",
+      "repair_history_file": "repair-history.json",
+      "human_index_file": "delivery-index.md",
+      "latest_pointer_file": "latest-delivery-pack.json",
+      "history_file": "delivery-history.json"
+    }
+  },
+  "latest_delivery_pack": {
+    "schema_version": "1.0.0",
+    "kind": "delivery-pack",
+    "consumer": "external-automation",
+    "task": {
+      "id": "a64cd6ba-d60f-47e6-92f0-2fbb3709c909",
+      "title": "Build a medium-sized operations management platform",
+      "status": "completed",
+      "project_name": "medium-ops-suite-final-47b05d",
+      "template_id": "web-saas"
+    },
+    "decision": "HOLD",
+    "external_status": "blocked",
+    "headline": "Current conclusion: task `completed` with blockers in failed validations: artifact_integrity.",
+    "queue_stats": {
+      "manual_review_count": 0,
+      "conflict_count": 0,
+      "blocked_high_risk_count": 0,
+      "failed_validation_count": 1
+    },
+    "stable_fields": {
+      "identity": [
+        "task.id",
+        "task.title",
+        "task.template_id",
+        "decision",
+        "external_status"
+      ],
+      "overview": [
+        "headline",
+        "queue_stats",
+        "blocks.overview",
+        "blocks.workflow",
+        "blocks.risks"
+      ]
+    },
+    "compatibility": {
+      "contract_level": "stable-core",
+      "preferred_fields": [
+        "decision",
+        "external_status",
+        "headline",
+        "queue_stats",
+        "blocks"
+      ]
+    },
+    "repository_context_contract": {
+      "kind": "repository-context",
+      "schema_version": "1.0.0",
+      "contract_level": "stable-core"
+    },
+    "contract": {
+      "kind": "delivery-pack",
+      "schema_version": "1.0.0",
+      "contract_level": "stable-core"
+    },
+    "blocks": {
+      "overview": {
+        "title": "Build a medium-sized operations management platform",
+        "template_id": "web-saas",
+        "decision": "HOLD",
+        "external_status": "blocked",
+        "headline": "Current conclusion: task `completed` with blockers in failed validations: artifact_integrity."
+      },
+      "workflow": {
+        "roles": [
+          "planner",
+          "architect",
+          "frontend",
+          "backend",
+          "qa",
+          "security-review",
+          "reviewer",
+          "devops"
+        ],
+        "parallel_implementation": true,
+        "extra_roles": [
+          "security-review"
+        ]
+      },
+      "risks": {
+        "failed_validations": [
+          "artifact_integrity"
+        ],
+        "validation_findings": {
+          "artifact_integrity": [
+            {
+              "code": "artifact_integrity_missing",
+              "severity": "high",
+              "category": "delivery-drift",
+              "message": "Recorded delivery artifacts are missing from the live project workspace.",
+              "evidence": [
+                "apps/api/models.py",
+                "apps/api/repository.py",
+                "apps/api/services.py",
+                "apps/api/analytics.py",
+                "apps/api/export_tools.py",
+                "apps/api/app.py",
+                "apps/web/index.html",
+                "apps/web/styles.css",
+                "apps/web/catalog.js",
+                "apps/web/components.js",
+                "apps/web/renderer.js",
+                "apps/web/store.js",
+                "apps/web/app.js"
+              ],
+              "suggested_fix": "Re-run the owning role to restore missing deliverables before approving the task state.",
+              "suggested_rerun_role": "frontend"
+            }
+          ]
+        },
+        "manual_reviews": [],
+        "conflicts": [],
+        "high_risk_blocks": []
+      },
+      "repository": {
+        "schema_version": "1.0.0",
+        "kind": "repository-context",
+        "repository_present": false,
+        "repository_root": "",
+        "project_root": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d",
+        "branch": "",
+        "working_tree": {
+          "is_dirty": false,
+          "tracked_change_count": 0,
+          "staged_change_count": 0,
+          "unstaged_change_count": 0,
+          "untracked_count": 0
+        },
+        "diff_summary": {
+          "has_tracked_changes": false,
+          "staged_paths": [],
+          "unstaged_paths": [],
+          "untracked_paths": []
+        },
+        "readiness": {
+          "status": "not_repo",
+          "can_prepare_pr": false,
+          "reasons": [
+            "No git repository detected from the current project root."
+          ]
+        }
+      },
+      "delivery_readiness": {
+        "pr_ready_summary": "Repository branch `-` is not PR-ready: No git repository detected from the current project root.",
+        "connector_hooks": {
+          "schema_version": "1.0.0",
+          "kind": "connector-hooks",
+          "repository_state": "not_repo",
+          "hooks": {
+            "github_pull_request": {
+              "ready": false,
+              "recommended_input_fields": [
+                "title",
+                "body",
+                "labels",
+                "base_branch",
+                "head_branch"
+              ],
+              "requires_human_review": true
+            },
+            "gitlab_merge_request": {
+              "ready": false,
+              "recommended_input_fields": [
+                "title",
+                "description",
+                "labels",
+                "target_branch",
+                "source_branch"
+              ],
+              "requires_human_review": true
+            }
+          }
+        }
+      },
+      "decomposition": {
+        "schema_version": "1.0.0",
+        "kind": "task-decomposition-overview",
+        "contract": {
+          "kind": "task-decomposition-overview",
+          "schema_version": "1.0.0",
+          "contract_level": "stable-core"
+        },
+        "task": {
+          "id": "a64cd6ba-d60f-47e6-92f0-2fbb3709c909",
+          "title": "Build a medium-sized operations management platform",
+          "template_id": "web-saas"
+        },
+        "subsystem_count": 6,
+        "work_package_count": 11,
+        "subsystem_slices": [
+          {
+            "id": "ss-01",
+            "name": "tenant-and-identity",
+            "summary": "Bounded subsystem for `tenant-and-identity` inside the governed delivery plan.",
+            "primary_role": "backend",
+            "partition": "backend",
+            "owned_surfaces": [
+              "apps/api",
+              "docs/api-contract.md"
+            ],
+            "dependencies": [],
+            "tags": [
+              "backend",
+              "backend"
+            ]
+          },
+          {
+            "id": "ss-02",
+            "name": "web-dashboard",
+            "summary": "Bounded subsystem for `web-dashboard` inside the governed delivery plan.",
+            "primary_role": "frontend",
+            "partition": "frontend",
+            "owned_surfaces": [
+              "apps/web",
+              "docs/ui-notes.md"
+            ],
+            "dependencies": [
+              "ss-01"
+            ],
+            "tags": [
+              "frontend",
+              "frontend"
+            ]
+          },
+          {
+            "id": "ss-03",
+            "name": "billing-and-subscriptions",
+            "summary": "Bounded subsystem for `billing-and-subscriptions` inside the governed delivery plan.",
+            "primary_role": "backend",
+            "partition": "backend",
+            "owned_surfaces": [
+              "apps/api",
+              "docs/api-contract.md"
+            ],
+            "dependencies": [
+              "ss-02"
+            ],
+            "tags": [
+              "backend",
+              "backend"
+            ]
+          },
+          {
+            "id": "ss-04",
+            "name": "application-api",
+            "summary": "Bounded subsystem for `application-api` inside the governed delivery plan.",
+            "primary_role": "backend",
+            "partition": "backend",
+            "owned_surfaces": [
+              "apps/api",
+              "docs/api-contract.md"
+            ],
+            "dependencies": [
+              "ss-03"
+            ],
+            "tags": [
+              "backend",
+              "backend"
+            ]
+          },
+          {
+            "id": "ss-05",
+            "name": "audit-and-observability",
+            "summary": "Bounded subsystem for `audit-and-observability` inside the governed delivery plan.",
+            "primary_role": "devops",
+            "partition": "integration",
+            "owned_surfaces": [
+              "docs/integration.md",
+              "infra",
+              "apps/api",
+              "apps/web"
+            ],
+            "dependencies": [
+              "ss-04"
+            ],
+            "tags": [
+              "integration",
+              "devops"
+            ]
+          },
+          {
+            "id": "ss-06",
+            "name": "test-and-release-pipeline",
+            "summary": "Bounded subsystem for `test-and-release-pipeline` inside the governed delivery plan.",
+            "primary_role": "devops",
+            "partition": "integration",
+            "owned_surfaces": [
+              "docs/integration.md",
+              "infra",
+              "apps/api",
+              "apps/web"
+            ],
+            "dependencies": [
+              "ss-05"
+            ],
+            "tags": [
+              "integration",
+              "devops"
+            ]
+          }
+        ],
+        "work_packages": [
+          {
+            "id": "wp-plan",
+            "title": "Repository and requirement decomposition",
+            "owner": "planner",
+            "phase": "planning",
+            "scope": "docs/",
+            "goal": "Turn the original request into bounded subsystem and execution packages.",
+            "partition": "planning",
+            "subsystem_ids": [
+              "ss-01",
+              "ss-02",
+              "ss-03",
+              "ss-04",
+              "ss-05",
+              "ss-06"
+            ],
+            "dependencies": [],
+            "outputs": [
+              "docs/plan.md",
+              "docs/backlog.md",
+              "docs/work-packages.md"
+            ],
+            "definition_of_done": [
+              "Subsystem slices are named",
+              "Execution package boundaries are explicit",
+              "Traceability from request to package exists"
+            ],
+            "parallel_group": ""
+          },
+          {
+            "id": "wp-arch",
+            "title": "Cross-subsystem architecture baseline",
+            "owner": "architect",
+            "phase": "architecture",
+            "scope": "docs/ and shared contracts",
+            "goal": "Define the architecture and interface boundaries that govern all subsystem slices.",
+            "partition": "architecture",
+            "subsystem_ids": [
+              "ss-01",
+              "ss-02",
+              "ss-03",
+              "ss-04",
+              "ss-05",
+              "ss-06"
+            ],
+            "dependencies": [
+              "wp-plan"
+            ],
+            "outputs": [
+              "docs/architecture.md",
+              "docs/api-contract.md",
+              "docs/subsystems.md"
+            ],
+            "definition_of_done": [
+              "Subsystem boundaries are documented",
+              "Ownership and dependency edges are explicit",
+              "Shared contracts are described"
+            ],
+            "parallel_group": ""
+          },
+          {
+            "id": "wp-ss-01",
+            "title": "Implement tenant-and-identity",
+            "owner": "backend",
+            "phase": "implementation",
+            "scope": "apps/api, docs/api-contract.md",
+            "goal": "Deliver the bounded `tenant-and-identity` subsystem without crossing governed ownership boundaries.",
+            "partition": "backend",
+            "subsystem_ids": [
+              "ss-01"
+            ],
+            "dependencies": [
+              "wp-arch"
+            ],
+            "outputs": [
+              "apps/api",
+              "docs/api-contract.md"
+            ],
+            "definition_of_done": [
+              "tenant-and-identity artifacts exist in owned surfaces",
+              "Dependencies on previous subsystems are documented",
+              "Package remains traceable to the original request"
+            ],
+            "parallel_group": "implementation"
+          },
+          {
+            "id": "wp-ss-02",
+            "title": "Implement web-dashboard",
+            "owner": "frontend",
+            "phase": "implementation",
+            "scope": "apps/web, docs/ui-notes.md",
+            "goal": "Deliver the bounded `web-dashboard` subsystem without crossing governed ownership boundaries.",
+            "partition": "frontend",
+            "subsystem_ids": [
+              "ss-02"
+            ],
+            "dependencies": [
+              "wp-arch",
+              "wp-ss-01"
+            ],
+            "outputs": [
+              "apps/web",
+              "docs/ui-notes.md"
+            ],
+            "definition_of_done": [
+              "web-dashboard artifacts exist in owned surfaces",
+              "Dependencies on previous subsystems are documented",
+              "Package remains traceable to the original request"
+            ],
+            "parallel_group": "implementation"
+          },
+          {
+            "id": "wp-ss-03",
+            "title": "Implement billing-and-subscriptions",
+            "owner": "backend",
+            "phase": "implementation",
+            "scope": "apps/api, docs/api-contract.md",
+            "goal": "Deliver the bounded `billing-and-subscriptions` subsystem without crossing governed ownership boundaries.",
+            "partition": "backend",
+            "subsystem_ids": [
+              "ss-03"
+            ],
+            "dependencies": [
+              "wp-arch",
+              "wp-ss-02"
+            ],
+            "outputs": [
+              "apps/api",
+              "docs/api-contract.md"
+            ],
+            "definition_of_done": [
+              "billing-and-subscriptions artifacts exist in owned surfaces",
+              "Dependencies on previous subsystems are documented",
+              "Package remains traceable to the original request"
+            ],
+            "parallel_group": "implementation"
+          },
+          {
+            "id": "wp-ss-04",
+            "title": "Implement application-api",
+            "owner": "backend",
+            "phase": "implementation",
+            "scope": "apps/api, docs/api-contract.md",
+            "goal": "Deliver the bounded `application-api` subsystem without crossing governed ownership boundaries.",
+            "partition": "backend",
+            "subsystem_ids": [
+              "ss-04"
+            ],
+            "dependencies": [
+              "wp-arch",
+              "wp-ss-03"
+            ],
+            "outputs": [
+              "apps/api",
+              "docs/api-contract.md"
+            ],
+            "definition_of_done": [
+              "application-api artifacts exist in owned surfaces",
+              "Dependencies on previous subsystems are documented",
+              "Package remains traceable to the original request"
+            ],
+            "parallel_group": "implementation"
+          },
+          {
+            "id": "wp-ss-05",
+            "title": "Implement audit-and-observability",
+            "owner": "devops",
+            "phase": "approval_required",
+            "scope": "docs/integration.md, infra, apps/api, apps/web",
+            "goal": "Deliver the bounded `audit-and-observability` subsystem without crossing governed ownership boundaries.",
+            "partition": "integration",
+            "subsystem_ids": [
+              "ss-05"
+            ],
+            "dependencies": [
+              "wp-arch",
+              "wp-ss-04"
+            ],
+            "outputs": [
+              "docs/integration.md",
+              "infra",
+              "apps/api",
+              "apps/web"
+            ],
+            "definition_of_done": [
+              "audit-and-observability artifacts exist in owned surfaces",
+              "Dependencies on previous subsystems are documented",
+              "Package remains traceable to the original request"
+            ],
+            "parallel_group": ""
+          },
+          {
+            "id": "wp-ss-06",
+            "title": "Implement test-and-release-pipeline",
+            "owner": "devops",
+            "phase": "approval_required",
+            "scope": "docs/integration.md, infra, apps/api, apps/web",
+            "goal": "Deliver the bounded `test-and-release-pipeline` subsystem without crossing governed ownership boundaries.",
+            "partition": "integration",
+            "subsystem_ids": [
+              "ss-06"
+            ],
+            "dependencies": [
+              "wp-arch",
+              "wp-ss-05"
+            ],
+            "outputs": [
+              "docs/integration.md",
+              "infra",
+              "apps/api",
+              "apps/web"
+            ],
+            "definition_of_done": [
+              "test-and-release-pipeline artifacts exist in owned surfaces",
+              "Dependencies on previous subsystems are documented",
+              "Package remains traceable to the original request"
+            ],
+            "parallel_group": ""
+          },
+          {
+            "id": "wp-verify",
+            "title": "Cross-package verification",
+            "owner": "qa",
+            "phase": "verification",
+            "scope": "tests",
+            "goal": "Validate subsystem interactions and preserve evidence across the full package set.",
+            "partition": "verification",
+            "subsystem_ids": [
+              "ss-01",
+              "ss-02",
+              "ss-03",
+              "ss-04",
+              "ss-05",
+              "ss-06"
+            ],
+            "dependencies": [
+              "wp-arch",
+              "wp-ss-01",
+              "wp-ss-02",
+              "wp-ss-03",
+              "wp-ss-04",
+              "wp-ss-05",
+              "wp-ss-06"
+            ],
+            "outputs": [
+              "tests/qa-report.md",
+              "tests/package-verification.md"
+            ],
+            "definition_of_done": [
+              "QA evidence covers multiple work packages",
+              "Integration risks are preserved",
+              "Open gaps remain visible"
+            ],
+            "parallel_group": ""
+          },
+          {
+            "id": "wp-review",
+            "title": "Cross-package technical review",
+            "owner": "reviewer",
+            "phase": "review",
+            "scope": "docs/review.md",
+            "goal": "Review the full decomposition outcome and capture residual risk by subsystem and package.",
+            "partition": "review",
+            "subsystem_ids": [
+              "ss-01",
+              "ss-02",
+              "ss-03",
+              "ss-04",
+              "ss-05",
+              "ss-06"
+            ],
+            "dependencies": [
+              "wp-verify"
+            ],
+            "outputs": [
+              "docs/review.md",
+              "docs/package-review.md"
+            ],
+            "definition_of_done": [
+              "Findings mention package boundaries",
+              "Residual risks mention subsystem ownership",
+              "Follow-up items are package-aware"
+            ],
+            "parallel_group": ""
+          },
+          {
+            "id": "wp-delivery",
+            "title": "Delivery bundle preparation",
+            "owner": "devops",
+            "phase": "approval_required",
+            "scope": "infra and reports",
+            "goal": "Prepare governed delivery outputs that preserve decomposition metadata for downstream systems.",
+            "partition": "delivery",
+            "subsystem_ids": [
+              "ss-01",
+              "ss-02",
+              "ss-03",
+              "ss-04",
+              "ss-05",
+              "ss-06"
+            ],
+            "dependencies": [
+              "wp-review"
+            ],
+            "outputs": [
+              "infra/",
+              "reports/",
+              ".env.example"
+            ],
+            "definition_of_done": [
+              "Delivery outputs include decomposition metadata",
+              "Human approval gate remains intact",
+              "Bundle can be inspected package by package"
+            ],
+            "parallel_group": ""
+          }
+        ],
+        "partitions": {
+          "planning": [],
+          "architecture": [],
+          "frontend": [
+            "ss-02"
+          ],
+          "backend": [
+            "ss-01",
+            "ss-03",
+            "ss-04"
+          ],
+          "domain": [],
+          "integration": [
+            "ss-05",
+            "ss-06"
+          ],
+          "verification": [],
+          "review": [],
+          "delivery": []
+        },
+        "ownership": {
+          "ss-01": {
+            "primary_role": "backend",
+            "owned_surfaces": [
+              "apps/api",
+              "docs/api-contract.md"
+            ]
+          },
+          "ss-02": {
+            "primary_role": "frontend",
+            "owned_surfaces": [
+              "apps/web",
+              "docs/ui-notes.md"
+            ]
+          },
+          "ss-03": {
+            "primary_role": "backend",
+            "owned_surfaces": [
+              "apps/api",
+              "docs/api-contract.md"
+            ]
+          },
+          "ss-04": {
+            "primary_role": "backend",
+            "owned_surfaces": [
+              "apps/api",
+              "docs/api-contract.md"
+            ]
+          },
+          "ss-05": {
+            "primary_role": "devops",
+            "owned_surfaces": [
+              "docs/integration.md",
+              "infra",
+              "apps/api",
+              "apps/web"
+            ]
+          },
+          "ss-06": {
+            "primary_role": "devops",
+            "owned_surfaces": [
+              "docs/integration.md",
+              "infra",
+              "apps/api",
+              "apps/web"
+            ]
+          }
+        },
+        "traceability": {
+          "request": {
+            "title": "Build a medium-sized operations management platform",
+            "description": "Build a medium-sized local-first operations management platform with a few thousand lines of real code. Include a browser dashboard, a Python backend service, domain modules for tenants, users, projects, tasks, approvals, audit events, analytics, import/export, and local tests. Prefer standard-library Python and browser JavaScript so it runs without network dependency. The implementation must materialize meaningful source files, not just docs or config, and should target roughly 3000 to 5000 source lines across apps, tests, and infra."
+          },
+          "subsystem_order": [
+            "ss-01",
+            "ss-02",
+            "ss-03",
+            "ss-04",
+            "ss-05",
+            "ss-06"
+          ],
+          "package_order": [
+            "wp-plan",
+            "wp-arch",
+            "wp-ss-01",
+            "wp-ss-02",
+            "wp-ss-03",
+            "wp-ss-04",
+            "wp-ss-05",
+            "wp-ss-06",
+            "wp-verify",
+            "wp-review",
+            "wp-delivery"
+          ],
+          "package_to_subsystems": {
+            "wp-plan": [
+              "ss-01",
+              "ss-02",
+              "ss-03",
+              "ss-04",
+              "ss-05",
+              "ss-06"
+            ],
+            "wp-arch": [
+              "ss-01",
+              "ss-02",
+              "ss-03",
+              "ss-04",
+              "ss-05",
+              "ss-06"
+            ],
+            "wp-ss-01": [
+              "ss-01"
+            ],
+            "wp-ss-02": [
+              "ss-02"
+            ],
+            "wp-ss-03": [
+              "ss-03"
+            ],
+            "wp-ss-04": [
+              "ss-04"
+            ],
+            "wp-ss-05": [
+              "ss-05"
+            ],
+            "wp-ss-06": [
+              "ss-06"
+            ],
+            "wp-verify": [
+              "ss-01",
+              "ss-02",
+              "ss-03",
+              "ss-04",
+              "ss-05",
+              "ss-06"
+            ],
+            "wp-review": [
+              "ss-01",
+              "ss-02",
+              "ss-03",
+              "ss-04",
+              "ss-05",
+              "ss-06"
+            ],
+            "wp-delivery": [
+              "ss-01",
+              "ss-02",
+              "ss-03",
+              "ss-04",
+              "ss-05",
+              "ss-06"
+            ]
+          }
+        }
+      },
+      "proof_stages": {
+        "schema_version": "1.0.0",
+        "kind": "proof-stage-overview",
+        "contract": {
+          "kind": "proof-stage-overview",
+          "schema_version": "1.0.0",
+          "contract_level": "stable-core"
+        },
+        "task": {
+          "id": "a64cd6ba-d60f-47e6-92f0-2fbb3709c909",
+          "title": "Build a medium-sized operations management platform",
+          "template_id": "web-saas"
+        },
+        "proof_stage_count": 4,
+        "proof_stages": [
+          {
+            "id": "proof-01",
+            "title": "Real planner and architect compatibility",
+            "success_signal": "Planner and architect complete under real-model execution with valid governed artifacts.",
+            "evidence_targets": [
+              "docs/plan.md",
+              "docs/architecture.md",
+              "docs/api-contract.md"
+            ],
+            "status": "proven",
+            "matched_evidence_targets": [
+              "docs/plan.md",
+              "docs/architecture.md",
+              "docs/api-contract.md"
+            ]
+          },
+          {
+            "id": "proof-02",
+            "title": "Bounded package implementation proof",
+            "success_signal": "At least one bounded implementation package completes with governed artifacts and validation.",
+            "evidence_targets": [
+              "apps/web",
+              "apps/api",
+              "tests/qa-report.md"
+            ],
+            "status": "planned",
+            "matched_evidence_targets": [
+              "tests/qa-report.md"
+            ]
+          },
+          {
+            "id": "proof-03",
+            "title": "Multi-package verification proof",
+            "success_signal": "Cross-package QA and review evidence complete without collapsing the workflow.",
+            "evidence_targets": [
+              "tests/package-verification.md",
+              "docs/review.md",
+              "docs/package-review.md"
+            ],
+            "status": "proven",
+            "matched_evidence_targets": [
+              "tests/package-verification.md",
+              "docs/review.md",
+              "docs/package-review.md"
+            ]
+          },
+          {
+            "id": "proof-04",
+            "title": "Large-system delivery proof",
+            "success_signal": "Delivery artifacts, memory, decomposition, and approval state are exported for the large-system task.",
+            "evidence_targets": [
+              "reports/",
+              "infra/",
+              "task-memory.json"
+            ],
+            "status": "planned",
+            "matched_evidence_targets": [
+              "reports/",
+              "infra/"
+            ]
+          }
+        ]
+      },
+      "rerun_guidance": {
+        "artifact_integrity": {
+          "recommended_from_role": "frontend",
+          "reason": "Recorded delivery artifacts are missing from the live project workspace.",
+          "repairable": true
+        }
+      }
+    },
+    "repository_context": {
+      "schema_version": "1.0.0",
+      "kind": "repository-context",
+      "repository_present": false,
+      "repository_root": "",
+      "project_root": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d",
+      "branch": "",
+      "working_tree": {
+        "is_dirty": false,
+        "tracked_change_count": 0,
+        "staged_change_count": 0,
+        "unstaged_change_count": 0,
+        "untracked_count": 0
+      },
+      "diff_summary": {
+        "has_tracked_changes": false,
+        "staged_paths": [],
+        "unstaged_paths": [],
+        "untracked_paths": []
+      },
+      "readiness": {
+        "status": "not_repo",
+        "can_prepare_pr": false,
+        "reasons": [
+          "No git repository detected from the current project root."
+        ]
+      }
+    },
+    "connector_hooks": {
+      "schema_version": "1.0.0",
+      "kind": "connector-hooks",
+      "repository_state": "not_repo",
+      "hooks": {
+        "github_pull_request": {
+          "ready": false,
+          "recommended_input_fields": [
+            "title",
+            "body",
+            "labels",
+            "base_branch",
+            "head_branch"
+          ],
+          "requires_human_review": true
+        },
+        "gitlab_merge_request": {
+          "ready": false,
+          "recommended_input_fields": [
+            "title",
+            "description",
+            "labels",
+            "target_branch",
+            "source_branch"
+          ],
+          "requires_human_review": true
+        }
+      }
+    },
+    "export": {
+      "format": "machine-readable",
+      "producer": "multi-agent-dev-orchestrator"
+    },
+    "summary": {
+      "template_id": "web-saas",
+      "task_mode": "delivery",
+      "workflow": [
+        "planner",
+        "architect",
+        "frontend",
+        "backend",
+        "qa",
+        "security-review",
+        "reviewer",
+        "devops"
+      ],
+      "approval_profile": {
+        "app_code": "auto_apply",
+        "infra": "auto_apply"
+      },
+      "budget": {
+        "role_runs": 56,
+        "llm_calls": 120,
+        "conflicts": 16,
+        "resumes": 16,
+        "failures": 20,
+        "consumed_role_runs": 10,
+        "consumed_llm_calls": 0,
+        "consumed_conflicts": 0,
+        "consumed_resumes": 0,
+        "consumed_failures": 0
+      },
+      "requires_human_approval": false,
+      "parallel_implementation": true,
+      "role_overrides": {
+        "frontend": {
+          "prompt_suffix": "Prioritize dashboard clarity, multi-tenant UX consistency, and operator visibility."
+        },
+        "reviewer": {
+          "prompt_suffix": "Pay extra attention to tenancy boundaries, admin misuse, and billing-adjacent risk."
+        }
+      },
+      "extra_roles": [
+        "security-review"
+      ],
+      "validation_profile": {
+        "required_keywords_by_role": {
+          "security-review": [
+            "tenant",
+            "auth",
+            "audit"
+          ],
+          "reviewer": [
+            "risk"
+          ]
+        }
+      },
+      "checkpoint_roles": [
+        "planner",
+        "planner",
+        "architect",
+        "architect",
+        "backend",
+        "backend",
+        "frontend",
+        "frontend",
+        "backend",
+        "backend",
+        "backend",
+        "backend",
+        "qa",
+        "qa",
+        "security-review",
+        "security-review",
+        "reviewer",
+        "reviewer",
+        "devops",
+        "devops"
+      ],
+      "failed_validations": [
+        "artifact_integrity"
+      ],
+      "validation_findings": {
+        "artifact_integrity": [
+          {
+            "code": "artifact_integrity_missing",
+            "severity": "high",
+            "category": "delivery-drift",
+            "message": "Recorded delivery artifacts are missing from the live project workspace.",
+            "evidence": [
+              "apps/api/models.py",
+              "apps/api/repository.py",
+              "apps/api/services.py",
+              "apps/api/analytics.py",
+              "apps/api/export_tools.py",
+              "apps/api/app.py",
+              "apps/web/index.html",
+              "apps/web/styles.css",
+              "apps/web/catalog.js",
+              "apps/web/components.js",
+              "apps/web/renderer.js",
+              "apps/web/store.js",
+              "apps/web/app.js"
+            ],
+            "suggested_fix": "Re-run the owning role to restore missing deliverables before approving the task state.",
+            "suggested_rerun_role": "frontend"
+          }
+        ]
+      },
+      "rerun_guidance": {
+        "artifact_integrity": {
+          "recommended_from_role": "frontend",
+          "reason": "Recorded delivery artifacts are missing from the live project workspace.",
+          "repairable": true
+        }
+      },
+      "conflict_count": 0,
+      "manual_review_count": 0,
+      "blocked_high_risk_count": 0,
+      "conflicts": [],
+      "manual_reviews": [],
+      "blocked_high_risk": [],
+      "completed_roles": [
+        "planner",
+        "architect",
+        "frontend",
+        "backend",
+        "qa",
+        "security-review",
+        "reviewer",
+        "devops"
+      ],
+      "completed_role_count": 8,
+      "workflow_role_count": 8,
+      "large_task_metrics": {
+        "is_large_scale_task": false,
+        "delivery_gate_ok": true,
+        "delivery_gate_present": false,
+        "delivery_gate_findings": [],
+        "source_lines": 52,
+        "source_file_count": 2,
+        "coverage_areas": [
+          "infra",
+          "tests"
+        ],
+        "contentful_files": [
+          "tests/test_operations_platform.py"
+        ],
+        "module_target_count": 6,
+        "subsystem_target_count": 6,
+        "work_package_target_count": 11,
+        "implemented_role_count": 2,
+        "normalized_roles": [],
+        "has_normalized_outputs": false,
+        "artifact_counts_by_role": {
+          "planner": 3,
+          "architect": 3,
+          "backend": 6,
+          "frontend": 7,
+          "qa": 3,
+          "security-review": 1,
+          "reviewer": 2,
+          "devops": 2
+        },
+        "empty_artifact_roles": []
+      },
+      "artifact_integrity": {
+        "status": "missing",
+        "expected_artifact_count": 27,
+        "existing_artifact_count": 14,
+        "missing_artifact_count": 13,
+        "missing_artifacts": [
+          "apps/api/models.py",
+          "apps/api/repository.py",
+          "apps/api/services.py",
+          "apps/api/analytics.py",
+          "apps/api/export_tools.py",
+          "apps/api/app.py",
+          "apps/web/index.html",
+          "apps/web/styles.css",
+          "apps/web/catalog.js",
+          "apps/web/components.js",
+          "apps/web/renderer.js",
+          "apps/web/store.js",
+          "apps/web/app.js"
+        ],
+        "recommended_rerun_role": "frontend"
+      }
+    },
+    "memory": {
+      "schema_version": "1.0.0",
+      "kind": "task-memory",
+      "task_id": "a64cd6ba-d60f-47e6-92f0-2fbb3709c909",
+      "project_name": "medium-ops-suite-final-47b05d",
+      "current_known_state": {
+        "status": "completed",
+        "latest_completed_role": "devops",
+        "failed_roles": [
+          "artifact_integrity"
+        ],
+        "open_change_count": 0,
+        "artifacts_count": 39,
+        "large_scale_task": false,
+        "delivery_gate_ok": true,
+        "artifact_integrity_status": "missing",
+        "missing_artifact_count": 13
+      },
+      "continuation": {
+        "recommended_resume_role": "frontend",
+        "reason": "Recorded delivery artifacts are missing from the live project workspace."
+      },
+      "recent_events": [
+        {
+          "ts": "2026-05-06T12:34:21.582265+00:00",
+          "source": "system",
+          "level": "info",
+          "message": "Existing project opened from dashboard."
+        },
+        {
+          "ts": "2026-05-06T12:35:20.144631+00:00",
+          "source": "system",
+          "level": "info",
+          "message": "Project path already registered; existing task reused."
+        },
+        {
+          "ts": "2026-05-06T12:36:39.778014+00:00",
+          "source": "system",
+          "level": "info",
+          "message": "Project path already registered; existing task reused."
+        },
+        {
+          "ts": "2026-05-06T14:10:11.362680+00:00",
+          "source": "implementation-plan",
+          "level": "info",
+          "message": "Implementation plan materialized."
+        },
+        {
+          "ts": "2026-05-06T14:12:59.588821+00:00",
+          "source": "implementation-plan",
+          "level": "info",
+          "message": "Implementation plan materialized."
+        },
+        {
+          "ts": "2026-05-06T14:13:03.042411+00:00",
+          "source": "implementation-plan",
+          "level": "info",
+          "message": "Implementation plan materialized."
+        },
+        {
+          "ts": "2026-05-06T14:13:06.345275+00:00",
+          "source": "implementation-plan",
+          "level": "info",
+          "message": "Implementation plan materialized."
+        },
+        {
+          "ts": "2026-05-06T14:13:12.019338+00:00",
+          "source": "implementation-plan",
+          "level": "info",
+          "message": "Implementation plan materialized."
+        }
+      ],
+      "recent_checkpoints": [
+        {
+          "role": "backend",
+          "phase": "implementation",
+          "status": "started",
+          "created_at": "2026-05-06T11:46:23.501738+00:00"
+        },
+        {
+          "role": "backend",
+          "phase": "implementation",
+          "status": "completed",
+          "created_at": "2026-05-06T11:46:23.672222+00:00"
+        },
+        {
+          "role": "qa",
+          "phase": "verification",
+          "status": "started",
+          "created_at": "2026-05-06T11:46:23.684254+00:00"
+        },
+        {
+          "role": "qa",
+          "phase": "verification",
+          "status": "completed",
+          "created_at": "2026-05-06T11:46:24.442704+00:00"
+        },
+        {
+          "role": "security-review",
+          "phase": "review",
+          "status": "started",
+          "created_at": "2026-05-06T11:46:24.457892+00:00"
+        },
+        {
+          "role": "security-review",
+          "phase": "review",
+          "status": "completed",
+          "created_at": "2026-05-06T11:46:24.486107+00:00"
+        },
+        {
+          "role": "reviewer",
+          "phase": "review",
+          "status": "started",
+          "created_at": "2026-05-06T11:46:24.496270+00:00"
+        },
+        {
+          "role": "reviewer",
+          "phase": "review",
+          "status": "completed",
+          "created_at": "2026-05-06T11:46:24.540682+00:00"
+        },
+        {
+          "role": "devops",
+          "phase": "approval_required",
+          "status": "started",
+          "created_at": "2026-05-06T11:46:24.553214+00:00"
+        },
+        {
+          "role": "devops",
+          "phase": "approval_required",
+          "status": "completed",
+          "created_at": "2026-05-06T11:46:24.591263+00:00"
+        }
+      ],
+      "open_changes": [],
+      "rerun_guidance": {
+        "artifact_integrity": {
+          "recommended_from_role": "frontend",
+          "reason": "Recorded delivery artifacts are missing from the live project workspace.",
+          "repairable": true
+        }
+      },
+      "progress_snapshot": {
+        "completed_role_count": 8,
+        "workflow_role_count": 8,
+        "delivery_gate_ok": true,
+        "source_lines": 52,
+        "source_file_count": 2,
+        "normalized_roles": [],
+        "artifact_integrity_status": "missing",
+        "missing_artifact_count": 13
+      }
+    },
+    "files": {
+      "governance-report.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\governance-report.md",
+      "pr-summary.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\pr-summary.md",
+      "approval-brief.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\approval-brief.md",
+      "release-checklist.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\release-checklist.md",
+      "stakeholder-summary.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\stakeholder-summary.md",
+      "delivery-index.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\delivery-index.md"
+    },
+    "manifest": {
+      "schema_version": "1.0.0",
+      "kind": "delivery-bundle-manifest",
+      "bundle_id": "20260506T180612Z-2b296d",
+      "sequence": 2,
+      "exported_at": "2026-05-06T18:06:12.898195+00:00",
+      "task_id": "a64cd6ba-d60f-47e6-92f0-2fbb3709c909",
+      "template_id": "web-saas",
+      "decision": "HOLD",
+      "status": "completed",
+      "external_status": "blocked",
+      "file_count": 24,
+      "files": {
+        "governance-report.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\governance-report.md",
+        "pr-summary.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\pr-summary.md",
+        "approval-brief.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\approval-brief.md",
+        "release-checklist.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\release-checklist.md",
+        "stakeholder-summary.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\stakeholder-summary.md",
+        "delivery-index.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\delivery-index.md",
+        "delivery-pack.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\delivery-pack.json",
+        "pr-packet.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\pr-packet.json",
+        "approval-packet.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\approval-packet.json",
+        "overview-packet.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\overview-packet.json",
+        "github-pr-mapping.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\github-pr-mapping.json",
+        "approval-request-mapping.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\approval-request-mapping.json",
+        "dashboard-card-mapping.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\dashboard-card-mapping.json",
+        "repository-context.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\repository-context.json",
+        "connector-hooks.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\connector-hooks.json",
+        "task-decomposition-overview.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\task-decomposition-overview.json",
+        "proof-stage-overview.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\proof-stage-overview.json",
+        "task-memory.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\task-memory.json",
+        "productionization-scaffold.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\productionization-scaffold.json",
+        "contract-descriptors.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\contract-descriptors.json",
+        "mapping-descriptors.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\mapping-descriptors.json",
+        "code-metrics.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\code-metrics.json",
+        "implementation-ledger.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\implementation-ledger.json",
+        "repair-history.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\repair-history.json",
+        "bundle-manifest.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\bundle-manifest.json",
+        "latest-delivery-pack.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\latest-delivery-pack.json"
+      },
+      "file_inventory": {
+        "governance-report.md": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\governance-report.md",
+          "size_bytes": 1482,
+          "sha256": "902d6ae2e6d75c433f509ce2ca68ef2a095d459d759cd63339594cf88b665da8",
+          "kind": "md"
+        },
+        "pr-summary.md": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\pr-summary.md",
+          "size_bytes": 1836,
+          "sha256": "4bd33517a4c91bf58915002d5096dc87b066eefebb0d4009b1e547f5a1097843",
+          "kind": "md"
+        },
+        "approval-brief.md": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\approval-brief.md",
+          "size_bytes": 501,
+          "sha256": "598706035d2a0bfbf45c0e200227df92bc35ed65a579c05780fbe80651399cb7",
+          "kind": "md"
+        },
+        "release-checklist.md": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\release-checklist.md",
+          "size_bytes": 473,
+          "sha256": "e50263012626486d4da3ef445459d0eb34e024be807fd8dd2fdcfa6b44b8a95b",
+          "kind": "md"
+        },
+        "stakeholder-summary.md": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\stakeholder-summary.md",
+          "size_bytes": 477,
+          "sha256": "6a01a626fae9270e5ae9804cc7b92dd4e0990513b504b7126e562706dc36641d",
+          "kind": "md"
+        },
+        "delivery-index.md": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\delivery-index.md",
+          "size_bytes": 995,
+          "sha256": "c81940a3bf015641d16ae857ffeb7cf33fb21bdec17baa6cda964d0c4ee77c91",
+          "kind": "md"
+        },
+        "delivery-pack.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\delivery-pack.json",
+          "size_bytes": 38853,
+          "sha256": "7eb0de8d5c296410b042d172f26478d77c0d26357aa3ed1b1fcc5e2a384f4aa2",
+          "kind": "json"
+        },
+        "pr-packet.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\pr-packet.json",
+          "size_bytes": 7374,
+          "sha256": "43307a33010b61f425d64691af1db6244ae3af7064687b507ee8d22b63c040d0",
+          "kind": "json"
+        },
+        "approval-packet.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\approval-packet.json",
+          "size_bytes": 2203,
+          "sha256": "1c179b15111ec55e82f8a5c020ef4c18031f2075aaffa6ae3ac8f09f6402d512",
+          "kind": "json"
+        },
+        "overview-packet.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\overview-packet.json",
+          "size_bytes": 10173,
+          "sha256": "5e5a1585f88d1338641bf2bf63869cc269c2d2759383ff456fbd4214754ded9c",
+          "kind": "json"
+        },
+        "github-pr-mapping.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\github-pr-mapping.json",
+          "size_bytes": 1607,
+          "sha256": "67b142571875c5c13e727bbe94a222bf86637ee1651512cef4586bbc76f2cf51",
+          "kind": "json"
+        },
+        "approval-request-mapping.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\approval-request-mapping.json",
+          "size_bytes": 511,
+          "sha256": "e809d12b57b3633a798f08c69910aa94605384207af7a9b91cf15151e0c2fd17",
+          "kind": "json"
+        },
+        "dashboard-card-mapping.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\dashboard-card-mapping.json",
+          "size_bytes": 562,
+          "sha256": "f41f39ebe1468a76d0a8fd03fb77f0ff70593eb5bb7d5fe16cea2141faab6626",
+          "kind": "json"
+        },
+        "repository-context.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\repository-context.json",
+          "size_bytes": 732,
+          "sha256": "26b45df2622afe818c4763c95839ba98e26e07bcaed028ea1194ae1aca4c133c",
+          "kind": "json"
+        },
+        "connector-hooks.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\connector-hooks.json",
+          "size_bytes": 621,
+          "sha256": "34e06052356b0cddeca284fecb8337f14c3da5ec2117bfca18d4ae3f34d5ecdc",
+          "kind": "json"
+        },
+        "task-decomposition-overview.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\task-decomposition-overview.json",
+          "size_bytes": 16012,
+          "sha256": "6199c8552b7b238c1ca0ea13f604555fb8a3308aff8dc2d08ee1159a72e1b8ad",
+          "kind": "json"
+        },
+        "proof-stage-overview.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\proof-stage-overview.json",
+          "size_bytes": 2316,
+          "sha256": "908d8b99eb54c78a5c06a9ef4e0da4733e64be85c5988c94b2b955cd35ba683f",
+          "kind": "json"
+        },
+        "task-memory.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\task-memory.json",
+          "size_bytes": 4325,
+          "sha256": "467e3b20bb9c314846ef58e612e8652612c36aad103650810efd3874376d7c9c",
+          "kind": "json"
+        },
+        "productionization-scaffold.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\productionization-scaffold.json",
+          "size_bytes": 1152,
+          "sha256": "f93bd2b5a67e530d57750e0870d01a7b4f6e232bea542e9593d155c131179d1a",
+          "kind": "json"
+        },
+        "contract-descriptors.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\contract-descriptors.json",
+          "size_bytes": 9706,
+          "sha256": "6989baa8aca6abccbb3f59c6065a01afcfbc20ee0ebe4169b0ee71b24daed855",
+          "kind": "json"
+        },
+        "mapping-descriptors.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\mapping-descriptors.json",
+          "size_bytes": 1661,
+          "sha256": "9dcea972ecacd49e54e37e2f573c2602c94227a670cb0b356f41e44a47be7559",
+          "kind": "json"
+        },
+        "code-metrics.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\code-metrics.json",
+          "size_bytes": 763,
+          "sha256": "efce645c8e07c799b5ecfe9d44f8b097f8ffdeed93c57062a2efab3c5d4af055",
+          "kind": "json"
+        },
+        "implementation-ledger.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\implementation-ledger.json",
+          "size_bytes": 24302,
+          "sha256": "4048a2422f9bf0b9029f46ac157d611432b2ec1304b6221237208bf18cf40c55",
+          "kind": "json"
+        },
+        "repair-history.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\repair-history.json",
+          "size_bytes": 435,
+          "sha256": "ad351938e6eccbd9f64ab9c5e054bc3bed33000aa2a065a7a2b03984520ffbb8",
+          "kind": "json"
+        }
+      },
+      "repository_context": {
+        "schema_version": "1.0.0",
+        "kind": "repository-context",
+        "repository_present": false,
+        "repository_root": "",
+        "project_root": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d",
+        "branch": "",
+        "working_tree": {
+          "is_dirty": false,
+          "tracked_change_count": 0,
+          "staged_change_count": 0,
+          "unstaged_change_count": 0,
+          "untracked_count": 0
+        },
+        "diff_summary": {
+          "has_tracked_changes": false,
+          "staged_paths": [],
+          "unstaged_paths": [],
+          "untracked_paths": []
+        },
+        "readiness": {
+          "status": "not_repo",
+          "can_prepare_pr": false,
+          "reasons": [
+            "No git repository detected from the current project root."
+          ]
+        }
+      },
+      "connector_hooks": {
+        "schema_version": "1.0.0",
+        "kind": "connector-hooks",
+        "repository_state": "not_repo",
+        "hooks": {
+          "github_pull_request": {
+            "ready": false,
+            "recommended_input_fields": [
+              "title",
+              "body",
+              "labels",
+              "base_branch",
+              "head_branch"
+            ],
+            "requires_human_review": true
+          },
+          "gitlab_merge_request": {
+            "ready": false,
+            "recommended_input_fields": [
+              "title",
+              "description",
+              "labels",
+              "target_branch",
+              "source_branch"
+            ],
+            "requires_human_review": true
+          }
+        }
+      },
+      "productionization_scaffold": {
+        "schema_version": "1.0.0",
+        "kind": "productionization-scaffold",
+        "identity_boundary": {
+          "mode": "single-local-operator",
+          "user_header": "X-Local-User",
+          "default_user": "local-user",
+          "tenant_mode": "single-tenant",
+          "default_tenant": "local-workspace",
+          "future_ready": false
+        },
+        "queue_boundary": {
+          "queue_mode": "in_process",
+          "queue_backend": "in-process",
+          "worker_model": "same-process-thread",
+          "future_ready": false
+        },
+        "sandbox_boundary": {
+          "sandbox_mode": "role-governed-local",
+          "max_shell_seconds": 120,
+          "governed": true,
+          "future_ready": false
+        },
+        "deployment_scaffold": {
+          "deployment_mode": "local-single-user",
+          "deployment_target": "local-dev",
+          "diagnostics_enabled": true,
+          "future_auth_enabled": false
+        },
+        "operational_diagnostics": {
+          "logs_path": "E:\\ProgramProjects\\AI_Agent\\logs",
+          "workspace_root": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects",
+          "db_path": "E:\\ProgramProjects\\AI_Agent\\workspace\\orchestrator.db",
+          "diagnostics_enabled": true,
+          "hosted_execution_ready": false
+        }
+      },
+      "compatibility": {
+        "machine_payload_file": "delivery-pack.json",
+        "pr_packet_file": "pr-packet.json",
+        "approval_packet_file": "approval-packet.json",
+        "overview_packet_file": "overview-packet.json",
+        "github_pr_mapping_file": "github-pr-mapping.json",
+        "approval_request_mapping_file": "approval-request-mapping.json",
+        "dashboard_card_mapping_file": "dashboard-card-mapping.json",
+        "repository_context_file": "repository-context.json",
+        "connector_hooks_file": "connector-hooks.json",
+        "task_decomposition_overview_file": "task-decomposition-overview.json",
+        "proof_stage_overview_file": "proof-stage-overview.json",
+        "task_memory_file": "task-memory.json",
+        "productionization_scaffold_file": "productionization-scaffold.json",
+        "contract_descriptors_file": "contract-descriptors.json",
+        "mapping_descriptors_file": "mapping-descriptors.json",
+        "code_metrics_file": "code-metrics.json",
+        "implementation_ledger_file": "implementation-ledger.json",
+        "repair_history_file": "repair-history.json",
+        "human_index_file": "delivery-index.md",
+        "latest_pointer_file": "latest-delivery-pack.json",
+        "history_file": "delivery-history.json"
+      }
+    },
+    "history_count": 2
+  },
+  "latest_overview_packet": {
+    "schema_version": "1.0.0",
+    "kind": "overview-packet",
+    "consumer": "dashboard-system",
+    "decision": "HOLD",
+    "external_status": "blocked",
+    "headline": "Current conclusion: task `completed` with blockers in failed validations: artifact_integrity.",
+    "stable_fields": {
+      "identity": [
+        "task.id",
+        "task.title",
+        "task.template_id",
+        "decision",
+        "external_status"
+      ],
+      "overview": [
+        "headline",
+        "queue_stats",
+        "files"
+      ]
+    },
+    "compatibility": {
+      "contract_level": "stable-core",
+      "preferred_fields": [
+        "decision",
+        "headline",
+        "queue_stats",
+        "task",
+        "files"
+      ]
+    },
+    "contract": {
+      "kind": "overview-packet",
+      "schema_version": "1.0.0",
+      "contract_level": "stable-core"
+    },
+    "task": {
+      "id": "a64cd6ba-d60f-47e6-92f0-2fbb3709c909",
+      "title": "Build a medium-sized operations management platform",
+      "template_id": "web-saas",
+      "status": "completed"
+    },
+    "queue_stats": {
+      "manual_review_count": 0,
+      "conflict_count": 0,
+      "blocked_high_risk_count": 0,
+      "failed_validation_count": 1
+    },
+    "repository_readiness": {
+      "status": "not_repo",
+      "can_prepare_pr": false,
+      "reasons": [
+        "No git repository detected from the current project root."
+      ]
+    },
+    "decomposition": {
+      "subsystem_count": 6,
+      "work_package_count": 11
+    },
+    "proof_stages": {
+      "schema_version": "1.0.0",
+      "kind": "proof-stage-overview",
+      "contract": {
+        "kind": "proof-stage-overview",
+        "schema_version": "1.0.0",
+        "contract_level": "stable-core"
+      },
+      "task": {
+        "id": "a64cd6ba-d60f-47e6-92f0-2fbb3709c909",
+        "title": "Build a medium-sized operations management platform",
+        "template_id": "web-saas"
+      },
+      "proof_stage_count": 4,
+      "proof_stages": [
+        {
+          "id": "proof-01",
+          "title": "Real planner and architect compatibility",
+          "success_signal": "Planner and architect complete under real-model execution with valid governed artifacts.",
+          "evidence_targets": [
+            "docs/plan.md",
+            "docs/architecture.md",
+            "docs/api-contract.md"
+          ],
+          "status": "proven",
+          "matched_evidence_targets": [
+            "docs/plan.md",
+            "docs/architecture.md",
+            "docs/api-contract.md"
+          ]
+        },
+        {
+          "id": "proof-02",
+          "title": "Bounded package implementation proof",
+          "success_signal": "At least one bounded implementation package completes with governed artifacts and validation.",
+          "evidence_targets": [
+            "apps/web",
+            "apps/api",
+            "tests/qa-report.md"
+          ],
+          "status": "planned",
+          "matched_evidence_targets": [
+            "tests/qa-report.md"
+          ]
+        },
+        {
+          "id": "proof-03",
+          "title": "Multi-package verification proof",
+          "success_signal": "Cross-package QA and review evidence complete without collapsing the workflow.",
+          "evidence_targets": [
+            "tests/package-verification.md",
+            "docs/review.md",
+            "docs/package-review.md"
+          ],
+          "status": "proven",
+          "matched_evidence_targets": [
+            "tests/package-verification.md",
+            "docs/review.md",
+            "docs/package-review.md"
+          ]
+        },
+        {
+          "id": "proof-04",
+          "title": "Large-system delivery proof",
+          "success_signal": "Delivery artifacts, memory, decomposition, and approval state are exported for the large-system task.",
+          "evidence_targets": [
+            "reports/",
+            "infra/",
+            "task-memory.json"
+          ],
+          "status": "planned",
+          "matched_evidence_targets": [
+            "reports/",
+            "infra/"
+          ]
+        }
+      ]
+    },
+    "memory": {
+      "schema_version": "1.0.0",
+      "kind": "task-memory",
+      "task_id": "a64cd6ba-d60f-47e6-92f0-2fbb3709c909",
+      "project_name": "medium-ops-suite-final-47b05d",
+      "current_known_state": {
+        "status": "completed",
+        "latest_completed_role": "devops",
+        "failed_roles": [
+          "artifact_integrity"
+        ],
+        "open_change_count": 0,
+        "artifacts_count": 39,
+        "large_scale_task": false,
+        "delivery_gate_ok": true,
+        "artifact_integrity_status": "missing",
+        "missing_artifact_count": 13
+      },
+      "continuation": {
+        "recommended_resume_role": "frontend",
+        "reason": "Recorded delivery artifacts are missing from the live project workspace."
+      },
+      "recent_events": [
+        {
+          "ts": "2026-05-06T12:34:21.582265+00:00",
+          "source": "system",
+          "level": "info",
+          "message": "Existing project opened from dashboard."
+        },
+        {
+          "ts": "2026-05-06T12:35:20.144631+00:00",
+          "source": "system",
+          "level": "info",
+          "message": "Project path already registered; existing task reused."
+        },
+        {
+          "ts": "2026-05-06T12:36:39.778014+00:00",
+          "source": "system",
+          "level": "info",
+          "message": "Project path already registered; existing task reused."
+        },
+        {
+          "ts": "2026-05-06T14:10:11.362680+00:00",
+          "source": "implementation-plan",
+          "level": "info",
+          "message": "Implementation plan materialized."
+        },
+        {
+          "ts": "2026-05-06T14:12:59.588821+00:00",
+          "source": "implementation-plan",
+          "level": "info",
+          "message": "Implementation plan materialized."
+        },
+        {
+          "ts": "2026-05-06T14:13:03.042411+00:00",
+          "source": "implementation-plan",
+          "level": "info",
+          "message": "Implementation plan materialized."
+        },
+        {
+          "ts": "2026-05-06T14:13:06.345275+00:00",
+          "source": "implementation-plan",
+          "level": "info",
+          "message": "Implementation plan materialized."
+        },
+        {
+          "ts": "2026-05-06T14:13:12.019338+00:00",
+          "source": "implementation-plan",
+          "level": "info",
+          "message": "Implementation plan materialized."
+        }
+      ],
+      "recent_checkpoints": [
+        {
+          "role": "backend",
+          "phase": "implementation",
+          "status": "started",
+          "created_at": "2026-05-06T11:46:23.501738+00:00"
+        },
+        {
+          "role": "backend",
+          "phase": "implementation",
+          "status": "completed",
+          "created_at": "2026-05-06T11:46:23.672222+00:00"
+        },
+        {
+          "role": "qa",
+          "phase": "verification",
+          "status": "started",
+          "created_at": "2026-05-06T11:46:23.684254+00:00"
+        },
+        {
+          "role": "qa",
+          "phase": "verification",
+          "status": "completed",
+          "created_at": "2026-05-06T11:46:24.442704+00:00"
+        },
+        {
+          "role": "security-review",
+          "phase": "review",
+          "status": "started",
+          "created_at": "2026-05-06T11:46:24.457892+00:00"
+        },
+        {
+          "role": "security-review",
+          "phase": "review",
+          "status": "completed",
+          "created_at": "2026-05-06T11:46:24.486107+00:00"
+        },
+        {
+          "role": "reviewer",
+          "phase": "review",
+          "status": "started",
+          "created_at": "2026-05-06T11:46:24.496270+00:00"
+        },
+        {
+          "role": "reviewer",
+          "phase": "review",
+          "status": "completed",
+          "created_at": "2026-05-06T11:46:24.540682+00:00"
+        },
+        {
+          "role": "devops",
+          "phase": "approval_required",
+          "status": "started",
+          "created_at": "2026-05-06T11:46:24.553214+00:00"
+        },
+        {
+          "role": "devops",
+          "phase": "approval_required",
+          "status": "completed",
+          "created_at": "2026-05-06T11:46:24.591263+00:00"
+        }
+      ],
+      "open_changes": [],
+      "rerun_guidance": {
+        "artifact_integrity": {
+          "recommended_from_role": "frontend",
+          "reason": "Recorded delivery artifacts are missing from the live project workspace.",
+          "repairable": true
+        }
+      },
+      "progress_snapshot": {
+        "completed_role_count": 8,
+        "workflow_role_count": 8,
+        "delivery_gate_ok": true,
+        "source_lines": 52,
+        "source_file_count": 2,
+        "normalized_roles": [],
+        "artifact_integrity_status": "missing",
+        "missing_artifact_count": 13
+      }
+    },
+    "files": {
+      "governance-report.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\governance-report.md",
+      "pr-summary.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\pr-summary.md",
+      "approval-brief.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\approval-brief.md",
+      "release-checklist.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\release-checklist.md",
+      "stakeholder-summary.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\stakeholder-summary.md",
+      "delivery-index.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\delivery-index.md",
+      "delivery-pack.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\delivery-pack.json",
+      "pr-packet.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\pr-packet.json",
+      "approval-packet.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\approval-packet.json"
+    },
+    "manifest": {
+      "schema_version": "1.0.0",
+      "kind": "delivery-bundle-manifest",
+      "bundle_id": "20260506T180612Z-2b296d",
+      "sequence": 2,
+      "exported_at": "2026-05-06T18:06:12.898195+00:00",
+      "task_id": "a64cd6ba-d60f-47e6-92f0-2fbb3709c909",
+      "template_id": "web-saas",
+      "decision": "HOLD",
+      "status": "completed",
+      "external_status": "blocked",
+      "file_count": 24,
+      "files": {
+        "governance-report.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\governance-report.md",
+        "pr-summary.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\pr-summary.md",
+        "approval-brief.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\approval-brief.md",
+        "release-checklist.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\release-checklist.md",
+        "stakeholder-summary.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\stakeholder-summary.md",
+        "delivery-index.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\delivery-index.md",
+        "delivery-pack.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\delivery-pack.json",
+        "pr-packet.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\pr-packet.json",
+        "approval-packet.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\approval-packet.json",
+        "overview-packet.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\overview-packet.json",
+        "github-pr-mapping.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\github-pr-mapping.json",
+        "approval-request-mapping.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\approval-request-mapping.json",
+        "dashboard-card-mapping.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\dashboard-card-mapping.json",
+        "repository-context.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\repository-context.json",
+        "connector-hooks.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\connector-hooks.json",
+        "task-decomposition-overview.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\task-decomposition-overview.json",
+        "proof-stage-overview.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\proof-stage-overview.json",
+        "task-memory.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\task-memory.json",
+        "productionization-scaffold.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\productionization-scaffold.json",
+        "contract-descriptors.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\contract-descriptors.json",
+        "mapping-descriptors.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\mapping-descriptors.json",
+        "code-metrics.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\code-metrics.json",
+        "implementation-ledger.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\implementation-ledger.json",
+        "repair-history.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\repair-history.json",
+        "bundle-manifest.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\bundle-manifest.json",
+        "latest-delivery-pack.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\latest-delivery-pack.json"
+      },
+      "file_inventory": {
+        "governance-report.md": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\governance-report.md",
+          "size_bytes": 1482,
+          "sha256": "902d6ae2e6d75c433f509ce2ca68ef2a095d459d759cd63339594cf88b665da8",
+          "kind": "md"
+        },
+        "pr-summary.md": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\pr-summary.md",
+          "size_bytes": 1836,
+          "sha256": "4bd33517a4c91bf58915002d5096dc87b066eefebb0d4009b1e547f5a1097843",
+          "kind": "md"
+        },
+        "approval-brief.md": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\approval-brief.md",
+          "size_bytes": 501,
+          "sha256": "598706035d2a0bfbf45c0e200227df92bc35ed65a579c05780fbe80651399cb7",
+          "kind": "md"
+        },
+        "release-checklist.md": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\release-checklist.md",
+          "size_bytes": 473,
+          "sha256": "e50263012626486d4da3ef445459d0eb34e024be807fd8dd2fdcfa6b44b8a95b",
+          "kind": "md"
+        },
+        "stakeholder-summary.md": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\stakeholder-summary.md",
+          "size_bytes": 477,
+          "sha256": "6a01a626fae9270e5ae9804cc7b92dd4e0990513b504b7126e562706dc36641d",
+          "kind": "md"
+        },
+        "delivery-index.md": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\delivery-index.md",
+          "size_bytes": 995,
+          "sha256": "c81940a3bf015641d16ae857ffeb7cf33fb21bdec17baa6cda964d0c4ee77c91",
+          "kind": "md"
+        },
+        "delivery-pack.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\delivery-pack.json",
+          "size_bytes": 38853,
+          "sha256": "7eb0de8d5c296410b042d172f26478d77c0d26357aa3ed1b1fcc5e2a384f4aa2",
+          "kind": "json"
+        },
+        "pr-packet.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\pr-packet.json",
+          "size_bytes": 7374,
+          "sha256": "43307a33010b61f425d64691af1db6244ae3af7064687b507ee8d22b63c040d0",
+          "kind": "json"
+        },
+        "approval-packet.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\approval-packet.json",
+          "size_bytes": 2203,
+          "sha256": "1c179b15111ec55e82f8a5c020ef4c18031f2075aaffa6ae3ac8f09f6402d512",
+          "kind": "json"
+        },
+        "overview-packet.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\overview-packet.json",
+          "size_bytes": 10173,
+          "sha256": "5e5a1585f88d1338641bf2bf63869cc269c2d2759383ff456fbd4214754ded9c",
+          "kind": "json"
+        },
+        "github-pr-mapping.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\github-pr-mapping.json",
+          "size_bytes": 1607,
+          "sha256": "67b142571875c5c13e727bbe94a222bf86637ee1651512cef4586bbc76f2cf51",
+          "kind": "json"
+        },
+        "approval-request-mapping.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\approval-request-mapping.json",
+          "size_bytes": 511,
+          "sha256": "e809d12b57b3633a798f08c69910aa94605384207af7a9b91cf15151e0c2fd17",
+          "kind": "json"
+        },
+        "dashboard-card-mapping.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\dashboard-card-mapping.json",
+          "size_bytes": 562,
+          "sha256": "f41f39ebe1468a76d0a8fd03fb77f0ff70593eb5bb7d5fe16cea2141faab6626",
+          "kind": "json"
+        },
+        "repository-context.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\repository-context.json",
+          "size_bytes": 732,
+          "sha256": "26b45df2622afe818c4763c95839ba98e26e07bcaed028ea1194ae1aca4c133c",
+          "kind": "json"
+        },
+        "connector-hooks.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\connector-hooks.json",
+          "size_bytes": 621,
+          "sha256": "34e06052356b0cddeca284fecb8337f14c3da5ec2117bfca18d4ae3f34d5ecdc",
+          "kind": "json"
+        },
+        "task-decomposition-overview.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\task-decomposition-overview.json",
+          "size_bytes": 16012,
+          "sha256": "6199c8552b7b238c1ca0ea13f604555fb8a3308aff8dc2d08ee1159a72e1b8ad",
+          "kind": "json"
+        },
+        "proof-stage-overview.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\proof-stage-overview.json",
+          "size_bytes": 2316,
+          "sha256": "908d8b99eb54c78a5c06a9ef4e0da4733e64be85c5988c94b2b955cd35ba683f",
+          "kind": "json"
+        },
+        "task-memory.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\task-memory.json",
+          "size_bytes": 4325,
+          "sha256": "467e3b20bb9c314846ef58e612e8652612c36aad103650810efd3874376d7c9c",
+          "kind": "json"
+        },
+        "productionization-scaffold.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\productionization-scaffold.json",
+          "size_bytes": 1152,
+          "sha256": "f93bd2b5a67e530d57750e0870d01a7b4f6e232bea542e9593d155c131179d1a",
+          "kind": "json"
+        },
+        "contract-descriptors.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\contract-descriptors.json",
+          "size_bytes": 9706,
+          "sha256": "6989baa8aca6abccbb3f59c6065a01afcfbc20ee0ebe4169b0ee71b24daed855",
+          "kind": "json"
+        },
+        "mapping-descriptors.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\mapping-descriptors.json",
+          "size_bytes": 1661,
+          "sha256": "9dcea972ecacd49e54e37e2f573c2602c94227a670cb0b356f41e44a47be7559",
+          "kind": "json"
+        },
+        "code-metrics.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\code-metrics.json",
+          "size_bytes": 763,
+          "sha256": "efce645c8e07c799b5ecfe9d44f8b097f8ffdeed93c57062a2efab3c5d4af055",
+          "kind": "json"
+        },
+        "implementation-ledger.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\implementation-ledger.json",
+          "size_bytes": 24302,
+          "sha256": "4048a2422f9bf0b9029f46ac157d611432b2ec1304b6221237208bf18cf40c55",
+          "kind": "json"
+        },
+        "repair-history.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d\\reports\\bundles\\20260506T180612Z-2b296d\\repair-history.json",
+          "size_bytes": 435,
+          "sha256": "ad351938e6eccbd9f64ab9c5e054bc3bed33000aa2a065a7a2b03984520ffbb8",
+          "kind": "json"
+        }
+      },
+      "repository_context": {
+        "schema_version": "1.0.0",
+        "kind": "repository-context",
+        "repository_present": false,
+        "repository_root": "",
+        "project_root": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d",
+        "branch": "",
+        "working_tree": {
+          "is_dirty": false,
+          "tracked_change_count": 0,
+          "staged_change_count": 0,
+          "unstaged_change_count": 0,
+          "untracked_count": 0
+        },
+        "diff_summary": {
+          "has_tracked_changes": false,
+          "staged_paths": [],
+          "unstaged_paths": [],
+          "untracked_paths": []
+        },
+        "readiness": {
+          "status": "not_repo",
+          "can_prepare_pr": false,
+          "reasons": [
+            "No git repository detected from the current project root."
+          ]
+        }
+      },
+      "connector_hooks": {
+        "schema_version": "1.0.0",
+        "kind": "connector-hooks",
+        "repository_state": "not_repo",
+        "hooks": {
+          "github_pull_request": {
+            "ready": false,
+            "recommended_input_fields": [
+              "title",
+              "body",
+              "labels",
+              "base_branch",
+              "head_branch"
+            ],
+            "requires_human_review": true
+          },
+          "gitlab_merge_request": {
+            "ready": false,
+            "recommended_input_fields": [
+              "title",
+              "description",
+              "labels",
+              "target_branch",
+              "source_branch"
+            ],
+            "requires_human_review": true
+          }
+        }
+      },
+      "productionization_scaffold": {
+        "schema_version": "1.0.0",
+        "kind": "productionization-scaffold",
+        "identity_boundary": {
+          "mode": "single-local-operator",
+          "user_header": "X-Local-User",
+          "default_user": "local-user",
+          "tenant_mode": "single-tenant",
+          "default_tenant": "local-workspace",
+          "future_ready": false
+        },
+        "queue_boundary": {
+          "queue_mode": "in_process",
+          "queue_backend": "in-process",
+          "worker_model": "same-process-thread",
+          "future_ready": false
+        },
+        "sandbox_boundary": {
+          "sandbox_mode": "role-governed-local",
+          "max_shell_seconds": 120,
+          "governed": true,
+          "future_ready": false
+        },
+        "deployment_scaffold": {
+          "deployment_mode": "local-single-user",
+          "deployment_target": "local-dev",
+          "diagnostics_enabled": true,
+          "future_auth_enabled": false
+        },
+        "operational_diagnostics": {
+          "logs_path": "E:\\ProgramProjects\\AI_Agent\\logs",
+          "workspace_root": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects",
+          "db_path": "E:\\ProgramProjects\\AI_Agent\\workspace\\orchestrator.db",
+          "diagnostics_enabled": true,
+          "hosted_execution_ready": false
+        }
+      },
+      "compatibility": {
+        "machine_payload_file": "delivery-pack.json",
+        "pr_packet_file": "pr-packet.json",
+        "approval_packet_file": "approval-packet.json",
+        "overview_packet_file": "overview-packet.json",
+        "github_pr_mapping_file": "github-pr-mapping.json",
+        "approval_request_mapping_file": "approval-request-mapping.json",
+        "dashboard_card_mapping_file": "dashboard-card-mapping.json",
+        "repository_context_file": "repository-context.json",
+        "connector_hooks_file": "connector-hooks.json",
+        "task_decomposition_overview_file": "task-decomposition-overview.json",
+        "proof_stage_overview_file": "proof-stage-overview.json",
+        "task_memory_file": "task-memory.json",
+        "productionization_scaffold_file": "productionization-scaffold.json",
+        "contract_descriptors_file": "contract-descriptors.json",
+        "mapping_descriptors_file": "mapping-descriptors.json",
+        "code_metrics_file": "code-metrics.json",
+        "implementation_ledger_file": "implementation-ledger.json",
+        "repair_history_file": "repair-history.json",
+        "human_index_file": "delivery-index.md",
+        "latest_pointer_file": "latest-delivery-pack.json",
+        "history_file": "delivery-history.json"
+      }
+    },
+    "history_count": 2
+  },
+  "repository_context": {
+    "schema_version": "1.0.0",
+    "kind": "repository-context",
+    "repository_present": false,
+    "repository_root": "",
+    "project_root": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d",
+    "branch": "",
+    "working_tree": {
+      "is_dirty": false,
+      "tracked_change_count": 0,
+      "staged_change_count": 0,
+      "unstaged_change_count": 0,
+      "untracked_count": 0
+    },
+    "diff_summary": {
+      "has_tracked_changes": false,
+      "staged_paths": [],
+      "unstaged_paths": [],
+      "untracked_paths": []
+    },
+    "readiness": {
+      "status": "not_repo",
+      "can_prepare_pr": false,
+      "reasons": [
+        "No git repository detected from the current project root."
+      ]
+    }
+  },
+  "connector_hooks": {
+    "schema_version": "1.0.0",
+    "kind": "connector-hooks",
+    "repository_state": "not_repo",
+    "hooks": {
+      "github_pull_request": {
+        "ready": false,
+        "recommended_input_fields": [
+          "title",
+          "body",
+          "labels",
+          "base_branch",
+          "head_branch"
+        ],
+        "requires_human_review": true
+      },
+      "gitlab_merge_request": {
+        "ready": false,
+        "recommended_input_fields": [
+          "title",
+          "description",
+          "labels",
+          "target_branch",
+          "source_branch"
+        ],
+        "requires_human_review": true
+      }
+    }
+  },
+  "delivery_surface_index": {
+    "schema_version": "1.0.0",
+    "kind": "delivery-surface-index",
+    "latest": {
+      "bundle_manifest": "delivery-bundle-latest",
+      "delivery_pack": "delivery-pack-latest",
+      "delivery_overview": "delivery-overview-latest",
+      "pr_packet": "pr-packet-latest",
+      "approval_packet": "approval-packet-latest",
+      "overview_packet": "overview-packet-latest",
+      "github_pr_mapping": "github-pr-mapping-latest",
+      "approval_request_mapping": "approval-request-mapping-latest",
+      "dashboard_card_mapping": "dashboard-card-mapping-latest"
+    },
+    "history": {
+      "bundles": "delivery-bundles",
+      "history": "delivery-history",
+      "history_index": "delivery-history-index"
+    },
+    "named_surfaces": {
+      "task_memory": "task-memory.json",
+      "task_decomposition_overview": "task-decomposition-overview.json",
+      "contract_descriptors": "contract-descriptors.json",
+      "mapping_descriptors": "mapping-descriptors.json"
+    },
+    "by_id_patterns": {
+      "bundle_manifest": "delivery-bundles/{bundle_id}",
+      "delivery_pack": "delivery-bundles/{bundle_id}/delivery-pack",
+      "named_json": "delivery-bundles/{bundle_id}/named-surface/{surface_name}"
+    },
+    "latest_bundle_id": "20260506T180612Z-2b296d"
+  },
+  "productionization_overview": {
+    "schema_version": "1.0.0",
+    "kind": "productionization-overview",
+    "identity_mode": "single-local-operator",
+    "tenant_mode": "single-tenant",
+    "queue_mode": "in_process",
+    "sandbox_mode": "role-governed-local",
+    "deployment_mode": "local-single-user"
+  }
+}

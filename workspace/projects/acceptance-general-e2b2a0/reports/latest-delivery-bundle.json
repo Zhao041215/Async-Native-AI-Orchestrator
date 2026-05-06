@@ -1,0 +1,304 @@
+{
+  "schema_version": "1.0.0",
+  "kind": "delivery-bundle-manifest",
+  "bundle_id": "20260506T193208Z-cfa79b",
+  "sequence": 1,
+  "exported_at": "2026-05-06T19:32:08.713254+00:00",
+  "task_id": "b7e9e7ed-718a-4b25-8e5f-163ed7345fa1",
+  "template_id": "general-product",
+  "decision": "HOLD",
+  "status": "failed",
+  "external_status": "blocked",
+  "file_count": 24,
+  "files": {
+    "governance-report.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\governance-report.md",
+    "pr-summary.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\pr-summary.md",
+    "approval-brief.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\approval-brief.md",
+    "release-checklist.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\release-checklist.md",
+    "stakeholder-summary.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\stakeholder-summary.md",
+    "delivery-index.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\delivery-index.md",
+    "delivery-pack.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\delivery-pack.json",
+    "pr-packet.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\pr-packet.json",
+    "approval-packet.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\approval-packet.json",
+    "overview-packet.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\overview-packet.json",
+    "github-pr-mapping.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\github-pr-mapping.json",
+    "approval-request-mapping.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\approval-request-mapping.json",
+    "dashboard-card-mapping.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\dashboard-card-mapping.json",
+    "repository-context.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\repository-context.json",
+    "connector-hooks.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\connector-hooks.json",
+    "task-decomposition-overview.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\task-decomposition-overview.json",
+    "proof-stage-overview.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\proof-stage-overview.json",
+    "task-memory.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\task-memory.json",
+    "productionization-scaffold.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\productionization-scaffold.json",
+    "contract-descriptors.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\contract-descriptors.json",
+    "mapping-descriptors.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\mapping-descriptors.json",
+    "code-metrics.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\code-metrics.json",
+    "implementation-ledger.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\implementation-ledger.json",
+    "repair-history.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\repair-history.json",
+    "bundle-manifest.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\bundle-manifest.json",
+    "latest-delivery-pack.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\latest-delivery-pack.json"
+  },
+  "file_inventory": {
+    "governance-report.md": {
+      "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\governance-report.md",
+      "size_bytes": 1098,
+      "sha256": "84c40c62525d71c27f412bdc73cdfdc704d6e14cc150cc1ab56920a950a97fe8",
+      "kind": "md"
+    },
+    "pr-summary.md": {
+      "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\pr-summary.md",
+      "size_bytes": 1491,
+      "sha256": "caf98448c677681e38f77799dcbccf4312475fd69c92037f89e901306098557f",
+      "kind": "md"
+    },
+    "approval-brief.md": {
+      "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\approval-brief.md",
+      "size_bytes": 422,
+      "sha256": "23797be1a1b8695e709e0c3c70829223fcd4a8fc95c933e50101ecd14b368882",
+      "kind": "md"
+    },
+    "release-checklist.md": {
+      "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\release-checklist.md",
+      "size_bytes": 413,
+      "sha256": "620584fc1034b9c03f3b1537d6e49dd60e5f3dc67ed5c8617192849fd8e2e091",
+      "kind": "md"
+    },
+    "stakeholder-summary.md": {
+      "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\stakeholder-summary.md",
+      "size_bytes": 412,
+      "sha256": "4aea6347896f13fdb3f42fea310b1d2c5e71911ec8a7b7d8e441a3e6bb1f2a60",
+      "kind": "md"
+    },
+    "delivery-index.md": {
+      "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\delivery-index.md",
+      "size_bytes": 935,
+      "sha256": "086a2f9e8cb47d8308c61ddeb4690078d4330e14955987ef955fdc55daa60a77",
+      "kind": "md"
+    },
+    "delivery-pack.json": {
+      "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\delivery-pack.json",
+      "size_bytes": 36711,
+      "sha256": "d5292c93eec8eb395e7be33af5e40f057191b022ec9ae9091d70d3791cb5c880",
+      "kind": "json"
+    },
+    "pr-packet.json": {
+      "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\pr-packet.json",
+      "size_bytes": 6369,
+      "sha256": "ce15d55109531aa5e9854f4a7bdfd45785a388abd8b47d4525d50094b3b033a8",
+      "kind": "json"
+    },
+    "approval-packet.json": {
+      "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\approval-packet.json",
+      "size_bytes": 2083,
+      "sha256": "f62befce7bafab10ae8da7de173b6d96e126df4e08fcb11623a088f12f56bb90",
+      "kind": "json"
+    },
+    "overview-packet.json": {
+      "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\overview-packet.json",
+      "size_bytes": 9859,
+      "sha256": "e0e5773e7439a9a5d5899436db7e3f99dc90f2446a0906de161a0c54ceb8a602",
+      "kind": "json"
+    },
+    "github-pr-mapping.json": {
+      "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\github-pr-mapping.json",
+      "size_bytes": 1242,
+      "sha256": "c68145f3601c4d5acb901faa5f82d7205db32cf28330b76fdf1e404f2f01d01a",
+      "kind": "json"
+    },
+    "approval-request-mapping.json": {
+      "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\approval-request-mapping.json",
+      "size_bytes": 451,
+      "sha256": "f2e8a5ce363080f9b23a2fb6f8b1a2f4fac9c8c007d41ce895b994bd30312e87",
+      "kind": "json"
+    },
+    "dashboard-card-mapping.json": {
+      "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\dashboard-card-mapping.json",
+      "size_bytes": 525,
+      "sha256": "50a8bed52e9bfcb2be8ddcb91fe2f213fd6c7d797bae4400b7742340cdbcc296",
+      "kind": "json"
+    },
+    "repository-context.json": {
+      "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\repository-context.json",
+      "size_bytes": 728,
+      "sha256": "8e1db0b8ed9815fe40e9a8bd3790482574a8596b989befcb613ccea1ecf1b4a7",
+      "kind": "json"
+    },
+    "connector-hooks.json": {
+      "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\connector-hooks.json",
+      "size_bytes": 621,
+      "sha256": "34e06052356b0cddeca284fecb8337f14c3da5ec2117bfca18d4ae3f34d5ecdc",
+      "kind": "json"
+    },
+    "task-decomposition-overview.json": {
+      "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\task-decomposition-overview.json",
+      "size_bytes": 15406,
+      "sha256": "6d80ca496dc469256223d9d72ec95a527f5701810b28a37ee060e24fbb89c820",
+      "kind": "json"
+    },
+    "proof-stage-overview.json": {
+      "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\proof-stage-overview.json",
+      "size_bytes": 2237,
+      "sha256": "a4242061fa3db0f7445cab7d7011a0a6be2905aa07ac11e893389928eedac6ef",
+      "kind": "json"
+    },
+    "task-memory.json": {
+      "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\task-memory.json",
+      "size_bytes": 4166,
+      "sha256": "2abf874feb5f3e7f5c0a7277f39188b20d9d72ad6a1e058f4b5873ace18b8411",
+      "kind": "json"
+    },
+    "productionization-scaffold.json": {
+      "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\productionization-scaffold.json",
+      "size_bytes": 1152,
+      "sha256": "f93bd2b5a67e530d57750e0870d01a7b4f6e232bea542e9593d155c131179d1a",
+      "kind": "json"
+    },
+    "contract-descriptors.json": {
+      "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\contract-descriptors.json",
+      "size_bytes": 9706,
+      "sha256": "6989baa8aca6abccbb3f59c6065a01afcfbc20ee0ebe4169b0ee71b24daed855",
+      "kind": "json"
+    },
+    "mapping-descriptors.json": {
+      "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\mapping-descriptors.json",
+      "size_bytes": 1661,
+      "sha256": "9dcea972ecacd49e54e37e2f573c2602c94227a670cb0b356f41e44a47be7559",
+      "kind": "json"
+    },
+    "code-metrics.json": {
+      "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\code-metrics.json",
+      "size_bytes": 1134,
+      "sha256": "51a965c4b7ecc86fe37c03e613dd0fae13e230e43e2b781924d81bb890224f4d",
+      "kind": "json"
+    },
+    "implementation-ledger.json": {
+      "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\implementation-ledger.json",
+      "size_bytes": 19347,
+      "sha256": "975d4d132c91cbb3551b39ae9df8c067b9a90f82b2e4e3061d87f5313db466e1",
+      "kind": "json"
+    },
+    "repair-history.json": {
+      "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\repair-history.json",
+      "size_bytes": 396,
+      "sha256": "c78b817bd97d524d67d8325e86057a2b6c1eb6e48c09ce308f75cbe5a720636e",
+      "kind": "json"
+    }
+  },
+  "repository_context": {
+    "schema_version": "1.0.0",
+    "kind": "repository-context",
+    "repository_present": false,
+    "repository_root": "",
+    "project_root": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0",
+    "branch": "",
+    "working_tree": {
+      "is_dirty": false,
+      "tracked_change_count": 0,
+      "staged_change_count": 0,
+      "unstaged_change_count": 0,
+      "untracked_count": 0
+    },
+    "diff_summary": {
+      "has_tracked_changes": false,
+      "staged_paths": [],
+      "unstaged_paths": [],
+      "untracked_paths": []
+    },
+    "readiness": {
+      "status": "not_repo",
+      "can_prepare_pr": false,
+      "reasons": [
+        "No git repository detected from the current project root."
+      ]
+    }
+  },
+  "connector_hooks": {
+    "schema_version": "1.0.0",
+    "kind": "connector-hooks",
+    "repository_state": "not_repo",
+    "hooks": {
+      "github_pull_request": {
+        "ready": false,
+        "recommended_input_fields": [
+          "title",
+          "body",
+          "labels",
+          "base_branch",
+          "head_branch"
+        ],
+        "requires_human_review": true
+      },
+      "gitlab_merge_request": {
+        "ready": false,
+        "recommended_input_fields": [
+          "title",
+          "description",
+          "labels",
+          "target_branch",
+          "source_branch"
+        ],
+        "requires_human_review": true
+      }
+    }
+  },
+  "productionization_scaffold": {
+    "schema_version": "1.0.0",
+    "kind": "productionization-scaffold",
+    "identity_boundary": {
+      "mode": "single-local-operator",
+      "user_header": "X-Local-User",
+      "default_user": "local-user",
+      "tenant_mode": "single-tenant",
+      "default_tenant": "local-workspace",
+      "future_ready": false
+    },
+    "queue_boundary": {
+      "queue_mode": "in_process",
+      "queue_backend": "in-process",
+      "worker_model": "same-process-thread",
+      "future_ready": false
+    },
+    "sandbox_boundary": {
+      "sandbox_mode": "role-governed-local",
+      "max_shell_seconds": 120,
+      "governed": true,
+      "future_ready": false
+    },
+    "deployment_scaffold": {
+      "deployment_mode": "local-single-user",
+      "deployment_target": "local-dev",
+      "diagnostics_enabled": true,
+      "future_auth_enabled": false
+    },
+    "operational_diagnostics": {
+      "logs_path": "E:\\ProgramProjects\\AI_Agent\\logs",
+      "workspace_root": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects",
+      "db_path": "E:\\ProgramProjects\\AI_Agent\\workspace\\orchestrator.db",
+      "diagnostics_enabled": true,
+      "hosted_execution_ready": false
+    }
+  },
+  "compatibility": {
+    "machine_payload_file": "delivery-pack.json",
+    "pr_packet_file": "pr-packet.json",
+    "approval_packet_file": "approval-packet.json",
+    "overview_packet_file": "overview-packet.json",
+    "github_pr_mapping_file": "github-pr-mapping.json",
+    "approval_request_mapping_file": "approval-request-mapping.json",
+    "dashboard_card_mapping_file": "dashboard-card-mapping.json",
+    "repository_context_file": "repository-context.json",
+    "connector_hooks_file": "connector-hooks.json",
+    "task_decomposition_overview_file": "task-decomposition-overview.json",
+    "proof_stage_overview_file": "proof-stage-overview.json",
+    "task_memory_file": "task-memory.json",
+    "productionization_scaffold_file": "productionization-scaffold.json",
+    "contract_descriptors_file": "contract-descriptors.json",
+    "mapping_descriptors_file": "mapping-descriptors.json",
+    "code_metrics_file": "code-metrics.json",
+    "implementation_ledger_file": "implementation-ledger.json",
+    "repair_history_file": "repair-history.json",
+    "human_index_file": "delivery-index.md",
+    "latest_pointer_file": "latest-delivery-pack.json",
+    "history_file": "delivery-history.json"
+  }
+}

@@ -1,0 +1,109 @@
+{
+  "schema_version": "1.0.0",
+  "kind": "implementation-plan",
+  "task_id": "257a782e-8ace-45aa-a145-428ad37d7ce4",
+  "project_name": "acceptance-saas-745666",
+  "strategy": "work-package-iterative-pipeline",
+  "default_execution": "serial-for-large-tasks",
+  "stages": [
+    "implement",
+    "validate",
+    "repair",
+    "ledger"
+  ],
+  "packages": [
+    {
+      "id": "wp-ss-01",
+      "title": "Implement tenant-and-identity",
+      "owner": "backend",
+      "phase": "implementation",
+      "partition": "backend",
+      "scope": "apps/api, docs/api-contract.md",
+      "outputs": [
+        "apps/api",
+        "docs/api-contract.md"
+      ],
+      "dependencies": [
+        "wp-arch"
+      ],
+      "definition_of_done": [
+        "tenant-and-identity artifacts exist in owned surfaces",
+        "Dependencies on previous subsystems are documented",
+        "Package remains traceable to the original request"
+      ]
+    },
+    {
+      "id": "wp-ss-02",
+      "title": "Implement web-dashboard",
+      "owner": "frontend",
+      "phase": "implementation",
+      "partition": "frontend",
+      "scope": "apps/web, docs/ui-notes.md",
+      "outputs": [
+        "apps/web",
+        "docs/ui-notes.md"
+      ],
+      "dependencies": [
+        "wp-arch",
+        "wp-ss-01"
+      ],
+      "definition_of_done": [
+        "web-dashboard artifacts exist in owned surfaces",
+        "Dependencies on previous subsystems are documented",
+        "Package remains traceable to the original request"
+      ]
+    },
+    {
+      "id": "wp-ss-03",
+      "title": "Implement billing-and-subscriptions",
+      "owner": "backend",
+      "phase": "implementation",
+      "partition": "backend",
+      "scope": "apps/api, docs/api-contract.md",
+      "outputs": [
+        "apps/api",
+        "docs/api-contract.md"
+      ],
+      "dependencies": [
+        "wp-arch",
+        "wp-ss-02"
+      ],
+      "definition_of_done": [
+        "billing-and-subscriptions artifacts exist in owned surfaces",
+        "Dependencies on previous subsystems are documented",
+        "Package remains traceable to the original request"
+      ]
+    },
+    {
+      "id": "wp-ss-04",
+      "title": "Implement application-api",
+      "owner": "backend",
+      "phase": "implementation",
+      "partition": "backend",
+      "scope": "apps/api, docs/api-contract.md",
+      "outputs": [
+        "apps/api",
+        "docs/api-contract.md"
+      ],
+      "dependencies": [
+        "wp-arch",
+        "wp-ss-03"
+      ],
+      "definition_of_done": [
+        "application-api artifacts exist in owned surfaces",
+        "Dependencies on previous subsystems are documented",
+        "Package remains traceable to the original request"
+      ]
+    }
+  ],
+  "quality_gates": {
+    "minimum_small_project_lines_by_role": 20,
+    "large_project_source_lines": 100000,
+    "large_project_source_files": 40,
+    "large_project_required_areas": [
+      "apps",
+      "tests",
+      "infra"
+    ]
+  }
+}

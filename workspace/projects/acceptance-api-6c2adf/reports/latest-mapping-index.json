@@ -1,0 +1,10 @@
+{
+  "schema_version": "1.0.0",
+  "kind": "mapping-index",
+  "latest_bundle_id": "20260506T193213Z-299169",
+  "available_mappings": {
+    "github-pr-mapping": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-api-6c2adf\\reports\\bundles\\20260506T193213Z-299169\\github-pr-mapping.json",
+    "approval-request-mapping": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-api-6c2adf\\reports\\bundles\\20260506T193213Z-299169\\approval-request-mapping.json",
+    "dashboard-card-mapping": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-api-6c2adf\\reports\\bundles\\20260506T193213Z-299169\\dashboard-card-mapping.json"
+  }
+}

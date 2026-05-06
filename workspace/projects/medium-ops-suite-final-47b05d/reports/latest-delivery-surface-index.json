@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0.0",
+  "kind": "delivery-surface-index",
+  "latest": {
+    "bundle_manifest": "delivery-bundle-latest",
+    "delivery_pack": "delivery-pack-latest",
+    "delivery_overview": "delivery-overview-latest",
+    "pr_packet": "pr-packet-latest",
+    "approval_packet": "approval-packet-latest",
+    "overview_packet": "overview-packet-latest",
+    "github_pr_mapping": "github-pr-mapping-latest",
+    "approval_request_mapping": "approval-request-mapping-latest",
+    "dashboard_card_mapping": "dashboard-card-mapping-latest"
+  },
+  "history": {
+    "bundles": "delivery-bundles",
+    "history": "delivery-history",
+    "history_index": "delivery-history-index"
+  },
+  "named_surfaces": {
+    "task_memory": "task-memory.json",
+    "task_decomposition_overview": "task-decomposition-overview.json",
+    "contract_descriptors": "contract-descriptors.json",
+    "mapping_descriptors": "mapping-descriptors.json"
+  },
+  "by_id_patterns": {
+    "bundle_manifest": "delivery-bundles/{bundle_id}",
+    "delivery_pack": "delivery-bundles/{bundle_id}/delivery-pack",
+    "named_json": "delivery-bundles/{bundle_id}/named-surface/{surface_name}"
+  },
+  "latest_bundle_id": "20260506T180612Z-2b296d"
+}

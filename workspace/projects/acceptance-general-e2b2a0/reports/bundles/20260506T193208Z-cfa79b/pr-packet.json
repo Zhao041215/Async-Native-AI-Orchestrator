@@ -1,0 +1,228 @@
+{
+  "schema_version": "1.0.0",
+  "kind": "pr-packet",
+  "consumer": "pr-system",
+  "decision": "HOLD",
+  "external_status": "blocked",
+  "headline": "Current conclusion: task `failed` with blockers in failed validations: qa.",
+  "queue_stats": {
+    "manual_review_count": 0,
+    "conflict_count": 0,
+    "blocked_high_risk_count": 0,
+    "failed_validation_count": 1
+  },
+  "title": "Acceptance general-product",
+  "template_id": "general-product",
+  "stable_fields": {
+    "identity": [
+      "title",
+      "template_id"
+    ],
+    "state": [
+      "decision",
+      "external_status"
+    ],
+    "content": [
+      "workflow",
+      "artifacts",
+      "notes"
+    ]
+  },
+  "compatibility": {
+    "contract_level": "stable-core",
+    "preferred_fields": [
+      "decision",
+      "headline",
+      "blocks.header",
+      "blocks.delivery_shape",
+      "artifacts",
+      "notes"
+    ]
+  },
+  "contract": {
+    "kind": "pr-packet",
+    "schema_version": "1.0.0",
+    "contract_level": "stable-core"
+  },
+  "blocks": {
+    "header": {
+      "title": "Acceptance general-product",
+      "decision": "HOLD",
+      "template_id": "general-product"
+    },
+    "governance_facts": {
+      "decision": "HOLD",
+      "external_status": "blocked",
+      "manual_review_count": 0,
+      "conflict_count": 0,
+      "failed_validations": [
+        "qa"
+      ],
+      "validation_findings": {
+        "qa": [
+          {
+            "code": "qa_execution_evidence_missing",
+            "severity": "high",
+            "category": "evidence-missing",
+            "message": "QA report does not contain passing compile and unit execution evidence.",
+            "evidence": [
+              "tests/qa-report.md"
+            ],
+            "suggested_fix": "Run compile and unit checks from the main project root and publish passing evidence.",
+            "suggested_rerun_role": "qa"
+          },
+          {
+            "code": "qa_executed_check_failed",
+            "severity": "high",
+            "category": "verification-failed",
+            "message": "QA report contains failed executed checks.",
+            "evidence": [
+              "tests/qa-report.md"
+            ],
+            "suggested_fix": "Fix the failing checks or rerun QA after producing passing compile/unit evidence.",
+            "suggested_rerun_role": "qa"
+          }
+        ]
+      }
+    },
+    "pr_ready_narrative": {
+      "summary": "Repository branch `-` is not PR-ready: No git repository detected from the current project root.",
+      "branch": "",
+      "working_tree": {
+        "is_dirty": false,
+        "tracked_change_count": 0,
+        "staged_change_count": 0,
+        "unstaged_change_count": 0,
+        "untracked_count": 0
+      },
+      "readiness": {
+        "status": "not_repo",
+        "can_prepare_pr": false,
+        "reasons": [
+          "No git repository detected from the current project root."
+        ]
+      }
+    },
+    "delivery_shape": {
+      "workflow": [
+        "planner",
+        "architect",
+        "frontend",
+        "backend",
+        "qa",
+        "reviewer",
+        "devops"
+      ],
+      "extra_roles": [],
+      "parallel_implementation": true
+    },
+    "artifacts": [
+      "docs/plan.md",
+      "docs/backlog.md",
+      "docs/work-packages.md",
+      "docs/architecture.md",
+      "docs/api-contract.md",
+      "docs/subsystems.md",
+      "apps/api/app.py",
+      "apps/api/models.py",
+      "apps/api/repository.py",
+      "apps/api/README.md",
+      "apps/web/index.html",
+      "apps/web/styles.css",
+      "apps/web/app.js",
+      "apps/web/state.js",
+      "apps/web/api.js",
+      "apps/api/app.py",
+      "apps/api/models.py",
+      "apps/api/repository.py",
+      "apps/api/README.md",
+      "apps/api/app.py",
+      "apps/api/models.py",
+      "apps/api/repository.py",
+      "apps/api/README.md",
+      "tests/qa-report.md",
+      "tests/package-verification.md",
+      "tests/test_operations_platform.py"
+    ],
+    "risks": [
+      "- Failed validations: `qa`"
+    ]
+  },
+  "workflow": [
+    "planner",
+    "architect",
+    "frontend",
+    "backend",
+    "qa",
+    "reviewer",
+    "devops"
+  ],
+  "artifacts": [
+    "docs/plan.md",
+    "docs/backlog.md",
+    "docs/work-packages.md",
+    "docs/architecture.md",
+    "docs/api-contract.md",
+    "docs/subsystems.md",
+    "apps/api/app.py",
+    "apps/api/models.py",
+    "apps/api/repository.py",
+    "apps/api/README.md",
+    "apps/web/index.html",
+    "apps/web/styles.css",
+    "apps/web/app.js",
+    "apps/web/state.js",
+    "apps/web/api.js",
+    "apps/api/app.py",
+    "apps/api/models.py",
+    "apps/api/repository.py",
+    "apps/api/README.md",
+    "apps/api/app.py",
+    "apps/api/models.py",
+    "apps/api/repository.py",
+    "apps/api/README.md",
+    "tests/qa-report.md",
+    "tests/package-verification.md",
+    "tests/test_operations_platform.py"
+  ],
+  "notes": "Backend scaffold created with a local HTTP service entry point.\n\nFrontend scaffold created with a local browser entry point.\n\nQA completed a backend compile check and wrote follow-up validation notes. [normalized qa artifacts]",
+  "repository_context": {
+    "schema_version": "1.0.0",
+    "kind": "repository-context",
+    "repository_present": false,
+    "repository_root": "",
+    "project_root": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0",
+    "branch": "",
+    "working_tree": {
+      "is_dirty": false,
+      "tracked_change_count": 0,
+      "staged_change_count": 0,
+      "unstaged_change_count": 0,
+      "untracked_count": 0
+    },
+    "diff_summary": {
+      "has_tracked_changes": false,
+      "staged_paths": [],
+      "unstaged_paths": [],
+      "untracked_paths": []
+    },
+    "readiness": {
+      "status": "not_repo",
+      "can_prepare_pr": false,
+      "reasons": [
+        "No git repository detected from the current project root."
+      ]
+    }
+  },
+  "manual_review_count": 0,
+  "failed_validations": [
+    "qa"
+  ],
+  "rerun_guidance": {
+    "qa": {
+      "recommended_from_role": "qa",
+      "reason": "QA report does not contain passing compile and unit execution evidence.",
+      "repairable": true
+    }
+  }
+}

@@ -1,0 +1,325 @@
+{
+  "delivery-pack": {
+    "schema_version": "1.0.0",
+    "kind": "delivery-pack",
+    "consumer": "external-automation",
+    "contract_level": "stable-core",
+    "compatibility_policy": "backward-compatible additive changes only within 1.x",
+    "deprecation_policy": "fields may be deprecated with notice but retained through the current major version",
+    "preferred_fields": [
+      "decision",
+      "external_status",
+      "headline",
+      "queue_stats",
+      "blocks"
+    ],
+    "minimal_view": [
+      "schema_version",
+      "kind",
+      "decision",
+      "external_status",
+      "headline",
+      "queue_stats"
+    ]
+  },
+  "pr-packet": {
+    "schema_version": "1.0.0",
+    "kind": "pr-packet",
+    "consumer": "pr-system",
+    "contract_level": "stable-core",
+    "compatibility_policy": "backward-compatible additive changes only within 1.x",
+    "deprecation_policy": "fields may be deprecated with notice but retained through the current major version",
+    "preferred_fields": [
+      "decision",
+      "headline",
+      "blocks.header",
+      "blocks.delivery_shape",
+      "artifacts",
+      "notes"
+    ],
+    "minimal_view": [
+      "schema_version",
+      "kind",
+      "decision",
+      "external_status",
+      "headline",
+      "queue_stats"
+    ]
+  },
+  "approval-packet": {
+    "schema_version": "1.0.0",
+    "kind": "approval-packet",
+    "consumer": "approval-system",
+    "contract_level": "stable-core",
+    "compatibility_policy": "backward-compatible additive changes only within 1.x",
+    "deprecation_policy": "fields may be deprecated with notice but retained through the current major version",
+    "preferred_fields": [
+      "decision",
+      "headline",
+      "blocks.header",
+      "blocks.approval",
+      "blocks.queues"
+    ],
+    "minimal_view": [
+      "schema_version",
+      "kind",
+      "decision",
+      "external_status",
+      "headline",
+      "queue_stats"
+    ]
+  },
+  "overview-packet": {
+    "schema_version": "1.0.0",
+    "kind": "overview-packet",
+    "consumer": "dashboard-system",
+    "contract_level": "stable-core",
+    "compatibility_policy": "backward-compatible additive changes only within 1.x",
+    "deprecation_policy": "fields may be deprecated with notice but retained through the current major version",
+    "preferred_fields": [
+      "decision",
+      "headline",
+      "queue_stats",
+      "task",
+      "files"
+    ],
+    "minimal_view": [
+      "schema_version",
+      "kind",
+      "decision",
+      "external_status",
+      "headline",
+      "queue_stats"
+    ]
+  },
+  "task-decomposition-overview": {
+    "schema_version": "1.0.0",
+    "kind": "task-decomposition-overview",
+    "consumer": "planning-system",
+    "contract_level": "stable-core",
+    "compatibility_policy": "backward-compatible additive changes only within 1.x",
+    "deprecation_policy": "fields may be deprecated with notice but retained through the current major version",
+    "preferred_fields": [
+      "subsystem_count",
+      "work_package_count",
+      "partitions",
+      "traceability"
+    ],
+    "minimal_view": [
+      "schema_version",
+      "kind",
+      "subsystem_count",
+      "work_package_count"
+    ]
+  },
+  "proof-stage-overview": {
+    "schema_version": "1.0.0",
+    "kind": "proof-stage-overview",
+    "consumer": "capability-proof-system",
+    "contract_level": "stable-core",
+    "compatibility_policy": "backward-compatible additive changes only within 1.x",
+    "deprecation_policy": "fields may be deprecated with notice but retained through the current major version",
+    "preferred_fields": [
+      "proof_stage_count",
+      "proof_stages"
+    ],
+    "minimal_view": [
+      "schema_version",
+      "kind",
+      "proof_stage_count"
+    ]
+  },
+  "delivery-bundle-manifest": {
+    "schema_version": "1.0.0",
+    "kind": "delivery-bundle-manifest",
+    "consumer": "archive-system",
+    "contract_level": "stable-core",
+    "compatibility_policy": "backward-compatible additive changes only within 1.x",
+    "deprecation_policy": "fields may be deprecated with notice but retained through the current major version",
+    "preferred_fields": [
+      "bundle_id",
+      "sequence",
+      "exported_at",
+      "decision",
+      "external_status",
+      "files"
+    ],
+    "minimal_view": [
+      "schema_version",
+      "kind",
+      "bundle_id",
+      "sequence",
+      "decision",
+      "external_status"
+    ]
+  },
+  "delivery-history-index": {
+    "schema_version": "1.0.0",
+    "kind": "delivery-history-index",
+    "consumer": "history-system",
+    "contract_level": "stable-core",
+    "compatibility_policy": "backward-compatible additive changes only within 1.x",
+    "deprecation_policy": "fields may be deprecated with notice but retained through the current major version",
+    "preferred_fields": [
+      "count",
+      "latest_bundle_id",
+      "bundles"
+    ],
+    "minimal_view": [
+      "schema_version",
+      "kind",
+      "count",
+      "latest_bundle_id"
+    ]
+  },
+  "delivery-surface-index": {
+    "schema_version": "1.0.0",
+    "kind": "delivery-surface-index",
+    "consumer": "integration-system",
+    "contract_level": "stable-core",
+    "compatibility_policy": "backward-compatible additive changes only within 1.x",
+    "deprecation_policy": "fields may be deprecated with notice but retained through the current major version",
+    "preferred_fields": [
+      "latest",
+      "history",
+      "named_surfaces",
+      "by_id_patterns"
+    ],
+    "minimal_view": [
+      "schema_version",
+      "kind",
+      "latest",
+      "history"
+    ]
+  },
+  "productionization-scaffold": {
+    "schema_version": "1.0.0",
+    "kind": "productionization-scaffold",
+    "consumer": "hosted-platform-planning",
+    "contract_level": "stable-core",
+    "compatibility_policy": "backward-compatible additive changes only within 1.x",
+    "deprecation_policy": "fields may be deprecated with notice but retained through the current major version",
+    "preferred_fields": [
+      "identity_boundary",
+      "queue_boundary",
+      "sandbox_boundary",
+      "deployment_scaffold",
+      "operational_diagnostics"
+    ],
+    "minimal_view": [
+      "schema_version",
+      "kind",
+      "identity_boundary",
+      "queue_boundary",
+      "deployment_scaffold"
+    ]
+  },
+  "repository-context": {
+    "schema_version": "1.0.0",
+    "kind": "repository-context",
+    "consumer": "delivery-tooling",
+    "contract_level": "stable-core",
+    "compatibility_policy": "backward-compatible additive changes only within 1.x",
+    "deprecation_policy": "fields may be deprecated with notice but retained through the current major version",
+    "preferred_fields": [
+      "repository_present",
+      "repository_root",
+      "branch",
+      "working_tree",
+      "readiness"
+    ],
+    "minimal_view": [
+      "schema_version",
+      "kind",
+      "repository_present",
+      "branch",
+      "readiness"
+    ]
+  },
+  "connector-hooks": {
+    "schema_version": "1.0.0",
+    "kind": "connector-hooks",
+    "consumer": "connector-tooling",
+    "contract_level": "stable-core",
+    "compatibility_policy": "backward-compatible additive changes only within 1.x",
+    "deprecation_policy": "fields may be deprecated with notice but retained through the current major version",
+    "preferred_fields": [
+      "repository_state",
+      "hooks.github_pull_request",
+      "hooks.gitlab_merge_request"
+    ],
+    "minimal_view": [
+      "schema_version",
+      "kind",
+      "repository_state",
+      "hooks"
+    ]
+  },
+  "github-pr-mapping": {
+    "schema_version": "1.0.0",
+    "kind": "github-pr-mapping",
+    "consumer": "github-pr-system",
+    "contract_level": "stable-core",
+    "compatibility_policy": "backward-compatible additive changes only within 1.x",
+    "deprecation_policy": "fields may be deprecated with notice but retained through the current major version",
+    "preferred_fields": [
+      "title",
+      "body",
+      "labels",
+      "decision",
+      "external_status"
+    ],
+    "minimal_view": [
+      "schema_version",
+      "kind",
+      "title",
+      "decision",
+      "external_status"
+    ]
+  },
+  "approval-request-mapping": {
+    "schema_version": "1.0.0",
+    "kind": "approval-request-mapping",
+    "consumer": "approval-request-system",
+    "contract_level": "stable-core",
+    "compatibility_policy": "backward-compatible additive changes only within 1.x",
+    "deprecation_policy": "fields may be deprecated with notice but retained through the current major version",
+    "preferred_fields": [
+      "title",
+      "summary",
+      "decision",
+      "external_status",
+      "queues"
+    ],
+    "minimal_view": [
+      "schema_version",
+      "kind",
+      "title",
+      "decision",
+      "external_status"
+    ]
+  },
+  "dashboard-card-mapping": {
+    "schema_version": "1.0.0",
+    "kind": "dashboard-card-mapping",
+    "consumer": "dashboard-card-system",
+    "contract_level": "stable-core",
+    "compatibility_policy": "backward-compatible additive changes only within 1.x",
+    "deprecation_policy": "fields may be deprecated with notice but retained through the current major version",
+    "preferred_fields": [
+      "title",
+      "headline",
+      "decision",
+      "external_status",
+      "queue_stats"
+    ],
+    "minimal_view": [
+      "schema_version",
+      "kind",
+      "title",
+      "decision",
+      "external_status",
+      "queue_stats"
+    ]
+  }
+}

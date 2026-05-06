@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0.0",
+  "kind": "approval-request-mapping",
+  "consumer": "approval-request-system",
+  "title": "Acceptance web-saas",
+  "decision": "HOLD",
+  "external_status": "blocked",
+  "summary": "Current conclusion: task `failed` with blockers in failed validations: qa.",
+  "queues": {
+    "manual_reviews": [],
+    "conflicts": [],
+    "high_risk_blocks": [],
+    "failed_validations": [
+      "qa"
+    ]
+  }
+}

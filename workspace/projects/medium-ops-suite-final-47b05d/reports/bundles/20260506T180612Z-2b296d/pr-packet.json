@@ -1,0 +1,259 @@
+{
+  "schema_version": "1.0.0",
+  "kind": "pr-packet",
+  "consumer": "pr-system",
+  "decision": "HOLD",
+  "external_status": "blocked",
+  "headline": "Current conclusion: task `completed` with blockers in failed validations: artifact_integrity.",
+  "queue_stats": {
+    "manual_review_count": 0,
+    "conflict_count": 0,
+    "blocked_high_risk_count": 0,
+    "failed_validation_count": 1
+  },
+  "title": "Build a medium-sized operations management platform",
+  "template_id": "web-saas",
+  "stable_fields": {
+    "identity": [
+      "title",
+      "template_id"
+    ],
+    "state": [
+      "decision",
+      "external_status"
+    ],
+    "content": [
+      "workflow",
+      "artifacts",
+      "notes"
+    ]
+  },
+  "compatibility": {
+    "contract_level": "stable-core",
+    "preferred_fields": [
+      "decision",
+      "headline",
+      "blocks.header",
+      "blocks.delivery_shape",
+      "artifacts",
+      "notes"
+    ]
+  },
+  "contract": {
+    "kind": "pr-packet",
+    "schema_version": "1.0.0",
+    "contract_level": "stable-core"
+  },
+  "blocks": {
+    "header": {
+      "title": "Build a medium-sized operations management platform",
+      "decision": "HOLD",
+      "template_id": "web-saas"
+    },
+    "governance_facts": {
+      "decision": "HOLD",
+      "external_status": "blocked",
+      "manual_review_count": 0,
+      "conflict_count": 0,
+      "failed_validations": [
+        "artifact_integrity"
+      ],
+      "validation_findings": {
+        "artifact_integrity": [
+          {
+            "code": "artifact_integrity_missing",
+            "severity": "high",
+            "category": "delivery-drift",
+            "message": "Recorded delivery artifacts are missing from the live project workspace.",
+            "evidence": [
+              "apps/api/models.py",
+              "apps/api/repository.py",
+              "apps/api/services.py",
+              "apps/api/analytics.py",
+              "apps/api/export_tools.py",
+              "apps/api/app.py",
+              "apps/web/index.html",
+              "apps/web/styles.css",
+              "apps/web/catalog.js",
+              "apps/web/components.js",
+              "apps/web/renderer.js",
+              "apps/web/store.js",
+              "apps/web/app.js"
+            ],
+            "suggested_fix": "Re-run the owning role to restore missing deliverables before approving the task state.",
+            "suggested_rerun_role": "frontend"
+          }
+        ]
+      }
+    },
+    "pr_ready_narrative": {
+      "summary": "Repository branch `-` is not PR-ready: No git repository detected from the current project root.",
+      "branch": "",
+      "working_tree": {
+        "is_dirty": false,
+        "tracked_change_count": 0,
+        "staged_change_count": 0,
+        "unstaged_change_count": 0,
+        "untracked_count": 0
+      },
+      "readiness": {
+        "status": "not_repo",
+        "can_prepare_pr": false,
+        "reasons": [
+          "No git repository detected from the current project root."
+        ]
+      }
+    },
+    "delivery_shape": {
+      "workflow": [
+        "planner",
+        "architect",
+        "frontend",
+        "backend",
+        "qa",
+        "security-review",
+        "reviewer",
+        "devops"
+      ],
+      "extra_roles": [
+        "security-review"
+      ],
+      "parallel_implementation": true
+    },
+    "artifacts": [
+      "docs/plan.md",
+      "docs/backlog.md",
+      "docs/work-packages.md",
+      "docs/architecture.md",
+      "docs/api-contract.md",
+      "docs/subsystems.md",
+      "apps/api/models.py",
+      "apps/api/repository.py",
+      "apps/api/services.py",
+      "apps/api/analytics.py",
+      "apps/api/export_tools.py",
+      "apps/api/app.py",
+      "apps/web/index.html",
+      "apps/web/styles.css",
+      "apps/web/catalog.js",
+      "apps/web/components.js",
+      "apps/web/renderer.js",
+      "apps/web/store.js",
+      "apps/web/app.js",
+      "apps/api/models.py",
+      "apps/api/repository.py",
+      "apps/api/services.py",
+      "apps/api/analytics.py",
+      "apps/api/export_tools.py",
+      "apps/api/app.py",
+      "apps/api/models.py",
+      "apps/api/repository.py",
+      "apps/api/services.py",
+      "apps/api/analytics.py",
+      "apps/api/export_tools.py",
+      "apps/api/app.py",
+      "tests/test_operations_platform.py",
+      "tests/qa-report.md",
+      "tests/package-verification.md",
+      "docs/security-review.md",
+      "docs/review.md",
+      "docs/package-review.md",
+      "infra/.env.example",
+      "infra/start_all.ps1"
+    ],
+    "risks": [
+      "- Failed validations: `artifact_integrity`"
+    ]
+  },
+  "workflow": [
+    "planner",
+    "architect",
+    "frontend",
+    "backend",
+    "qa",
+    "security-review",
+    "reviewer",
+    "devops"
+  ],
+  "artifacts": [
+    "docs/plan.md",
+    "docs/backlog.md",
+    "docs/work-packages.md",
+    "docs/architecture.md",
+    "docs/api-contract.md",
+    "docs/subsystems.md",
+    "apps/api/models.py",
+    "apps/api/repository.py",
+    "apps/api/services.py",
+    "apps/api/analytics.py",
+    "apps/api/export_tools.py",
+    "apps/api/app.py",
+    "apps/web/index.html",
+    "apps/web/styles.css",
+    "apps/web/catalog.js",
+    "apps/web/components.js",
+    "apps/web/renderer.js",
+    "apps/web/store.js",
+    "apps/web/app.js",
+    "apps/api/models.py",
+    "apps/api/repository.py",
+    "apps/api/services.py",
+    "apps/api/analytics.py",
+    "apps/api/export_tools.py",
+    "apps/api/app.py",
+    "apps/api/models.py",
+    "apps/api/repository.py",
+    "apps/api/services.py",
+    "apps/api/analytics.py",
+    "apps/api/export_tools.py",
+    "apps/api/app.py",
+    "tests/test_operations_platform.py",
+    "tests/qa-report.md",
+    "tests/package-verification.md",
+    "docs/security-review.md",
+    "docs/review.md",
+    "docs/package-review.md",
+    "infra/.env.example",
+    "infra/start_all.ps1"
+  ],
+  "notes": "Security review captured tenant and auth-focused risks.\n\nReviewer captured the main risks in the generated scaffold.\n\nDevOps added environment and local startup helpers.",
+  "repository_context": {
+    "schema_version": "1.0.0",
+    "kind": "repository-context",
+    "repository_present": false,
+    "repository_root": "",
+    "project_root": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\medium-ops-suite-final-47b05d",
+    "branch": "",
+    "working_tree": {
+      "is_dirty": false,
+      "tracked_change_count": 0,
+      "staged_change_count": 0,
+      "unstaged_change_count": 0,
+      "untracked_count": 0
+    },
+    "diff_summary": {
+      "has_tracked_changes": false,
+      "staged_paths": [],
+      "unstaged_paths": [],
+      "untracked_paths": []
+    },
+    "readiness": {
+      "status": "not_repo",
+      "can_prepare_pr": false,
+      "reasons": [
+        "No git repository detected from the current project root."
+      ]
+    }
+  },
+  "manual_review_count": 0,
+  "failed_validations": [
+    "artifact_integrity"
+  ],
+  "rerun_guidance": {
+    "artifact_integrity": {
+      "recommended_from_role": "frontend",
+      "reason": "Recorded delivery artifacts are missing from the live project workspace.",
+      "repairable": true
+    }
+  }
+}

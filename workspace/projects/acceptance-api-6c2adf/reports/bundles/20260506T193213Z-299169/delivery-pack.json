@@ -1,0 +1,1242 @@
+{
+  "schema_version": "1.0.0",
+  "kind": "delivery-pack",
+  "consumer": "external-automation",
+  "task": {
+    "id": "cb10026b-bb86-49ed-ac5c-e2b02ff3a1f5",
+    "title": "Acceptance api-platform",
+    "status": "failed",
+    "project_name": "acceptance-api-6c2adf",
+    "template_id": "api-platform"
+  },
+  "decision": "HOLD",
+  "external_status": "blocked",
+  "headline": "Current conclusion: task `failed` with blockers in failed validations: qa.",
+  "queue_stats": {
+    "manual_review_count": 0,
+    "conflict_count": 0,
+    "blocked_high_risk_count": 0,
+    "failed_validation_count": 1
+  },
+  "stable_fields": {
+    "identity": [
+      "task.id",
+      "task.title",
+      "task.template_id",
+      "decision",
+      "external_status"
+    ],
+    "overview": [
+      "headline",
+      "queue_stats",
+      "blocks.overview",
+      "blocks.workflow",
+      "blocks.risks"
+    ]
+  },
+  "compatibility": {
+    "contract_level": "stable-core",
+    "preferred_fields": [
+      "decision",
+      "external_status",
+      "headline",
+      "queue_stats",
+      "blocks"
+    ]
+  },
+  "repository_context_contract": {
+    "kind": "repository-context",
+    "schema_version": "1.0.0",
+    "contract_level": "stable-core"
+  },
+  "contract": {
+    "kind": "delivery-pack",
+    "schema_version": "1.0.0",
+    "contract_level": "stable-core"
+  },
+  "blocks": {
+    "overview": {
+      "title": "Acceptance api-platform",
+      "template_id": "api-platform",
+      "decision": "HOLD",
+      "external_status": "blocked",
+      "headline": "Current conclusion: task `failed` with blockers in failed validations: qa."
+    },
+    "workflow": {
+      "roles": [
+        "planner",
+        "architect",
+        "backend",
+        "qa",
+        "integration-auditor",
+        "reviewer",
+        "devops"
+      ],
+      "parallel_implementation": false,
+      "extra_roles": [
+        "integration-auditor"
+      ]
+    },
+    "risks": {
+      "failed_validations": [
+        "qa"
+      ],
+      "validation_findings": {
+        "qa": [
+          {
+            "code": "qa_execution_evidence_missing",
+            "severity": "high",
+            "category": "evidence-missing",
+            "message": "QA report does not contain passing compile and unit execution evidence.",
+            "evidence": [
+              "tests/qa-report.md"
+            ],
+            "suggested_fix": "Run compile and unit checks from the main project root and publish passing evidence.",
+            "suggested_rerun_role": "qa"
+          },
+          {
+            "code": "qa_executed_check_failed",
+            "severity": "high",
+            "category": "verification-failed",
+            "message": "QA report contains failed executed checks.",
+            "evidence": [
+              "tests/qa-report.md"
+            ],
+            "suggested_fix": "Fix the failing checks or rerun QA after producing passing compile/unit evidence.",
+            "suggested_rerun_role": "qa"
+          }
+        ]
+      },
+      "manual_reviews": [],
+      "conflicts": [],
+      "high_risk_blocks": []
+    },
+    "repository": {
+      "schema_version": "1.0.0",
+      "kind": "repository-context",
+      "repository_present": false,
+      "repository_root": "",
+      "project_root": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-api-6c2adf",
+      "branch": "",
+      "working_tree": {
+        "is_dirty": false,
+        "tracked_change_count": 0,
+        "staged_change_count": 0,
+        "unstaged_change_count": 0,
+        "untracked_count": 0
+      },
+      "diff_summary": {
+        "has_tracked_changes": false,
+        "staged_paths": [],
+        "unstaged_paths": [],
+        "untracked_paths": []
+      },
+      "readiness": {
+        "status": "not_repo",
+        "can_prepare_pr": false,
+        "reasons": [
+          "No git repository detected from the current project root."
+        ]
+      }
+    },
+    "delivery_readiness": {
+      "pr_ready_summary": "Repository branch `-` is not PR-ready: No git repository detected from the current project root.",
+      "connector_hooks": {
+        "schema_version": "1.0.0",
+        "kind": "connector-hooks",
+        "repository_state": "not_repo",
+        "hooks": {
+          "github_pull_request": {
+            "ready": false,
+            "recommended_input_fields": [
+              "title",
+              "body",
+              "labels",
+              "base_branch",
+              "head_branch"
+            ],
+            "requires_human_review": true
+          },
+          "gitlab_merge_request": {
+            "ready": false,
+            "recommended_input_fields": [
+              "title",
+              "description",
+              "labels",
+              "target_branch",
+              "source_branch"
+            ],
+            "requires_human_review": true
+          }
+        }
+      }
+    },
+    "decomposition": {
+      "schema_version": "1.0.0",
+      "kind": "task-decomposition-overview",
+      "contract": {
+        "kind": "task-decomposition-overview",
+        "schema_version": "1.0.0",
+        "contract_level": "stable-core"
+      },
+      "task": {
+        "id": "cb10026b-bb86-49ed-ac5c-e2b02ff3a1f5",
+        "title": "Acceptance api-platform",
+        "template_id": "api-platform"
+      },
+      "subsystem_count": 6,
+      "work_package_count": 11,
+      "subsystem_slices": [
+        {
+          "id": "ss-01",
+          "name": "identity-and-service-auth",
+          "summary": "Bounded subsystem for `identity-and-service-auth` inside the governed delivery plan.",
+          "primary_role": "backend",
+          "partition": "backend",
+          "owned_surfaces": [
+            "apps/api",
+            "docs/api-contract.md"
+          ],
+          "dependencies": [],
+          "tags": [
+            "backend",
+            "backend"
+          ]
+        },
+        {
+          "id": "ss-02",
+          "name": "public-api-surface",
+          "summary": "Bounded subsystem for `public-api-surface` inside the governed delivery plan.",
+          "primary_role": "backend",
+          "partition": "backend",
+          "owned_surfaces": [
+            "apps/api",
+            "docs/api-contract.md"
+          ],
+          "dependencies": [
+            "ss-01"
+          ],
+          "tags": [
+            "backend",
+            "backend"
+          ]
+        },
+        {
+          "id": "ss-03",
+          "name": "internal-service-layer",
+          "summary": "Bounded subsystem for `internal-service-layer` inside the governed delivery plan.",
+          "primary_role": "backend",
+          "partition": "backend",
+          "owned_surfaces": [
+            "apps/api",
+            "docs/api-contract.md"
+          ],
+          "dependencies": [
+            "ss-02"
+          ],
+          "tags": [
+            "backend",
+            "backend"
+          ]
+        },
+        {
+          "id": "ss-04",
+          "name": "integration-adapters",
+          "summary": "Bounded subsystem for `integration-adapters` inside the governed delivery plan.",
+          "primary_role": "backend",
+          "partition": "backend",
+          "owned_surfaces": [
+            "apps/api",
+            "docs/api-contract.md"
+          ],
+          "dependencies": [
+            "ss-03"
+          ],
+          "tags": [
+            "backend",
+            "backend"
+          ]
+        },
+        {
+          "id": "ss-05",
+          "name": "contract-testing",
+          "summary": "Bounded subsystem for `contract-testing` inside the governed delivery plan.",
+          "primary_role": "architect",
+          "partition": "domain",
+          "owned_surfaces": [
+            "docs"
+          ],
+          "dependencies": [
+            "ss-04"
+          ],
+          "tags": [
+            "domain",
+            "architect"
+          ]
+        },
+        {
+          "id": "ss-06",
+          "name": "release-and-runtime-ops",
+          "summary": "Bounded subsystem for `release-and-runtime-ops` inside the governed delivery plan.",
+          "primary_role": "devops",
+          "partition": "integration",
+          "owned_surfaces": [
+            "docs/integration.md",
+            "infra",
+            "apps/api",
+            "apps/web"
+          ],
+          "dependencies": [
+            "ss-05"
+          ],
+          "tags": [
+            "integration",
+            "devops"
+          ]
+        }
+      ],
+      "work_packages": [
+        {
+          "id": "wp-plan",
+          "title": "Repository and requirement decomposition",
+          "owner": "planner",
+          "phase": "planning",
+          "scope": "docs/",
+          "goal": "Turn the original request into bounded subsystem and execution packages.",
+          "partition": "planning",
+          "subsystem_ids": [
+            "ss-01",
+            "ss-02",
+            "ss-03",
+            "ss-04",
+            "ss-05",
+            "ss-06"
+          ],
+          "dependencies": [],
+          "outputs": [
+            "docs/plan.md",
+            "docs/backlog.md",
+            "docs/work-packages.md"
+          ],
+          "definition_of_done": [
+            "Subsystem slices are named",
+            "Execution package boundaries are explicit",
+            "Traceability from request to package exists"
+          ],
+          "parallel_group": ""
+        },
+        {
+          "id": "wp-arch",
+          "title": "Cross-subsystem architecture baseline",
+          "owner": "architect",
+          "phase": "architecture",
+          "scope": "docs/ and shared contracts",
+          "goal": "Define the architecture and interface boundaries that govern all subsystem slices.",
+          "partition": "architecture",
+          "subsystem_ids": [
+            "ss-01",
+            "ss-02",
+            "ss-03",
+            "ss-04",
+            "ss-05",
+            "ss-06"
+          ],
+          "dependencies": [
+            "wp-plan"
+          ],
+          "outputs": [
+            "docs/architecture.md",
+            "docs/api-contract.md",
+            "docs/subsystems.md"
+          ],
+          "definition_of_done": [
+            "Subsystem boundaries are documented",
+            "Ownership and dependency edges are explicit",
+            "Shared contracts are described"
+          ],
+          "parallel_group": ""
+        },
+        {
+          "id": "wp-ss-01",
+          "title": "Implement identity-and-service-auth",
+          "owner": "backend",
+          "phase": "implementation",
+          "scope": "apps/api, docs/api-contract.md",
+          "goal": "Deliver the bounded `identity-and-service-auth` subsystem without crossing governed ownership boundaries.",
+          "partition": "backend",
+          "subsystem_ids": [
+            "ss-01"
+          ],
+          "dependencies": [
+            "wp-arch"
+          ],
+          "outputs": [
+            "apps/api",
+            "docs/api-contract.md"
+          ],
+          "definition_of_done": [
+            "identity-and-service-auth artifacts exist in owned surfaces",
+            "Dependencies on previous subsystems are documented",
+            "Package remains traceable to the original request"
+          ],
+          "parallel_group": "implementation"
+        },
+        {
+          "id": "wp-ss-02",
+          "title": "Implement public-api-surface",
+          "owner": "backend",
+          "phase": "implementation",
+          "scope": "apps/api, docs/api-contract.md",
+          "goal": "Deliver the bounded `public-api-surface` subsystem without crossing governed ownership boundaries.",
+          "partition": "backend",
+          "subsystem_ids": [
+            "ss-02"
+          ],
+          "dependencies": [
+            "wp-arch",
+            "wp-ss-01"
+          ],
+          "outputs": [
+            "apps/api",
+            "docs/api-contract.md"
+          ],
+          "definition_of_done": [
+            "public-api-surface artifacts exist in owned surfaces",
+            "Dependencies on previous subsystems are documented",
+            "Package remains traceable to the original request"
+          ],
+          "parallel_group": "implementation"
+        },
+        {
+          "id": "wp-ss-03",
+          "title": "Implement internal-service-layer",
+          "owner": "backend",
+          "phase": "implementation",
+          "scope": "apps/api, docs/api-contract.md",
+          "goal": "Deliver the bounded `internal-service-layer` subsystem without crossing governed ownership boundaries.",
+          "partition": "backend",
+          "subsystem_ids": [
+            "ss-03"
+          ],
+          "dependencies": [
+            "wp-arch",
+            "wp-ss-02"
+          ],
+          "outputs": [
+            "apps/api",
+            "docs/api-contract.md"
+          ],
+          "definition_of_done": [
+            "internal-service-layer artifacts exist in owned surfaces",
+            "Dependencies on previous subsystems are documented",
+            "Package remains traceable to the original request"
+          ],
+          "parallel_group": "implementation"
+        },
+        {
+          "id": "wp-ss-04",
+          "title": "Implement integration-adapters",
+          "owner": "backend",
+          "phase": "implementation",
+          "scope": "apps/api, docs/api-contract.md",
+          "goal": "Deliver the bounded `integration-adapters` subsystem without crossing governed ownership boundaries.",
+          "partition": "backend",
+          "subsystem_ids": [
+            "ss-04"
+          ],
+          "dependencies": [
+            "wp-arch",
+            "wp-ss-03"
+          ],
+          "outputs": [
+            "apps/api",
+            "docs/api-contract.md"
+          ],
+          "definition_of_done": [
+            "integration-adapters artifacts exist in owned surfaces",
+            "Dependencies on previous subsystems are documented",
+            "Package remains traceable to the original request"
+          ],
+          "parallel_group": "implementation"
+        },
+        {
+          "id": "wp-ss-05",
+          "title": "Implement contract-testing",
+          "owner": "architect",
+          "phase": "architecture",
+          "scope": "docs",
+          "goal": "Deliver the bounded `contract-testing` subsystem without crossing governed ownership boundaries.",
+          "partition": "domain",
+          "subsystem_ids": [
+            "ss-05"
+          ],
+          "dependencies": [
+            "wp-arch",
+            "wp-ss-04"
+          ],
+          "outputs": [
+            "docs"
+          ],
+          "definition_of_done": [
+            "contract-testing artifacts exist in owned surfaces",
+            "Dependencies on previous subsystems are documented",
+            "Package remains traceable to the original request"
+          ],
+          "parallel_group": ""
+        },
+        {
+          "id": "wp-ss-06",
+          "title": "Implement release-and-runtime-ops",
+          "owner": "devops",
+          "phase": "approval_required",
+          "scope": "docs/integration.md, infra, apps/api, apps/web",
+          "goal": "Deliver the bounded `release-and-runtime-ops` subsystem without crossing governed ownership boundaries.",
+          "partition": "integration",
+          "subsystem_ids": [
+            "ss-06"
+          ],
+          "dependencies": [
+            "wp-arch",
+            "wp-ss-05"
+          ],
+          "outputs": [
+            "docs/integration.md",
+            "infra",
+            "apps/api",
+            "apps/web"
+          ],
+          "definition_of_done": [
+            "release-and-runtime-ops artifacts exist in owned surfaces",
+            "Dependencies on previous subsystems are documented",
+            "Package remains traceable to the original request"
+          ],
+          "parallel_group": ""
+        },
+        {
+          "id": "wp-verify",
+          "title": "Cross-package verification",
+          "owner": "qa",
+          "phase": "verification",
+          "scope": "tests",
+          "goal": "Validate subsystem interactions and preserve evidence across the full package set.",
+          "partition": "verification",
+          "subsystem_ids": [
+            "ss-01",
+            "ss-02",
+            "ss-03",
+            "ss-04",
+            "ss-05",
+            "ss-06"
+          ],
+          "dependencies": [
+            "wp-arch",
+            "wp-ss-01",
+            "wp-ss-02",
+            "wp-ss-03",
+            "wp-ss-04",
+            "wp-ss-05",
+            "wp-ss-06"
+          ],
+          "outputs": [
+            "tests/qa-report.md",
+            "tests/package-verification.md"
+          ],
+          "definition_of_done": [
+            "QA evidence covers multiple work packages",
+            "Integration risks are preserved",
+            "Open gaps remain visible"
+          ],
+          "parallel_group": ""
+        },
+        {
+          "id": "wp-review",
+          "title": "Cross-package technical review",
+          "owner": "reviewer",
+          "phase": "review",
+          "scope": "docs/review.md",
+          "goal": "Review the full decomposition outcome and capture residual risk by subsystem and package.",
+          "partition": "review",
+          "subsystem_ids": [
+            "ss-01",
+            "ss-02",
+            "ss-03",
+            "ss-04",
+            "ss-05",
+            "ss-06"
+          ],
+          "dependencies": [
+            "wp-verify"
+          ],
+          "outputs": [
+            "docs/review.md",
+            "docs/package-review.md"
+          ],
+          "definition_of_done": [
+            "Findings mention package boundaries",
+            "Residual risks mention subsystem ownership",
+            "Follow-up items are package-aware"
+          ],
+          "parallel_group": ""
+        },
+        {
+          "id": "wp-delivery",
+          "title": "Delivery bundle preparation",
+          "owner": "devops",
+          "phase": "approval_required",
+          "scope": "infra and reports",
+          "goal": "Prepare governed delivery outputs that preserve decomposition metadata for downstream systems.",
+          "partition": "delivery",
+          "subsystem_ids": [
+            "ss-01",
+            "ss-02",
+            "ss-03",
+            "ss-04",
+            "ss-05",
+            "ss-06"
+          ],
+          "dependencies": [
+            "wp-review"
+          ],
+          "outputs": [
+            "infra/",
+            "reports/",
+            ".env.example"
+          ],
+          "definition_of_done": [
+            "Delivery outputs include decomposition metadata",
+            "Human approval gate remains intact",
+            "Bundle can be inspected package by package"
+          ],
+          "parallel_group": ""
+        }
+      ],
+      "partitions": {
+        "planning": [],
+        "architecture": [],
+        "frontend": [],
+        "backend": [
+          "ss-01",
+          "ss-02",
+          "ss-03",
+          "ss-04"
+        ],
+        "domain": [
+          "ss-05"
+        ],
+        "integration": [
+          "ss-06"
+        ],
+        "verification": [],
+        "review": [],
+        "delivery": []
+      },
+      "ownership": {
+        "ss-01": {
+          "primary_role": "backend",
+          "owned_surfaces": [
+            "apps/api",
+            "docs/api-contract.md"
+          ]
+        },
+        "ss-02": {
+          "primary_role": "backend",
+          "owned_surfaces": [
+            "apps/api",
+            "docs/api-contract.md"
+          ]
+        },
+        "ss-03": {
+          "primary_role": "backend",
+          "owned_surfaces": [
+            "apps/api",
+            "docs/api-contract.md"
+          ]
+        },
+        "ss-04": {
+          "primary_role": "backend",
+          "owned_surfaces": [
+            "apps/api",
+            "docs/api-contract.md"
+          ]
+        },
+        "ss-05": {
+          "primary_role": "architect",
+          "owned_surfaces": [
+            "docs"
+          ]
+        },
+        "ss-06": {
+          "primary_role": "devops",
+          "owned_surfaces": [
+            "docs/integration.md",
+            "infra",
+            "apps/api",
+            "apps/web"
+          ]
+        }
+      },
+      "traceability": {
+        "request": {
+          "title": "Acceptance api-platform",
+          "description": "Acceptance validation for api-platform."
+        },
+        "subsystem_order": [
+          "ss-01",
+          "ss-02",
+          "ss-03",
+          "ss-04",
+          "ss-05",
+          "ss-06"
+        ],
+        "package_order": [
+          "wp-plan",
+          "wp-arch",
+          "wp-ss-01",
+          "wp-ss-02",
+          "wp-ss-03",
+          "wp-ss-04",
+          "wp-ss-05",
+          "wp-ss-06",
+          "wp-verify",
+          "wp-review",
+          "wp-delivery"
+        ],
+        "package_to_subsystems": {
+          "wp-plan": [
+            "ss-01",
+            "ss-02",
+            "ss-03",
+            "ss-04",
+            "ss-05",
+            "ss-06"
+          ],
+          "wp-arch": [
+            "ss-01",
+            "ss-02",
+            "ss-03",
+            "ss-04",
+            "ss-05",
+            "ss-06"
+          ],
+          "wp-ss-01": [
+            "ss-01"
+          ],
+          "wp-ss-02": [
+            "ss-02"
+          ],
+          "wp-ss-03": [
+            "ss-03"
+          ],
+          "wp-ss-04": [
+            "ss-04"
+          ],
+          "wp-ss-05": [
+            "ss-05"
+          ],
+          "wp-ss-06": [
+            "ss-06"
+          ],
+          "wp-verify": [
+            "ss-01",
+            "ss-02",
+            "ss-03",
+            "ss-04",
+            "ss-05",
+            "ss-06"
+          ],
+          "wp-review": [
+            "ss-01",
+            "ss-02",
+            "ss-03",
+            "ss-04",
+            "ss-05",
+            "ss-06"
+          ],
+          "wp-delivery": [
+            "ss-01",
+            "ss-02",
+            "ss-03",
+            "ss-04",
+            "ss-05",
+            "ss-06"
+          ]
+        }
+      }
+    },
+    "proof_stages": {
+      "schema_version": "1.0.0",
+      "kind": "proof-stage-overview",
+      "contract": {
+        "kind": "proof-stage-overview",
+        "schema_version": "1.0.0",
+        "contract_level": "stable-core"
+      },
+      "task": {
+        "id": "cb10026b-bb86-49ed-ac5c-e2b02ff3a1f5",
+        "title": "Acceptance api-platform",
+        "template_id": "api-platform"
+      },
+      "proof_stage_count": 4,
+      "proof_stages": [
+        {
+          "id": "proof-01",
+          "title": "Real planner and architect compatibility",
+          "success_signal": "Planner and architect complete under real-model execution with valid governed artifacts.",
+          "evidence_targets": [
+            "docs/plan.md",
+            "docs/architecture.md",
+            "docs/api-contract.md"
+          ],
+          "status": "proven",
+          "matched_evidence_targets": [
+            "docs/plan.md",
+            "docs/architecture.md",
+            "docs/api-contract.md"
+          ]
+        },
+        {
+          "id": "proof-02",
+          "title": "Bounded package implementation proof",
+          "success_signal": "At least one bounded implementation package completes with governed artifacts and validation.",
+          "evidence_targets": [
+            "apps/web",
+            "apps/api",
+            "tests/qa-report.md"
+          ],
+          "status": "planned",
+          "matched_evidence_targets": [
+            "tests/qa-report.md"
+          ]
+        },
+        {
+          "id": "proof-03",
+          "title": "Multi-package verification proof",
+          "success_signal": "Cross-package QA and review evidence complete without collapsing the workflow.",
+          "evidence_targets": [
+            "tests/package-verification.md",
+            "docs/review.md",
+            "docs/package-review.md"
+          ],
+          "status": "planned",
+          "matched_evidence_targets": [
+            "tests/package-verification.md"
+          ]
+        },
+        {
+          "id": "proof-04",
+          "title": "Large-system delivery proof",
+          "success_signal": "Delivery artifacts, memory, decomposition, and approval state are exported for the large-system task.",
+          "evidence_targets": [
+            "reports/",
+            "infra/",
+            "task-memory.json"
+          ],
+          "status": "planned",
+          "matched_evidence_targets": [
+            "reports/",
+            "infra/"
+          ]
+        }
+      ]
+    },
+    "rerun_guidance": {
+      "qa": {
+        "recommended_from_role": "qa",
+        "reason": "QA report does not contain passing compile and unit execution evidence.",
+        "repairable": true
+      }
+    }
+  },
+  "repository_context": {
+    "schema_version": "1.0.0",
+    "kind": "repository-context",
+    "repository_present": false,
+    "repository_root": "",
+    "project_root": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-api-6c2adf",
+    "branch": "",
+    "working_tree": {
+      "is_dirty": false,
+      "tracked_change_count": 0,
+      "staged_change_count": 0,
+      "unstaged_change_count": 0,
+      "untracked_count": 0
+    },
+    "diff_summary": {
+      "has_tracked_changes": false,
+      "staged_paths": [],
+      "unstaged_paths": [],
+      "untracked_paths": []
+    },
+    "readiness": {
+      "status": "not_repo",
+      "can_prepare_pr": false,
+      "reasons": [
+        "No git repository detected from the current project root."
+      ]
+    }
+  },
+  "connector_hooks": {
+    "schema_version": "1.0.0",
+    "kind": "connector-hooks",
+    "repository_state": "not_repo",
+    "hooks": {
+      "github_pull_request": {
+        "ready": false,
+        "recommended_input_fields": [
+          "title",
+          "body",
+          "labels",
+          "base_branch",
+          "head_branch"
+        ],
+        "requires_human_review": true
+      },
+      "gitlab_merge_request": {
+        "ready": false,
+        "recommended_input_fields": [
+          "title",
+          "description",
+          "labels",
+          "target_branch",
+          "source_branch"
+        ],
+        "requires_human_review": true
+      }
+    }
+  },
+  "export": {
+    "format": "machine-readable",
+    "producer": "multi-agent-dev-orchestrator"
+  },
+  "summary": {
+    "template_id": "api-platform",
+    "task_mode": "delivery",
+    "workflow": [
+      "planner",
+      "architect",
+      "backend",
+      "qa",
+      "integration-auditor",
+      "reviewer",
+      "devops"
+    ],
+    "approval_profile": {
+      "app_code": "auto_apply",
+      "infra": "auto_apply"
+    },
+    "budget": {
+      "role_runs": 24,
+      "llm_calls": 36,
+      "conflicts": 6,
+      "resumes": 6,
+      "failures": 8,
+      "consumed_role_runs": 7,
+      "consumed_llm_calls": 0,
+      "consumed_conflicts": 0,
+      "consumed_resumes": 0,
+      "consumed_failures": 1
+    },
+    "requires_human_approval": false,
+    "parallel_implementation": false,
+    "role_overrides": {
+      "backend": {
+        "prompt_suffix": "Favor contract durability, integration clarity, and runtime operability."
+      },
+      "qa": {
+        "prompt_suffix": "Bias toward contract checks, integration failure modes, and backward compatibility evidence."
+      },
+      "frontend": {
+        "disable_tools": [
+          "write_file",
+          "make_dir",
+          "run_shell"
+        ],
+        "prompt_suffix": "Frontend work is minimized for this template; avoid inventing UI surfaces unless explicitly required."
+      }
+    },
+    "extra_roles": [
+      "integration-auditor"
+    ],
+    "validation_profile": {
+      "required_keywords_by_role": {
+        "integration-auditor": [
+          "contract",
+          "adapter",
+          "compatibility"
+        ],
+        "qa": [
+          "Follow-up"
+        ]
+      }
+    },
+    "checkpoint_roles": [
+      "planner",
+      "planner",
+      "architect",
+      "architect",
+      "backend",
+      "backend",
+      "backend",
+      "backend",
+      "backend",
+      "backend",
+      "backend",
+      "backend",
+      "qa",
+      "qa"
+    ],
+    "failed_validations": [
+      "qa"
+    ],
+    "validation_findings": {
+      "qa": [
+        {
+          "code": "qa_execution_evidence_missing",
+          "severity": "high",
+          "category": "evidence-missing",
+          "message": "QA report does not contain passing compile and unit execution evidence.",
+          "evidence": [
+            "tests/qa-report.md"
+          ],
+          "suggested_fix": "Run compile and unit checks from the main project root and publish passing evidence.",
+          "suggested_rerun_role": "qa"
+        },
+        {
+          "code": "qa_executed_check_failed",
+          "severity": "high",
+          "category": "verification-failed",
+          "message": "QA report contains failed executed checks.",
+          "evidence": [
+            "tests/qa-report.md"
+          ],
+          "suggested_fix": "Fix the failing checks or rerun QA after producing passing compile/unit evidence.",
+          "suggested_rerun_role": "qa"
+        }
+      ]
+    },
+    "rerun_guidance": {
+      "qa": {
+        "recommended_from_role": "qa",
+        "reason": "QA report does not contain passing compile and unit execution evidence.",
+        "repairable": true
+      }
+    },
+    "conflict_count": 0,
+    "manual_review_count": 0,
+    "blocked_high_risk_count": 0,
+    "conflicts": [],
+    "manual_reviews": [],
+    "blocked_high_risk": [],
+    "completed_roles": [
+      "planner",
+      "architect",
+      "backend"
+    ],
+    "completed_role_count": 3,
+    "workflow_role_count": 7,
+    "large_task_metrics": {
+      "is_large_scale_task": false,
+      "delivery_gate_ok": true,
+      "delivery_gate_present": false,
+      "delivery_gate_findings": [],
+      "source_lines": 148,
+      "source_file_count": 4,
+      "coverage_areas": [
+        "apps",
+        "tests"
+      ],
+      "contentful_files": [
+        "apps/api/app.py",
+        "apps/api/models.py",
+        "apps/api/repository.py",
+        "tests/test_operations_platform.py"
+      ],
+      "module_target_count": 6,
+      "subsystem_target_count": 6,
+      "work_package_target_count": 11,
+      "implemented_role_count": 1,
+      "normalized_roles": [
+        "qa"
+      ],
+      "has_normalized_outputs": true,
+      "artifact_counts_by_role": {
+        "planner": 3,
+        "architect": 3,
+        "backend": 4,
+        "qa": 3
+      },
+      "empty_artifact_roles": []
+    },
+    "artifact_integrity": {
+      "status": "ok",
+      "expected_artifact_count": 13,
+      "existing_artifact_count": 13,
+      "missing_artifact_count": 0,
+      "missing_artifacts": [],
+      "recommended_rerun_role": ""
+    }
+  },
+  "memory": {
+    "schema_version": "1.0.0",
+    "kind": "task-memory",
+    "task_id": "cb10026b-bb86-49ed-ac5c-e2b02ff3a1f5",
+    "project_name": "acceptance-api-6c2adf",
+    "current_known_state": {
+      "status": "failed",
+      "latest_completed_role": "backend",
+      "failed_roles": [
+        "qa"
+      ],
+      "open_change_count": 0,
+      "artifacts_count": 25,
+      "large_scale_task": false,
+      "delivery_gate_ok": true,
+      "artifact_integrity_status": "ok",
+      "missing_artifact_count": 0
+    },
+    "continuation": {
+      "recommended_resume_role": "qa",
+      "reason": "QA report does not contain passing compile and unit execution evidence."
+    },
+    "recent_events": [
+      {
+        "ts": "2026-05-06T19:32:12.007648+00:00",
+        "source": "backend",
+        "level": "info",
+        "message": "Backend started."
+      },
+      {
+        "ts": "2026-05-06T19:32:12.016289+00:00",
+        "source": "work-package",
+        "level": "info",
+        "message": "Work package implementation started."
+      },
+      {
+        "ts": "2026-05-06T19:32:12.136895+00:00",
+        "source": "work-package",
+        "level": "info",
+        "message": "Work package implementation finished."
+      },
+      {
+        "ts": "2026-05-06T19:32:12.147534+00:00",
+        "source": "backend",
+        "level": "info",
+        "message": "Backend completed."
+      },
+      {
+        "ts": "2026-05-06T19:32:12.151977+00:00",
+        "source": "work-package",
+        "level": "info",
+        "message": "Implementation package pipeline completed."
+      },
+      {
+        "ts": "2026-05-06T19:32:12.170320+00:00",
+        "source": "qa",
+        "level": "info",
+        "message": "QA started."
+      },
+      {
+        "ts": "2026-05-06T19:32:13.437829+00:00",
+        "source": "qa",
+        "level": "error",
+        "message": "qa output failed validation."
+      },
+      {
+        "ts": "2026-05-06T19:32:13.448936+00:00",
+        "source": "orchestrator",
+        "level": "error",
+        "message": "Workflow failed: qa output failed validation."
+      }
+    ],
+    "recent_checkpoints": [
+      {
+        "role": "backend",
+        "phase": "implementation",
+        "status": "started",
+        "created_at": "2026-05-06T19:32:11.599752+00:00"
+      },
+      {
+        "role": "backend",
+        "phase": "implementation",
+        "status": "completed",
+        "created_at": "2026-05-06T19:32:11.726789+00:00"
+      },
+      {
+        "role": "backend",
+        "phase": "implementation",
+        "status": "started",
+        "created_at": "2026-05-06T19:32:11.739366+00:00"
+      },
+      {
+        "role": "backend",
+        "phase": "implementation",
+        "status": "completed",
+        "created_at": "2026-05-06T19:32:11.858851+00:00"
+      },
+      {
+        "role": "backend",
+        "phase": "implementation",
+        "status": "started",
+        "created_at": "2026-05-06T19:32:11.874225+00:00"
+      },
+      {
+        "role": "backend",
+        "phase": "implementation",
+        "status": "completed",
+        "created_at": "2026-05-06T19:32:11.988184+00:00"
+      },
+      {
+        "role": "backend",
+        "phase": "implementation",
+        "status": "started",
+        "created_at": "2026-05-06T19:32:12.004640+00:00"
+      },
+      {
+        "role": "backend",
+        "phase": "implementation",
+        "status": "completed",
+        "created_at": "2026-05-06T19:32:12.141620+00:00"
+      },
+      {
+        "role": "qa",
+        "phase": "verification",
+        "status": "started",
+        "created_at": "2026-05-06T19:32:12.166702+00:00"
+      },
+      {
+        "role": "qa",
+        "phase": "verification",
+        "status": "blocked",
+        "created_at": "2026-05-06T19:32:13.433523+00:00"
+      }
+    ],
+    "open_changes": [],
+    "rerun_guidance": {
+      "qa": {
+        "recommended_from_role": "qa",
+        "reason": "QA report does not contain passing compile and unit execution evidence.",
+        "repairable": true
+      }
+    },
+    "progress_snapshot": {
+      "completed_role_count": 3,
+      "workflow_role_count": 7,
+      "delivery_gate_ok": true,
+      "source_lines": 148,
+      "source_file_count": 4,
+      "normalized_roles": [
+        "qa"
+      ],
+      "artifact_integrity_status": "ok",
+      "missing_artifact_count": 0
+    }
+  },
+  "files": {
+    "governance-report.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-api-6c2adf\\reports\\bundles\\20260506T193213Z-299169\\governance-report.md",
+    "pr-summary.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-api-6c2adf\\reports\\bundles\\20260506T193213Z-299169\\pr-summary.md",
+    "approval-brief.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-api-6c2adf\\reports\\bundles\\20260506T193213Z-299169\\approval-brief.md",
+    "release-checklist.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-api-6c2adf\\reports\\bundles\\20260506T193213Z-299169\\release-checklist.md",
+    "stakeholder-summary.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-api-6c2adf\\reports\\bundles\\20260506T193213Z-299169\\stakeholder-summary.md",
+    "delivery-index.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-api-6c2adf\\reports\\bundles\\20260506T193213Z-299169\\delivery-index.md"
+  }
+}

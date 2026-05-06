@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0.0",
+  "kind": "repair-history",
+  "task_id": "cb10026b-bb86-49ed-ac5c-e2b02ff3a1f5",
+  "failed_validations": [
+    "qa"
+  ],
+  "rerun_guidance": {
+    "qa": {
+      "recommended_from_role": "qa",
+      "reason": "QA report does not contain passing compile and unit execution evidence.",
+      "repairable": true
+    }
+  },
+  "work_package_failures": []
+}

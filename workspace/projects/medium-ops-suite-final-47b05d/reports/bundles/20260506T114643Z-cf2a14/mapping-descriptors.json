@@ -1,0 +1,74 @@
+{
+  "github-pr-mapping": {
+    "schema_version": "1.0.0",
+    "kind": "github-pr-mapping",
+    "consumer": "github-pr-system",
+    "contract_level": "stable-core",
+    "required_fields": [
+      "title",
+      "decision",
+      "external_status",
+      "body"
+    ],
+    "preferred_fields": [
+      "title",
+      "body",
+      "labels",
+      "decision",
+      "external_status"
+    ]
+  },
+  "approval-request-mapping": {
+    "schema_version": "1.0.0",
+    "kind": "approval-request-mapping",
+    "consumer": "approval-request-system",
+    "contract_level": "stable-core",
+    "required_fields": [
+      "title",
+      "decision",
+      "external_status",
+      "summary"
+    ],
+    "preferred_fields": [
+      "title",
+      "summary",
+      "decision",
+      "external_status",
+      "queues"
+    ]
+  },
+  "dashboard-card-mapping": {
+    "schema_version": "1.0.0",
+    "kind": "dashboard-card-mapping",
+    "consumer": "dashboard-card-system",
+    "contract_level": "stable-core",
+    "required_fields": [
+      "title",
+      "decision",
+      "external_status",
+      "headline"
+    ],
+    "preferred_fields": [
+      "title",
+      "headline",
+      "decision",
+      "external_status",
+      "queue_stats"
+    ]
+  },
+  "connector-hooks": {
+    "schema_version": "1.0.0",
+    "kind": "connector-hooks",
+    "consumer": "connector-tooling",
+    "contract_level": "stable-core",
+    "required_fields": [
+      "repository_state",
+      "hooks"
+    ],
+    "preferred_fields": [
+      "repository_state",
+      "hooks.github_pull_request",
+      "hooks.gitlab_merge_request"
+    ]
+  }
+}

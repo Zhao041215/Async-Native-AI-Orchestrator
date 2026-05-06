@@ -1,0 +1,78 @@
+{
+  "id": "VAL-4689822f2162",
+  "run_id": "4fbadc08-d5ca-490b-aad3-f1a06b9db532",
+  "gate": "v2-quality-gates",
+  "status": "failed",
+  "score": 10,
+  "findings": [
+    {
+      "code": "implementation_low_domain_relevance",
+      "severity": "high",
+      "category": "domain-relevance",
+      "message": "Application code has weak overlap with requirement/domain terms.",
+      "evidence": [],
+      "owner": "chief",
+      "repair_role": "chief"
+    },
+    {
+      "code": "no_executable_tests",
+      "severity": "critical",
+      "category": "verification",
+      "message": "No executable tests were found.",
+      "evidence": [
+        "tests/"
+      ],
+      "owner": "qa-automation",
+      "repair_role": "qa-automation"
+    },
+    {
+      "code": "qa_missing",
+      "severity": "critical",
+      "category": "verification",
+      "message": "No QA evidence or tests were found.",
+      "evidence": [
+        "tests/"
+      ],
+      "owner": "qa-automation",
+      "repair_role": "qa-automation"
+    }
+  ],
+  "evidence": [
+    "source_lines=45",
+    "source_file_count=3",
+    "must_coverage=100.0",
+    "anti_shit_score=10"
+  ],
+  "created_at": "2026-05-06T18:42:36.169250+00:00",
+  "metrics": {
+    "schema_version": "1.0.0",
+    "kind": "code-metrics",
+    "generated_at": "2026-05-06T18:42:36.166762+00:00",
+    "project_root": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\hr-ai-v2-smoke-2",
+    "source_lines": 45,
+    "source_file_count": 3,
+    "coverage_areas": [
+      "apps",
+      "infra"
+    ],
+    "contentful_files": [
+      "apps/control_plane/api.py",
+      "apps/control_plane/worker.py"
+    ],
+    "by_area": {
+      "apps": {
+        "source_lines": 45,
+        "source_file_count": 3
+      }
+    },
+    "by_extension": {
+      ".py": {
+        "source_lines": 45,
+        "source_file_count": 3
+      }
+    }
+  },
+  "anti_shit_score": 10,
+  "release_candidate_allowed": false,
+  "summary": "Quality gates failed; repair tasks required."
+}

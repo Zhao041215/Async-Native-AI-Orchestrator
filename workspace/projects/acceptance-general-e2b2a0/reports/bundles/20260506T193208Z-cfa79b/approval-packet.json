@@ -1,0 +1,86 @@
+{
+  "schema_version": "1.0.0",
+  "kind": "approval-packet",
+  "consumer": "approval-system",
+  "decision": "HOLD",
+  "external_status": "blocked",
+  "headline": "Current conclusion: task `failed` with blockers in failed validations: qa.",
+  "queue_stats": {
+    "manual_review_count": 0,
+    "conflict_count": 0,
+    "blocked_high_risk_count": 0,
+    "failed_validation_count": 1
+  },
+  "stable_fields": {
+    "identity": [
+      "task.id",
+      "task.title",
+      "task.template_id"
+    ],
+    "state": [
+      "decision",
+      "external_status",
+      "requires_human_approval"
+    ],
+    "queues": [
+      "manual_reviews",
+      "conflicts",
+      "high_risk_blocks",
+      "failed_validations"
+    ]
+  },
+  "compatibility": {
+    "contract_level": "stable-core",
+    "preferred_fields": [
+      "decision",
+      "headline",
+      "blocks.header",
+      "blocks.approval",
+      "blocks.queues"
+    ]
+  },
+  "contract": {
+    "kind": "approval-packet",
+    "schema_version": "1.0.0",
+    "contract_level": "stable-core"
+  },
+  "blocks": {
+    "header": {
+      "task_id": "b7e9e7ed-718a-4b25-8e5f-163ed7345fa1",
+      "title": "Acceptance general-product",
+      "decision": "HOLD",
+      "external_status": "blocked"
+    },
+    "approval": {
+      "requires_human_approval": false,
+      "failed_validations": [
+        "qa"
+      ],
+      "rerun_guidance": {
+        "qa": {
+          "recommended_from_role": "qa",
+          "reason": "QA report does not contain passing compile and unit execution evidence.",
+          "repairable": true
+        }
+      }
+    },
+    "queues": {
+      "manual_reviews": [],
+      "conflicts": [],
+      "high_risk_blocks": []
+    }
+  },
+  "task": {
+    "id": "b7e9e7ed-718a-4b25-8e5f-163ed7345fa1",
+    "title": "Acceptance general-product",
+    "status": "failed",
+    "template_id": "general-product"
+  },
+  "requires_human_approval": false,
+  "manual_reviews": [],
+  "conflicts": [],
+  "high_risk_blocks": [],
+  "failed_validations": [
+    "qa"
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "schema_version": "2.0.0",
+  "kind": "production-skeleton",
+  "runtime": "docker-compose",
+  "control_plane": "FastAPI-compatible Python service skeleton",
+  "queue": "Redis boundary",
+  "database": "Postgres boundary",
+  "secret_policy": "environment-only; no plaintext API keys in config files",
+  "files": [
+    "docker-compose.v2.yml",
+    "infra/Dockerfile",
+    "infra/v2.env.example",
+    "apps/control_plane/__init__.py",
+    "apps/control_plane/api.py",
+    "apps/control_plane/worker.py"
+  ]
+}

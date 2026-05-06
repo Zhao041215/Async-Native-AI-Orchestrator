@@ -1,0 +1,209 @@
+{
+  "schema_version": "2.0.0",
+  "kind": "chief-controlled-dag",
+  "control_role": "chief",
+  "roles": {
+    "chief": {
+      "label": "Chief Brain",
+      "mission": "Owns project intent, DAG control, repair routing, and release candidate decisions."
+    },
+    "product-analyst": {
+      "label": "Product Analyst",
+      "mission": "Turns PRD text into requirement atoms and acceptance contracts."
+    },
+    "system-architect": {
+      "label": "System Architect",
+      "mission": "Owns system boundaries, architecture decisions, and cross-subsystem contracts."
+    },
+    "frontend-lead": {
+      "label": "Frontend Lead",
+      "mission": "Builds user-facing product surfaces without PRD leakage or generic template UI."
+    },
+    "backend-lead": {
+      "label": "Backend Lead",
+      "mission": "Builds APIs, domain services, authorization, and integration boundaries."
+    },
+    "ai-ml-engineer": {
+      "label": "AI/ML Engineer",
+      "mission": "Builds AI capability slices, evaluation interfaces, and explainability hooks."
+    },
+    "data-engineer": {
+      "label": "Data Engineer",
+      "mission": "Builds data ingestion, governance, feature, and retention pipelines."
+    },
+    "qa-automation": {
+      "label": "QA Automation",
+      "mission": "Creates contract-aware executable verification and regression evidence."
+    },
+    "security-reviewer": {
+      "label": "Security Reviewer",
+      "mission": "Finds privacy, tenant isolation, compliance, and abuse risks."
+    },
+    "sre-devops": {
+      "label": "SRE/DevOps",
+      "mission": "Owns production runtime, deployment, observability, and release assembly."
+    },
+    "refactor-sheriff": {
+      "label": "Refactor Sheriff",
+      "mission": "Blocks shit-code, template slop, duplication, oversized files, and drift."
+    }
+  },
+  "work_packages": [
+    {
+      "id": "WP-000-chief-contract",
+      "title": "Chief contract and architecture kickoff",
+      "owner_role": "chief",
+      "subsystem_id": "global",
+      "requirement_ids": [],
+      "dependencies": [],
+      "outputs": [
+        ".agent/v2/acceptance-contract.json",
+        ".agent/v2/dag.json"
+      ],
+      "status": "ready",
+      "parallel_group": ""
+    },
+    {
+      "id": "WP-001-ai-capability-platform",
+      "title": "Build ai-capability-platform",
+      "owner_role": "ai-ml-engineer",
+      "subsystem_id": "SS-01",
+      "requirement_ids": [
+        "REQ-0001"
+      ],
+      "dependencies": [
+        "WP-000-chief-contract"
+      ],
+      "outputs": [
+        "apps/ai",
+        "tests/ai"
+      ],
+      "status": "ready",
+      "parallel_group": "implementation"
+    },
+    {
+      "id": "WP-900-qa-contract-verification",
+      "title": "Contract-aware QA automation",
+      "owner_role": "qa-automation",
+      "subsystem_id": "verification",
+      "requirement_ids": [
+        "REQ-0001"
+      ],
+      "dependencies": [
+        "WP-001-ai-capability-platform"
+      ],
+      "outputs": [
+        "tests/contract",
+        "reports/v2/qa-evidence.json"
+      ],
+      "status": "ready",
+      "parallel_group": ""
+    },
+    {
+      "id": "WP-910-security-review",
+      "title": "Security and privacy review",
+      "owner_role": "security-reviewer",
+      "subsystem_id": "review",
+      "requirement_ids": [],
+      "dependencies": [
+        "WP-900-qa-contract-verification"
+      ],
+      "outputs": [
+        "reports/v2/security-review.json"
+      ],
+      "status": "ready",
+      "parallel_group": ""
+    },
+    {
+      "id": "WP-920-refactor-sheriff",
+      "title": "Anti-shit-code refactor review",
+      "owner_role": "refactor-sheriff",
+      "subsystem_id": "review",
+      "requirement_ids": [],
+      "dependencies": [
+        "WP-900-qa-contract-verification"
+      ],
+      "outputs": [
+        "reports/v2/anti-shit-score.json"
+      ],
+      "status": "ready",
+      "parallel_group": ""
+    },
+    {
+      "id": "WP-930-release-candidate",
+      "title": "Release candidate assembly",
+      "owner_role": "sre-devops",
+      "subsystem_id": "release",
+      "requirement_ids": [],
+      "dependencies": [
+        "WP-910-security-review",
+        "WP-920-refactor-sheriff"
+      ],
+      "outputs": [
+        "reports/v2/release-candidate.json"
+      ],
+      "status": "ready",
+      "parallel_group": ""
+    }
+  ],
+  "waves": [
+    {
+      "id": "WAVE-001",
+      "parallel": false,
+      "work_package_ids": [
+        "WP-000-chief-contract"
+      ],
+      "roles": [
+        "chief"
+      ]
+    },
+    {
+      "id": "WAVE-002",
+      "parallel": false,
+      "work_package_ids": [
+        "WP-001-ai-capability-platform"
+      ],
+      "roles": [
+        "ai-ml-engineer"
+      ]
+    },
+    {
+      "id": "WAVE-003",
+      "parallel": false,
+      "work_package_ids": [
+        "WP-900-qa-contract-verification"
+      ],
+      "roles": [
+        "qa-automation"
+      ]
+    },
+    {
+      "id": "WAVE-004",
+      "parallel": true,
+      "work_package_ids": [
+        "WP-910-security-review",
+        "WP-920-refactor-sheriff"
+      ],
+      "roles": [
+        "refactor-sheriff",
+        "security-reviewer"
+      ]
+    },
+    {
+      "id": "WAVE-005",
+      "parallel": false,
+      "work_package_ids": [
+        "WP-930-release-candidate"
+      ],
+      "roles": [
+        "sre-devops"
+      ]
+    }
+  ],
+  "rules": [
+    "Only chief can advance workflow state.",
+    "Implementation agents produce patch sets, not final approval.",
+    "Fallback or normalized artifacts block release candidates.",
+    "Must requirements require code, test, and review evidence."
+  ]
+}

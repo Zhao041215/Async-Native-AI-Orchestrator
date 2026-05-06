@@ -1,0 +1,317 @@
+from __future__ import annotations
+
+import json
+import os
+import time
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
+
+
+@dataclass
+class ServerConfig:
+    host: str = "127.0.0.1"
+    port: int = 8787
+
+
+@dataclass
+class LLMConfig:
+    use_mock: bool = True
+    api_base: str = ""
+    api_key: str = ""
+    model: str = "gpt-4.1"
+    wire_api: str = "chat_completions"
+    provider_profile: str = ""
+    api_path: str = ""
+    auth_header: str = "Authorization"
+    auth_scheme: str = "Bearer"
+    extra_headers: dict[str, str] = field(default_factory=dict)
+    supports_responses: bool | None = None
+    supports_chat_completions: bool | None = None
+    temperature: float = 0.2
+    max_tokens: int = 3200
+    timeout_seconds: int = 90
+    retry_attempts: int = 2
+    retry_backoff_seconds: int = 3
+
+
+@dataclass
+class RuntimeConfig:
+    workspace_root: str = "workspace/projects"
+    db_path: str = "workspace/orchestrator.db"
+    logs_path: str = "logs"
+    python_cmd: str = "python"
+    max_shell_seconds: int = 120
+    max_role_runs_per_task: int = 20
+    max_llm_calls_per_task: int = 40
+    max_conflicts_per_task: int = 8
+    max_resume_attempts_per_task: int = 6
+    max_failures_per_task: int = 8
+    deployment_mode: str = "hosted-multi-user-local"
+    queue_mode: str = "local-adapter"
+    sandbox_mode: str = "tenant-governed-worktree"
+
+
+@dataclass
+class IdentityConfig:
+    mode: str = "hosted-dev-session"
+    user_header: str = "X-Local-User"
+    tenant_header: str = "X-Tenant-Id"
+    default_user: str = "local-operator"
+    tenant_mode: str = "required-tenant"
+    default_tenant: str = "local-workspace"
+    require_identity: bool = True
+    require_tenant: bool = True
+
+
+@dataclass
+class ProductionScaffoldConfig:
+    queue_backend: str = "redis-compatible"
+    worker_model: str = "hosted-worker"
+    deployment_target: str = "hosted-local"
+    diagnostics_enabled: bool = True
+    future_auth_enabled: bool = True
+
+
+@dataclass
+class AppConfig:
+    root_dir: Path
+    config_path: Path
+    server: ServerConfig
+    llm: LLMConfig
+    runtime: RuntimeConfig
+    identity: IdentityConfig
+    production: ProductionScaffoldConfig
+
+    @property
+    def workspace_root(self) -> Path:
+        return (self.root_dir / self.runtime.workspace_root).resolve()
+
+    @property
+    def db_path(self) -> Path:
+        return (self.root_dir / self.runtime.db_path).resolve()
+
+    @property
+    def logs_path(self) -> Path:
+        return (self.root_dir / self.runtime.logs_path).resolve()
+
+    def to_dict(self) -> dict:
+        llm = _masked_llm_dict(self.llm)
+        return {
+            "server": asdict(self.server),
+            "llm": llm,
+            "runtime": asdict(self.runtime),
+            "identity": asdict(self.identity),
+            "production": asdict(self.production),
+        }
+
+    def to_persisted_dict(self) -> dict:
+        llm = asdict(self.llm)
+        llm["api_key"] = ""
+        llm["extra_headers"] = _drop_sensitive_headers(llm.get("extra_headers", {}))
+        return {
+            "server": asdict(self.server),
+            "llm": llm,
+            "runtime": asdict(self.runtime),
+            "identity": asdict(self.identity),
+            "production": asdict(self.production),
+        }
+
+
+def _deep_get(payload: dict, key: str, default: dict) -> dict:
+    value = payload.get(key)
+    return value if isinstance(value, dict) else default
+
+
+def _normalize_llm_payload(payload: dict) -> dict:
+    allowed = set(LLMConfig.__dataclass_fields__)
+    normalized = {key: value for key, value in payload.items() if key in allowed}
+    if "extra_headers" in normalized and not isinstance(normalized["extra_headers"], dict):
+        normalized["extra_headers"] = {}
+    if isinstance(normalized.get("extra_headers"), dict):
+        normalized["extra_headers"] = {
+            str(key): str(value)
+            for key, value in normalized["extra_headers"].items()
+            if str(key).strip()
+        }
+    return normalized
+
+
+def _is_sensitive_header(name: str) -> bool:
+    lowered = name.lower()
+    return any(token in lowered for token in ("authorization", "api-key", "apikey", "token", "secret", "key"))
+
+
+def _drop_sensitive_headers(headers: dict | object) -> dict[str, str]:
+    if not isinstance(headers, dict):
+        return {}
+    return {
+        str(key): str(value)
+        for key, value in headers.items()
+        if not _is_sensitive_header(str(key))
+    }
+
+
+def _masked_headers(headers: dict | object) -> dict[str, str]:
+    if not isinstance(headers, dict):
+        return {}
+    return {
+        str(key): "***" if _is_sensitive_header(str(key)) and str(value) else str(value)
+        for key, value in headers.items()
+    }
+
+
+def _masked_llm_dict(llm_config: LLMConfig) -> dict:
+    llm = asdict(llm_config)
+    if llm.get("api_key"):
+        llm["api_key"] = "***"
+    llm["extra_headers"] = _masked_headers(llm.get("extra_headers", {}))
+    return llm
+
+
+def _env_bool(value: str | None) -> bool | None:
+    if value is None or value == "":
+        return None
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _env_int(value: str | None) -> int | None:
+    if value is None or value == "":
+        return None
+    try:
+        return int(value)
+    except ValueError:
+        return None
+
+
+def _env_float(value: str | None) -> float | None:
+    if value is None or value == "":
+        return None
+    try:
+        return float(value)
+    except ValueError:
+        return None
+
+
+def _env_json_object(value: str | None) -> dict[str, str] | None:
+    if not value:
+        return None
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(parsed, dict):
+        return None
+    return {str(key): str(item) for key, item in parsed.items()}
+
+
+def load_config(root_dir: Path) -> AppConfig:
+    config_path = (root_dir / "orchestrator_config.json").resolve()
+    payload = {}
+    if config_path.exists():
+        payload = json.loads(config_path.read_text(encoding="utf-8"))
+
+    server = ServerConfig(**_deep_get(payload, "server", {}))
+    llm = LLMConfig(**_normalize_llm_payload(_deep_get(payload, "llm", {})))
+    env_api_key = os.environ.get("OPENAI_API_KEY") or os.environ.get("DEV_ORCHESTRATOR_API_KEY")
+    env_api_base = os.environ.get("OPENAI_API_BASE") or os.environ.get("DEV_ORCHESTRATOR_API_BASE")
+    env_model = os.environ.get("OPENAI_MODEL") or os.environ.get("DEV_ORCHESTRATOR_MODEL")
+    env_wire_api = os.environ.get("DEV_ORCHESTRATOR_WIRE_API") or os.environ.get("OPENAI_WIRE_API")
+    env_provider_profile = os.environ.get("DEV_ORCHESTRATOR_PROVIDER_PROFILE") or os.environ.get("OPENAI_PROVIDER_PROFILE")
+    env_api_path = os.environ.get("DEV_ORCHESTRATOR_API_PATH") or os.environ.get("OPENAI_API_PATH")
+    env_auth_header = os.environ.get("DEV_ORCHESTRATOR_AUTH_HEADER")
+    env_auth_scheme = os.environ.get("DEV_ORCHESTRATOR_AUTH_SCHEME")
+    env_extra_headers = _env_json_object(os.environ.get("DEV_ORCHESTRATOR_EXTRA_HEADERS"))
+    env_timeout = _env_int(os.environ.get("DEV_ORCHESTRATOR_TIMEOUT_SECONDS"))
+    env_retries = _env_int(os.environ.get("DEV_ORCHESTRATOR_RETRY_ATTEMPTS"))
+    env_max_tokens = _env_int(os.environ.get("DEV_ORCHESTRATOR_MAX_TOKENS"))
+    env_temperature = _env_float(os.environ.get("DEV_ORCHESTRATOR_TEMPERATURE"))
+    env_supports_responses = _env_bool(os.environ.get("DEV_ORCHESTRATOR_SUPPORTS_RESPONSES"))
+    env_supports_chat = _env_bool(os.environ.get("DEV_ORCHESTRATOR_SUPPORTS_CHAT_COMPLETIONS"))
+    if env_api_key:
+        llm.api_key = env_api_key
+    if env_api_base:
+        llm.api_base = env_api_base
+    if env_model:
+        llm.model = env_model
+    if env_wire_api:
+        llm.wire_api = env_wire_api
+    if env_provider_profile:
+        llm.provider_profile = env_provider_profile
+    if env_api_path:
+        llm.api_path = env_api_path
+    if env_auth_header:
+        llm.auth_header = env_auth_header
+    if env_auth_scheme is not None:
+        llm.auth_scheme = env_auth_scheme
+    if env_extra_headers is not None:
+        llm.extra_headers = env_extra_headers
+    if env_timeout is not None:
+        llm.timeout_seconds = env_timeout
+    if env_retries is not None:
+        llm.retry_attempts = env_retries
+    if env_max_tokens is not None:
+        llm.max_tokens = env_max_tokens
+    if env_temperature is not None:
+        llm.temperature = env_temperature
+    if env_supports_responses is not None:
+        llm.supports_responses = env_supports_responses
+    if env_supports_chat is not None:
+        llm.supports_chat_completions = env_supports_chat
+    runtime = RuntimeConfig(**_deep_get(payload, "runtime", {}))
+    identity = IdentityConfig(**_deep_get(payload, "identity", {}))
+    production = ProductionScaffoldConfig(**_deep_get(payload, "production", {}))
+    config = AppConfig(
+        root_dir=root_dir.resolve(),
+        config_path=config_path,
+        server=server,
+        llm=llm,
+        runtime=runtime,
+        identity=identity,
+        production=production,
+    )
+    ensure_paths(config)
+    return config
+
+
+def save_config(config: AppConfig) -> None:
+    ensure_paths(config)
+    config.config_path.write_text(
+        json.dumps(config.to_persisted_dict(), indent=2, ensure_ascii=True),
+        encoding="utf-8",
+    )
+
+
+def update_config(config: AppConfig, payload: dict) -> AppConfig:
+    server_payload = _deep_get(payload, "server", {})
+    llm_payload = _deep_get(payload, "llm", {})
+    runtime_payload = _deep_get(payload, "runtime", {})
+    identity_payload = _deep_get(payload, "identity", {})
+    production_payload = _deep_get(payload, "production", {})
+
+    for key, value in server_payload.items():
+        if hasattr(config.server, key):
+            setattr(config.server, key, value)
+    for key, value in _normalize_llm_payload(llm_payload).items():
+        if key == "api_key" and value in {"", "***", None}:
+            continue
+        if hasattr(config.llm, key):
+            setattr(config.llm, key, value)
+    for key, value in runtime_payload.items():
+        if hasattr(config.runtime, key):
+            setattr(config.runtime, key, value)
+    for key, value in identity_payload.items():
+        if hasattr(config.identity, key):
+            setattr(config.identity, key, value)
+    for key, value in production_payload.items():
+        if hasattr(config.production, key):
+            setattr(config.production, key, value)
+
+    ensure_paths(config)
+    save_config(config)
+    return config
+
+
+def ensure_paths(config: AppConfig) -> None:
+    config.workspace_root.mkdir(parents=True, exist_ok=True)
+    config.logs_path.mkdir(parents=True, exist_ok=True)
+    config.db_path.parent.mkdir(parents=True, exist_ok=True)

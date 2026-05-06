@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0.0",
+  "kind": "repair-history",
+  "task_id": "a64cd6ba-d60f-47e6-92f0-2fbb3709c909",
+  "failed_validations": [
+    "artifact_integrity"
+  ],
+  "rerun_guidance": {
+    "artifact_integrity": {
+      "recommended_from_role": "frontend",
+      "reason": "Recorded delivery artifacts are missing from the live project workspace.",
+      "repairable": true
+    }
+  },
+  "work_package_failures": []
+}

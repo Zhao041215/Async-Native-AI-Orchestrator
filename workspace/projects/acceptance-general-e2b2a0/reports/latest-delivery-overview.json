@@ -1,0 +1,2549 @@
+{
+  "schema_version": "1.0.0",
+  "kind": "latest-delivery-overview",
+  "export_state": "ready",
+  "history_count": 1,
+  "latest_bundle_id": "20260506T193208Z-cfa79b",
+  "latest_bundle_manifest": {
+    "schema_version": "1.0.0",
+    "kind": "delivery-bundle-manifest",
+    "bundle_id": "20260506T193208Z-cfa79b",
+    "sequence": 1,
+    "exported_at": "2026-05-06T19:32:08.713254+00:00",
+    "task_id": "b7e9e7ed-718a-4b25-8e5f-163ed7345fa1",
+    "template_id": "general-product",
+    "decision": "HOLD",
+    "status": "failed",
+    "external_status": "blocked",
+    "file_count": 24,
+    "files": {
+      "governance-report.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\governance-report.md",
+      "pr-summary.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\pr-summary.md",
+      "approval-brief.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\approval-brief.md",
+      "release-checklist.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\release-checklist.md",
+      "stakeholder-summary.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\stakeholder-summary.md",
+      "delivery-index.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\delivery-index.md",
+      "delivery-pack.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\delivery-pack.json",
+      "pr-packet.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\pr-packet.json",
+      "approval-packet.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\approval-packet.json",
+      "overview-packet.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\overview-packet.json",
+      "github-pr-mapping.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\github-pr-mapping.json",
+      "approval-request-mapping.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\approval-request-mapping.json",
+      "dashboard-card-mapping.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\dashboard-card-mapping.json",
+      "repository-context.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\repository-context.json",
+      "connector-hooks.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\connector-hooks.json",
+      "task-decomposition-overview.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\task-decomposition-overview.json",
+      "proof-stage-overview.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\proof-stage-overview.json",
+      "task-memory.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\task-memory.json",
+      "productionization-scaffold.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\productionization-scaffold.json",
+      "contract-descriptors.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\contract-descriptors.json",
+      "mapping-descriptors.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\mapping-descriptors.json",
+      "code-metrics.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\code-metrics.json",
+      "implementation-ledger.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\implementation-ledger.json",
+      "repair-history.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\repair-history.json",
+      "bundle-manifest.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\bundle-manifest.json",
+      "latest-delivery-pack.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\latest-delivery-pack.json"
+    },
+    "file_inventory": {
+      "governance-report.md": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\governance-report.md",
+        "size_bytes": 1098,
+        "sha256": "84c40c62525d71c27f412bdc73cdfdc704d6e14cc150cc1ab56920a950a97fe8",
+        "kind": "md"
+      },
+      "pr-summary.md": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\pr-summary.md",
+        "size_bytes": 1491,
+        "sha256": "caf98448c677681e38f77799dcbccf4312475fd69c92037f89e901306098557f",
+        "kind": "md"
+      },
+      "approval-brief.md": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\approval-brief.md",
+        "size_bytes": 422,
+        "sha256": "23797be1a1b8695e709e0c3c70829223fcd4a8fc95c933e50101ecd14b368882",
+        "kind": "md"
+      },
+      "release-checklist.md": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\release-checklist.md",
+        "size_bytes": 413,
+        "sha256": "620584fc1034b9c03f3b1537d6e49dd60e5f3dc67ed5c8617192849fd8e2e091",
+        "kind": "md"
+      },
+      "stakeholder-summary.md": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\stakeholder-summary.md",
+        "size_bytes": 412,
+        "sha256": "4aea6347896f13fdb3f42fea310b1d2c5e71911ec8a7b7d8e441a3e6bb1f2a60",
+        "kind": "md"
+      },
+      "delivery-index.md": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\delivery-index.md",
+        "size_bytes": 935,
+        "sha256": "086a2f9e8cb47d8308c61ddeb4690078d4330e14955987ef955fdc55daa60a77",
+        "kind": "md"
+      },
+      "delivery-pack.json": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\delivery-pack.json",
+        "size_bytes": 36711,
+        "sha256": "d5292c93eec8eb395e7be33af5e40f057191b022ec9ae9091d70d3791cb5c880",
+        "kind": "json"
+      },
+      "pr-packet.json": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\pr-packet.json",
+        "size_bytes": 6369,
+        "sha256": "ce15d55109531aa5e9854f4a7bdfd45785a388abd8b47d4525d50094b3b033a8",
+        "kind": "json"
+      },
+      "approval-packet.json": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\approval-packet.json",
+        "size_bytes": 2083,
+        "sha256": "f62befce7bafab10ae8da7de173b6d96e126df4e08fcb11623a088f12f56bb90",
+        "kind": "json"
+      },
+      "overview-packet.json": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\overview-packet.json",
+        "size_bytes": 9859,
+        "sha256": "e0e5773e7439a9a5d5899436db7e3f99dc90f2446a0906de161a0c54ceb8a602",
+        "kind": "json"
+      },
+      "github-pr-mapping.json": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\github-pr-mapping.json",
+        "size_bytes": 1242,
+        "sha256": "c68145f3601c4d5acb901faa5f82d7205db32cf28330b76fdf1e404f2f01d01a",
+        "kind": "json"
+      },
+      "approval-request-mapping.json": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\approval-request-mapping.json",
+        "size_bytes": 451,
+        "sha256": "f2e8a5ce363080f9b23a2fb6f8b1a2f4fac9c8c007d41ce895b994bd30312e87",
+        "kind": "json"
+      },
+      "dashboard-card-mapping.json": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\dashboard-card-mapping.json",
+        "size_bytes": 525,
+        "sha256": "50a8bed52e9bfcb2be8ddcb91fe2f213fd6c7d797bae4400b7742340cdbcc296",
+        "kind": "json"
+      },
+      "repository-context.json": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\repository-context.json",
+        "size_bytes": 728,
+        "sha256": "8e1db0b8ed9815fe40e9a8bd3790482574a8596b989befcb613ccea1ecf1b4a7",
+        "kind": "json"
+      },
+      "connector-hooks.json": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\connector-hooks.json",
+        "size_bytes": 621,
+        "sha256": "34e06052356b0cddeca284fecb8337f14c3da5ec2117bfca18d4ae3f34d5ecdc",
+        "kind": "json"
+      },
+      "task-decomposition-overview.json": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\task-decomposition-overview.json",
+        "size_bytes": 15406,
+        "sha256": "6d80ca496dc469256223d9d72ec95a527f5701810b28a37ee060e24fbb89c820",
+        "kind": "json"
+      },
+      "proof-stage-overview.json": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\proof-stage-overview.json",
+        "size_bytes": 2237,
+        "sha256": "a4242061fa3db0f7445cab7d7011a0a6be2905aa07ac11e893389928eedac6ef",
+        "kind": "json"
+      },
+      "task-memory.json": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\task-memory.json",
+        "size_bytes": 4166,
+        "sha256": "2abf874feb5f3e7f5c0a7277f39188b20d9d72ad6a1e058f4b5873ace18b8411",
+        "kind": "json"
+      },
+      "productionization-scaffold.json": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\productionization-scaffold.json",
+        "size_bytes": 1152,
+        "sha256": "f93bd2b5a67e530d57750e0870d01a7b4f6e232bea542e9593d155c131179d1a",
+        "kind": "json"
+      },
+      "contract-descriptors.json": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\contract-descriptors.json",
+        "size_bytes": 9706,
+        "sha256": "6989baa8aca6abccbb3f59c6065a01afcfbc20ee0ebe4169b0ee71b24daed855",
+        "kind": "json"
+      },
+      "mapping-descriptors.json": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\mapping-descriptors.json",
+        "size_bytes": 1661,
+        "sha256": "9dcea972ecacd49e54e37e2f573c2602c94227a670cb0b356f41e44a47be7559",
+        "kind": "json"
+      },
+      "code-metrics.json": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\code-metrics.json",
+        "size_bytes": 1134,
+        "sha256": "51a965c4b7ecc86fe37c03e613dd0fae13e230e43e2b781924d81bb890224f4d",
+        "kind": "json"
+      },
+      "implementation-ledger.json": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\implementation-ledger.json",
+        "size_bytes": 19347,
+        "sha256": "975d4d132c91cbb3551b39ae9df8c067b9a90f82b2e4e3061d87f5313db466e1",
+        "kind": "json"
+      },
+      "repair-history.json": {
+        "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\repair-history.json",
+        "size_bytes": 396,
+        "sha256": "c78b817bd97d524d67d8325e86057a2b6c1eb6e48c09ce308f75cbe5a720636e",
+        "kind": "json"
+      }
+    },
+    "repository_context": {
+      "schema_version": "1.0.0",
+      "kind": "repository-context",
+      "repository_present": false,
+      "repository_root": "",
+      "project_root": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0",
+      "branch": "",
+      "working_tree": {
+        "is_dirty": false,
+        "tracked_change_count": 0,
+        "staged_change_count": 0,
+        "unstaged_change_count": 0,
+        "untracked_count": 0
+      },
+      "diff_summary": {
+        "has_tracked_changes": false,
+        "staged_paths": [],
+        "unstaged_paths": [],
+        "untracked_paths": []
+      },
+      "readiness": {
+        "status": "not_repo",
+        "can_prepare_pr": false,
+        "reasons": [
+          "No git repository detected from the current project root."
+        ]
+      }
+    },
+    "connector_hooks": {
+      "schema_version": "1.0.0",
+      "kind": "connector-hooks",
+      "repository_state": "not_repo",
+      "hooks": {
+        "github_pull_request": {
+          "ready": false,
+          "recommended_input_fields": [
+            "title",
+            "body",
+            "labels",
+            "base_branch",
+            "head_branch"
+          ],
+          "requires_human_review": true
+        },
+        "gitlab_merge_request": {
+          "ready": false,
+          "recommended_input_fields": [
+            "title",
+            "description",
+            "labels",
+            "target_branch",
+            "source_branch"
+          ],
+          "requires_human_review": true
+        }
+      }
+    },
+    "productionization_scaffold": {
+      "schema_version": "1.0.0",
+      "kind": "productionization-scaffold",
+      "identity_boundary": {
+        "mode": "single-local-operator",
+        "user_header": "X-Local-User",
+        "default_user": "local-user",
+        "tenant_mode": "single-tenant",
+        "default_tenant": "local-workspace",
+        "future_ready": false
+      },
+      "queue_boundary": {
+        "queue_mode": "in_process",
+        "queue_backend": "in-process",
+        "worker_model": "same-process-thread",
+        "future_ready": false
+      },
+      "sandbox_boundary": {
+        "sandbox_mode": "role-governed-local",
+        "max_shell_seconds": 120,
+        "governed": true,
+        "future_ready": false
+      },
+      "deployment_scaffold": {
+        "deployment_mode": "local-single-user",
+        "deployment_target": "local-dev",
+        "diagnostics_enabled": true,
+        "future_auth_enabled": false
+      },
+      "operational_diagnostics": {
+        "logs_path": "E:\\ProgramProjects\\AI_Agent\\logs",
+        "workspace_root": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects",
+        "db_path": "E:\\ProgramProjects\\AI_Agent\\workspace\\orchestrator.db",
+        "diagnostics_enabled": true,
+        "hosted_execution_ready": false
+      }
+    },
+    "compatibility": {
+      "machine_payload_file": "delivery-pack.json",
+      "pr_packet_file": "pr-packet.json",
+      "approval_packet_file": "approval-packet.json",
+      "overview_packet_file": "overview-packet.json",
+      "github_pr_mapping_file": "github-pr-mapping.json",
+      "approval_request_mapping_file": "approval-request-mapping.json",
+      "dashboard_card_mapping_file": "dashboard-card-mapping.json",
+      "repository_context_file": "repository-context.json",
+      "connector_hooks_file": "connector-hooks.json",
+      "task_decomposition_overview_file": "task-decomposition-overview.json",
+      "proof_stage_overview_file": "proof-stage-overview.json",
+      "task_memory_file": "task-memory.json",
+      "productionization_scaffold_file": "productionization-scaffold.json",
+      "contract_descriptors_file": "contract-descriptors.json",
+      "mapping_descriptors_file": "mapping-descriptors.json",
+      "code_metrics_file": "code-metrics.json",
+      "implementation_ledger_file": "implementation-ledger.json",
+      "repair_history_file": "repair-history.json",
+      "human_index_file": "delivery-index.md",
+      "latest_pointer_file": "latest-delivery-pack.json",
+      "history_file": "delivery-history.json"
+    }
+  },
+  "latest_delivery_pack": {
+    "schema_version": "1.0.0",
+    "kind": "delivery-pack",
+    "consumer": "external-automation",
+    "task": {
+      "id": "b7e9e7ed-718a-4b25-8e5f-163ed7345fa1",
+      "title": "Acceptance general-product",
+      "status": "failed",
+      "project_name": "acceptance-general-e2b2a0",
+      "template_id": "general-product"
+    },
+    "decision": "HOLD",
+    "external_status": "blocked",
+    "headline": "Current conclusion: task `failed` with blockers in failed validations: qa.",
+    "queue_stats": {
+      "manual_review_count": 0,
+      "conflict_count": 0,
+      "blocked_high_risk_count": 0,
+      "failed_validation_count": 1
+    },
+    "stable_fields": {
+      "identity": [
+        "task.id",
+        "task.title",
+        "task.template_id",
+        "decision",
+        "external_status"
+      ],
+      "overview": [
+        "headline",
+        "queue_stats",
+        "blocks.overview",
+        "blocks.workflow",
+        "blocks.risks"
+      ]
+    },
+    "compatibility": {
+      "contract_level": "stable-core",
+      "preferred_fields": [
+        "decision",
+        "external_status",
+        "headline",
+        "queue_stats",
+        "blocks"
+      ]
+    },
+    "repository_context_contract": {
+      "kind": "repository-context",
+      "schema_version": "1.0.0",
+      "contract_level": "stable-core"
+    },
+    "contract": {
+      "kind": "delivery-pack",
+      "schema_version": "1.0.0",
+      "contract_level": "stable-core"
+    },
+    "blocks": {
+      "overview": {
+        "title": "Acceptance general-product",
+        "template_id": "general-product",
+        "decision": "HOLD",
+        "external_status": "blocked",
+        "headline": "Current conclusion: task `failed` with blockers in failed validations: qa."
+      },
+      "workflow": {
+        "roles": [
+          "planner",
+          "architect",
+          "frontend",
+          "backend",
+          "qa",
+          "reviewer",
+          "devops"
+        ],
+        "parallel_implementation": true,
+        "extra_roles": []
+      },
+      "risks": {
+        "failed_validations": [
+          "qa"
+        ],
+        "validation_findings": {
+          "qa": [
+            {
+              "code": "qa_execution_evidence_missing",
+              "severity": "high",
+              "category": "evidence-missing",
+              "message": "QA report does not contain passing compile and unit execution evidence.",
+              "evidence": [
+                "tests/qa-report.md"
+              ],
+              "suggested_fix": "Run compile and unit checks from the main project root and publish passing evidence.",
+              "suggested_rerun_role": "qa"
+            },
+            {
+              "code": "qa_executed_check_failed",
+              "severity": "high",
+              "category": "verification-failed",
+              "message": "QA report contains failed executed checks.",
+              "evidence": [
+                "tests/qa-report.md"
+              ],
+              "suggested_fix": "Fix the failing checks or rerun QA after producing passing compile/unit evidence.",
+              "suggested_rerun_role": "qa"
+            }
+          ]
+        },
+        "manual_reviews": [],
+        "conflicts": [],
+        "high_risk_blocks": []
+      },
+      "repository": {
+        "schema_version": "1.0.0",
+        "kind": "repository-context",
+        "repository_present": false,
+        "repository_root": "",
+        "project_root": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0",
+        "branch": "",
+        "working_tree": {
+          "is_dirty": false,
+          "tracked_change_count": 0,
+          "staged_change_count": 0,
+          "unstaged_change_count": 0,
+          "untracked_count": 0
+        },
+        "diff_summary": {
+          "has_tracked_changes": false,
+          "staged_paths": [],
+          "unstaged_paths": [],
+          "untracked_paths": []
+        },
+        "readiness": {
+          "status": "not_repo",
+          "can_prepare_pr": false,
+          "reasons": [
+            "No git repository detected from the current project root."
+          ]
+        }
+      },
+      "delivery_readiness": {
+        "pr_ready_summary": "Repository branch `-` is not PR-ready: No git repository detected from the current project root.",
+        "connector_hooks": {
+          "schema_version": "1.0.0",
+          "kind": "connector-hooks",
+          "repository_state": "not_repo",
+          "hooks": {
+            "github_pull_request": {
+              "ready": false,
+              "recommended_input_fields": [
+                "title",
+                "body",
+                "labels",
+                "base_branch",
+                "head_branch"
+              ],
+              "requires_human_review": true
+            },
+            "gitlab_merge_request": {
+              "ready": false,
+              "recommended_input_fields": [
+                "title",
+                "description",
+                "labels",
+                "target_branch",
+                "source_branch"
+              ],
+              "requires_human_review": true
+            }
+          }
+        }
+      },
+      "decomposition": {
+        "schema_version": "1.0.0",
+        "kind": "task-decomposition-overview",
+        "contract": {
+          "kind": "task-decomposition-overview",
+          "schema_version": "1.0.0",
+          "contract_level": "stable-core"
+        },
+        "task": {
+          "id": "b7e9e7ed-718a-4b25-8e5f-163ed7345fa1",
+          "title": "Acceptance general-product",
+          "template_id": "general-product"
+        },
+        "subsystem_count": 6,
+        "work_package_count": 11,
+        "subsystem_slices": [
+          {
+            "id": "ss-01",
+            "name": "identity-and-access",
+            "summary": "Bounded subsystem for `identity-and-access` inside the governed delivery plan.",
+            "primary_role": "backend",
+            "partition": "backend",
+            "owned_surfaces": [
+              "apps/api",
+              "docs/api-contract.md"
+            ],
+            "dependencies": [],
+            "tags": [
+              "backend",
+              "backend"
+            ]
+          },
+          {
+            "id": "ss-02",
+            "name": "product-web-app",
+            "summary": "Bounded subsystem for `product-web-app` inside the governed delivery plan.",
+            "primary_role": "frontend",
+            "partition": "frontend",
+            "owned_surfaces": [
+              "apps/web",
+              "docs/ui-notes.md"
+            ],
+            "dependencies": [
+              "ss-01"
+            ],
+            "tags": [
+              "frontend",
+              "frontend"
+            ]
+          },
+          {
+            "id": "ss-03",
+            "name": "application-api",
+            "summary": "Bounded subsystem for `application-api` inside the governed delivery plan.",
+            "primary_role": "backend",
+            "partition": "backend",
+            "owned_surfaces": [
+              "apps/api",
+              "docs/api-contract.md"
+            ],
+            "dependencies": [
+              "ss-02"
+            ],
+            "tags": [
+              "backend",
+              "backend"
+            ]
+          },
+          {
+            "id": "ss-04",
+            "name": "domain-services",
+            "summary": "Bounded subsystem for `domain-services` inside the governed delivery plan.",
+            "primary_role": "backend",
+            "partition": "backend",
+            "owned_surfaces": [
+              "apps/api",
+              "docs/api-contract.md"
+            ],
+            "dependencies": [
+              "ss-03"
+            ],
+            "tags": [
+              "backend",
+              "backend"
+            ]
+          },
+          {
+            "id": "ss-05",
+            "name": "data-and-reporting",
+            "summary": "Bounded subsystem for `data-and-reporting` inside the governed delivery plan.",
+            "primary_role": "devops",
+            "partition": "integration",
+            "owned_surfaces": [
+              "docs/integration.md",
+              "infra",
+              "apps/api",
+              "apps/web"
+            ],
+            "dependencies": [
+              "ss-04"
+            ],
+            "tags": [
+              "integration",
+              "devops"
+            ]
+          },
+          {
+            "id": "ss-06",
+            "name": "test-and-release-pipeline",
+            "summary": "Bounded subsystem for `test-and-release-pipeline` inside the governed delivery plan.",
+            "primary_role": "devops",
+            "partition": "integration",
+            "owned_surfaces": [
+              "docs/integration.md",
+              "infra",
+              "apps/api",
+              "apps/web"
+            ],
+            "dependencies": [
+              "ss-05"
+            ],
+            "tags": [
+              "integration",
+              "devops"
+            ]
+          }
+        ],
+        "work_packages": [
+          {
+            "id": "wp-plan",
+            "title": "Repository and requirement decomposition",
+            "owner": "planner",
+            "phase": "planning",
+            "scope": "docs/",
+            "goal": "Turn the original request into bounded subsystem and execution packages.",
+            "partition": "planning",
+            "subsystem_ids": [
+              "ss-01",
+              "ss-02",
+              "ss-03",
+              "ss-04",
+              "ss-05",
+              "ss-06"
+            ],
+            "dependencies": [],
+            "outputs": [
+              "docs/plan.md",
+              "docs/backlog.md",
+              "docs/work-packages.md"
+            ],
+            "definition_of_done": [
+              "Subsystem slices are named",
+              "Execution package boundaries are explicit",
+              "Traceability from request to package exists"
+            ],
+            "parallel_group": ""
+          },
+          {
+            "id": "wp-arch",
+            "title": "Cross-subsystem architecture baseline",
+            "owner": "architect",
+            "phase": "architecture",
+            "scope": "docs/ and shared contracts",
+            "goal": "Define the architecture and interface boundaries that govern all subsystem slices.",
+            "partition": "architecture",
+            "subsystem_ids": [
+              "ss-01",
+              "ss-02",
+              "ss-03",
+              "ss-04",
+              "ss-05",
+              "ss-06"
+            ],
+            "dependencies": [
+              "wp-plan"
+            ],
+            "outputs": [
+              "docs/architecture.md",
+              "docs/api-contract.md",
+              "docs/subsystems.md"
+            ],
+            "definition_of_done": [
+              "Subsystem boundaries are documented",
+              "Ownership and dependency edges are explicit",
+              "Shared contracts are described"
+            ],
+            "parallel_group": ""
+          },
+          {
+            "id": "wp-ss-01",
+            "title": "Implement identity-and-access",
+            "owner": "backend",
+            "phase": "implementation",
+            "scope": "apps/api, docs/api-contract.md",
+            "goal": "Deliver the bounded `identity-and-access` subsystem without crossing governed ownership boundaries.",
+            "partition": "backend",
+            "subsystem_ids": [
+              "ss-01"
+            ],
+            "dependencies": [
+              "wp-arch"
+            ],
+            "outputs": [
+              "apps/api",
+              "docs/api-contract.md"
+            ],
+            "definition_of_done": [
+              "identity-and-access artifacts exist in owned surfaces",
+              "Dependencies on previous subsystems are documented",
+              "Package remains traceable to the original request"
+            ],
+            "parallel_group": "implementation"
+          },
+          {
+            "id": "wp-ss-02",
+            "title": "Implement product-web-app",
+            "owner": "frontend",
+            "phase": "implementation",
+            "scope": "apps/web, docs/ui-notes.md",
+            "goal": "Deliver the bounded `product-web-app` subsystem without crossing governed ownership boundaries.",
+            "partition": "frontend",
+            "subsystem_ids": [
+              "ss-02"
+            ],
+            "dependencies": [
+              "wp-arch",
+              "wp-ss-01"
+            ],
+            "outputs": [
+              "apps/web",
+              "docs/ui-notes.md"
+            ],
+            "definition_of_done": [
+              "product-web-app artifacts exist in owned surfaces",
+              "Dependencies on previous subsystems are documented",
+              "Package remains traceable to the original request"
+            ],
+            "parallel_group": "implementation"
+          },
+          {
+            "id": "wp-ss-03",
+            "title": "Implement application-api",
+            "owner": "backend",
+            "phase": "implementation",
+            "scope": "apps/api, docs/api-contract.md",
+            "goal": "Deliver the bounded `application-api` subsystem without crossing governed ownership boundaries.",
+            "partition": "backend",
+            "subsystem_ids": [
+              "ss-03"
+            ],
+            "dependencies": [
+              "wp-arch",
+              "wp-ss-02"
+            ],
+            "outputs": [
+              "apps/api",
+              "docs/api-contract.md"
+            ],
+            "definition_of_done": [
+              "application-api artifacts exist in owned surfaces",
+              "Dependencies on previous subsystems are documented",
+              "Package remains traceable to the original request"
+            ],
+            "parallel_group": "implementation"
+          },
+          {
+            "id": "wp-ss-04",
+            "title": "Implement domain-services",
+            "owner": "backend",
+            "phase": "implementation",
+            "scope": "apps/api, docs/api-contract.md",
+            "goal": "Deliver the bounded `domain-services` subsystem without crossing governed ownership boundaries.",
+            "partition": "backend",
+            "subsystem_ids": [
+              "ss-04"
+            ],
+            "dependencies": [
+              "wp-arch",
+              "wp-ss-03"
+            ],
+            "outputs": [
+              "apps/api",
+              "docs/api-contract.md"
+            ],
+            "definition_of_done": [
+              "domain-services artifacts exist in owned surfaces",
+              "Dependencies on previous subsystems are documented",
+              "Package remains traceable to the original request"
+            ],
+            "parallel_group": "implementation"
+          },
+          {
+            "id": "wp-ss-05",
+            "title": "Implement data-and-reporting",
+            "owner": "devops",
+            "phase": "approval_required",
+            "scope": "docs/integration.md, infra, apps/api, apps/web",
+            "goal": "Deliver the bounded `data-and-reporting` subsystem without crossing governed ownership boundaries.",
+            "partition": "integration",
+            "subsystem_ids": [
+              "ss-05"
+            ],
+            "dependencies": [
+              "wp-arch",
+              "wp-ss-04"
+            ],
+            "outputs": [
+              "docs/integration.md",
+              "infra",
+              "apps/api",
+              "apps/web"
+            ],
+            "definition_of_done": [
+              "data-and-reporting artifacts exist in owned surfaces",
+              "Dependencies on previous subsystems are documented",
+              "Package remains traceable to the original request"
+            ],
+            "parallel_group": ""
+          },
+          {
+            "id": "wp-ss-06",
+            "title": "Implement test-and-release-pipeline",
+            "owner": "devops",
+            "phase": "approval_required",
+            "scope": "docs/integration.md, infra, apps/api, apps/web",
+            "goal": "Deliver the bounded `test-and-release-pipeline` subsystem without crossing governed ownership boundaries.",
+            "partition": "integration",
+            "subsystem_ids": [
+              "ss-06"
+            ],
+            "dependencies": [
+              "wp-arch",
+              "wp-ss-05"
+            ],
+            "outputs": [
+              "docs/integration.md",
+              "infra",
+              "apps/api",
+              "apps/web"
+            ],
+            "definition_of_done": [
+              "test-and-release-pipeline artifacts exist in owned surfaces",
+              "Dependencies on previous subsystems are documented",
+              "Package remains traceable to the original request"
+            ],
+            "parallel_group": ""
+          },
+          {
+            "id": "wp-verify",
+            "title": "Cross-package verification",
+            "owner": "qa",
+            "phase": "verification",
+            "scope": "tests",
+            "goal": "Validate subsystem interactions and preserve evidence across the full package set.",
+            "partition": "verification",
+            "subsystem_ids": [
+              "ss-01",
+              "ss-02",
+              "ss-03",
+              "ss-04",
+              "ss-05",
+              "ss-06"
+            ],
+            "dependencies": [
+              "wp-arch",
+              "wp-ss-01",
+              "wp-ss-02",
+              "wp-ss-03",
+              "wp-ss-04",
+              "wp-ss-05",
+              "wp-ss-06"
+            ],
+            "outputs": [
+              "tests/qa-report.md",
+              "tests/package-verification.md"
+            ],
+            "definition_of_done": [
+              "QA evidence covers multiple work packages",
+              "Integration risks are preserved",
+              "Open gaps remain visible"
+            ],
+            "parallel_group": ""
+          },
+          {
+            "id": "wp-review",
+            "title": "Cross-package technical review",
+            "owner": "reviewer",
+            "phase": "review",
+            "scope": "docs/review.md",
+            "goal": "Review the full decomposition outcome and capture residual risk by subsystem and package.",
+            "partition": "review",
+            "subsystem_ids": [
+              "ss-01",
+              "ss-02",
+              "ss-03",
+              "ss-04",
+              "ss-05",
+              "ss-06"
+            ],
+            "dependencies": [
+              "wp-verify"
+            ],
+            "outputs": [
+              "docs/review.md",
+              "docs/package-review.md"
+            ],
+            "definition_of_done": [
+              "Findings mention package boundaries",
+              "Residual risks mention subsystem ownership",
+              "Follow-up items are package-aware"
+            ],
+            "parallel_group": ""
+          },
+          {
+            "id": "wp-delivery",
+            "title": "Delivery bundle preparation",
+            "owner": "devops",
+            "phase": "approval_required",
+            "scope": "infra and reports",
+            "goal": "Prepare governed delivery outputs that preserve decomposition metadata for downstream systems.",
+            "partition": "delivery",
+            "subsystem_ids": [
+              "ss-01",
+              "ss-02",
+              "ss-03",
+              "ss-04",
+              "ss-05",
+              "ss-06"
+            ],
+            "dependencies": [
+              "wp-review"
+            ],
+            "outputs": [
+              "infra/",
+              "reports/",
+              ".env.example"
+            ],
+            "definition_of_done": [
+              "Delivery outputs include decomposition metadata",
+              "Human approval gate remains intact",
+              "Bundle can be inspected package by package"
+            ],
+            "parallel_group": ""
+          }
+        ],
+        "partitions": {
+          "planning": [],
+          "architecture": [],
+          "frontend": [
+            "ss-02"
+          ],
+          "backend": [
+            "ss-01",
+            "ss-03",
+            "ss-04"
+          ],
+          "domain": [],
+          "integration": [
+            "ss-05",
+            "ss-06"
+          ],
+          "verification": [],
+          "review": [],
+          "delivery": []
+        },
+        "ownership": {
+          "ss-01": {
+            "primary_role": "backend",
+            "owned_surfaces": [
+              "apps/api",
+              "docs/api-contract.md"
+            ]
+          },
+          "ss-02": {
+            "primary_role": "frontend",
+            "owned_surfaces": [
+              "apps/web",
+              "docs/ui-notes.md"
+            ]
+          },
+          "ss-03": {
+            "primary_role": "backend",
+            "owned_surfaces": [
+              "apps/api",
+              "docs/api-contract.md"
+            ]
+          },
+          "ss-04": {
+            "primary_role": "backend",
+            "owned_surfaces": [
+              "apps/api",
+              "docs/api-contract.md"
+            ]
+          },
+          "ss-05": {
+            "primary_role": "devops",
+            "owned_surfaces": [
+              "docs/integration.md",
+              "infra",
+              "apps/api",
+              "apps/web"
+            ]
+          },
+          "ss-06": {
+            "primary_role": "devops",
+            "owned_surfaces": [
+              "docs/integration.md",
+              "infra",
+              "apps/api",
+              "apps/web"
+            ]
+          }
+        },
+        "traceability": {
+          "request": {
+            "title": "Acceptance general-product",
+            "description": "Acceptance validation for general-product."
+          },
+          "subsystem_order": [
+            "ss-01",
+            "ss-02",
+            "ss-03",
+            "ss-04",
+            "ss-05",
+            "ss-06"
+          ],
+          "package_order": [
+            "wp-plan",
+            "wp-arch",
+            "wp-ss-01",
+            "wp-ss-02",
+            "wp-ss-03",
+            "wp-ss-04",
+            "wp-ss-05",
+            "wp-ss-06",
+            "wp-verify",
+            "wp-review",
+            "wp-delivery"
+          ],
+          "package_to_subsystems": {
+            "wp-plan": [
+              "ss-01",
+              "ss-02",
+              "ss-03",
+              "ss-04",
+              "ss-05",
+              "ss-06"
+            ],
+            "wp-arch": [
+              "ss-01",
+              "ss-02",
+              "ss-03",
+              "ss-04",
+              "ss-05",
+              "ss-06"
+            ],
+            "wp-ss-01": [
+              "ss-01"
+            ],
+            "wp-ss-02": [
+              "ss-02"
+            ],
+            "wp-ss-03": [
+              "ss-03"
+            ],
+            "wp-ss-04": [
+              "ss-04"
+            ],
+            "wp-ss-05": [
+              "ss-05"
+            ],
+            "wp-ss-06": [
+              "ss-06"
+            ],
+            "wp-verify": [
+              "ss-01",
+              "ss-02",
+              "ss-03",
+              "ss-04",
+              "ss-05",
+              "ss-06"
+            ],
+            "wp-review": [
+              "ss-01",
+              "ss-02",
+              "ss-03",
+              "ss-04",
+              "ss-05",
+              "ss-06"
+            ],
+            "wp-delivery": [
+              "ss-01",
+              "ss-02",
+              "ss-03",
+              "ss-04",
+              "ss-05",
+              "ss-06"
+            ]
+          }
+        }
+      },
+      "proof_stages": {
+        "schema_version": "1.0.0",
+        "kind": "proof-stage-overview",
+        "contract": {
+          "kind": "proof-stage-overview",
+          "schema_version": "1.0.0",
+          "contract_level": "stable-core"
+        },
+        "task": {
+          "id": "b7e9e7ed-718a-4b25-8e5f-163ed7345fa1",
+          "title": "Acceptance general-product",
+          "template_id": "general-product"
+        },
+        "proof_stage_count": 4,
+        "proof_stages": [
+          {
+            "id": "proof-01",
+            "title": "Real planner and architect compatibility",
+            "success_signal": "Planner and architect complete under real-model execution with valid governed artifacts.",
+            "evidence_targets": [
+              "docs/plan.md",
+              "docs/architecture.md",
+              "docs/api-contract.md"
+            ],
+            "status": "proven",
+            "matched_evidence_targets": [
+              "docs/plan.md",
+              "docs/architecture.md",
+              "docs/api-contract.md"
+            ]
+          },
+          {
+            "id": "proof-02",
+            "title": "Bounded package implementation proof",
+            "success_signal": "At least one bounded implementation package completes with governed artifacts and validation.",
+            "evidence_targets": [
+              "apps/web",
+              "apps/api",
+              "tests/qa-report.md"
+            ],
+            "status": "planned",
+            "matched_evidence_targets": [
+              "tests/qa-report.md"
+            ]
+          },
+          {
+            "id": "proof-03",
+            "title": "Multi-package verification proof",
+            "success_signal": "Cross-package QA and review evidence complete without collapsing the workflow.",
+            "evidence_targets": [
+              "tests/package-verification.md",
+              "docs/review.md",
+              "docs/package-review.md"
+            ],
+            "status": "planned",
+            "matched_evidence_targets": [
+              "tests/package-verification.md"
+            ]
+          },
+          {
+            "id": "proof-04",
+            "title": "Large-system delivery proof",
+            "success_signal": "Delivery artifacts, memory, decomposition, and approval state are exported for the large-system task.",
+            "evidence_targets": [
+              "reports/",
+              "infra/",
+              "task-memory.json"
+            ],
+            "status": "planned",
+            "matched_evidence_targets": [
+              "reports/",
+              "infra/"
+            ]
+          }
+        ]
+      },
+      "rerun_guidance": {
+        "qa": {
+          "recommended_from_role": "qa",
+          "reason": "QA report does not contain passing compile and unit execution evidence.",
+          "repairable": true
+        }
+      }
+    },
+    "repository_context": {
+      "schema_version": "1.0.0",
+      "kind": "repository-context",
+      "repository_present": false,
+      "repository_root": "",
+      "project_root": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0",
+      "branch": "",
+      "working_tree": {
+        "is_dirty": false,
+        "tracked_change_count": 0,
+        "staged_change_count": 0,
+        "unstaged_change_count": 0,
+        "untracked_count": 0
+      },
+      "diff_summary": {
+        "has_tracked_changes": false,
+        "staged_paths": [],
+        "unstaged_paths": [],
+        "untracked_paths": []
+      },
+      "readiness": {
+        "status": "not_repo",
+        "can_prepare_pr": false,
+        "reasons": [
+          "No git repository detected from the current project root."
+        ]
+      }
+    },
+    "connector_hooks": {
+      "schema_version": "1.0.0",
+      "kind": "connector-hooks",
+      "repository_state": "not_repo",
+      "hooks": {
+        "github_pull_request": {
+          "ready": false,
+          "recommended_input_fields": [
+            "title",
+            "body",
+            "labels",
+            "base_branch",
+            "head_branch"
+          ],
+          "requires_human_review": true
+        },
+        "gitlab_merge_request": {
+          "ready": false,
+          "recommended_input_fields": [
+            "title",
+            "description",
+            "labels",
+            "target_branch",
+            "source_branch"
+          ],
+          "requires_human_review": true
+        }
+      }
+    },
+    "export": {
+      "format": "machine-readable",
+      "producer": "multi-agent-dev-orchestrator"
+    },
+    "summary": {
+      "template_id": "general-product",
+      "task_mode": "delivery",
+      "workflow": [
+        "planner",
+        "architect",
+        "frontend",
+        "backend",
+        "qa",
+        "reviewer",
+        "devops"
+      ],
+      "approval_profile": {
+        "app_code": "auto_apply",
+        "infra": "auto_apply"
+      },
+      "budget": {
+        "role_runs": 20,
+        "llm_calls": 40,
+        "conflicts": 8,
+        "resumes": 6,
+        "failures": 8,
+        "consumed_role_runs": 7,
+        "consumed_llm_calls": 0,
+        "consumed_conflicts": 0,
+        "consumed_resumes": 0,
+        "consumed_failures": 1
+      },
+      "requires_human_approval": false,
+      "parallel_implementation": true,
+      "role_overrides": {},
+      "extra_roles": [],
+      "validation_profile": {},
+      "checkpoint_roles": [
+        "planner",
+        "planner",
+        "architect",
+        "architect",
+        "backend",
+        "backend",
+        "frontend",
+        "frontend",
+        "backend",
+        "backend",
+        "backend",
+        "backend",
+        "qa",
+        "qa"
+      ],
+      "failed_validations": [
+        "qa"
+      ],
+      "validation_findings": {
+        "qa": [
+          {
+            "code": "qa_execution_evidence_missing",
+            "severity": "high",
+            "category": "evidence-missing",
+            "message": "QA report does not contain passing compile and unit execution evidence.",
+            "evidence": [
+              "tests/qa-report.md"
+            ],
+            "suggested_fix": "Run compile and unit checks from the main project root and publish passing evidence.",
+            "suggested_rerun_role": "qa"
+          },
+          {
+            "code": "qa_executed_check_failed",
+            "severity": "high",
+            "category": "verification-failed",
+            "message": "QA report contains failed executed checks.",
+            "evidence": [
+              "tests/qa-report.md"
+            ],
+            "suggested_fix": "Fix the failing checks or rerun QA after producing passing compile/unit evidence.",
+            "suggested_rerun_role": "qa"
+          }
+        ]
+      },
+      "rerun_guidance": {
+        "qa": {
+          "recommended_from_role": "qa",
+          "reason": "QA report does not contain passing compile and unit execution evidence.",
+          "repairable": true
+        }
+      },
+      "conflict_count": 0,
+      "manual_review_count": 0,
+      "blocked_high_risk_count": 0,
+      "conflicts": [],
+      "manual_reviews": [],
+      "blocked_high_risk": [],
+      "completed_roles": [
+        "planner",
+        "architect",
+        "frontend",
+        "backend"
+      ],
+      "completed_role_count": 4,
+      "workflow_role_count": 7,
+      "large_task_metrics": {
+        "is_large_scale_task": false,
+        "delivery_gate_ok": true,
+        "delivery_gate_present": false,
+        "delivery_gate_findings": [],
+        "source_lines": 307,
+        "source_file_count": 9,
+        "coverage_areas": [
+          "apps",
+          "tests"
+        ],
+        "contentful_files": [
+          "apps/api/app.py",
+          "apps/api/models.py",
+          "apps/api/repository.py",
+          "apps/web/api.js",
+          "apps/web/app.js",
+          "apps/web/index.html",
+          "apps/web/state.js",
+          "apps/web/styles.css",
+          "tests/test_operations_platform.py"
+        ],
+        "module_target_count": 6,
+        "subsystem_target_count": 6,
+        "work_package_target_count": 11,
+        "implemented_role_count": 2,
+        "normalized_roles": [
+          "qa"
+        ],
+        "has_normalized_outputs": true,
+        "artifact_counts_by_role": {
+          "planner": 3,
+          "architect": 3,
+          "backend": 4,
+          "frontend": 5,
+          "qa": 3
+        },
+        "empty_artifact_roles": []
+      },
+      "artifact_integrity": {
+        "status": "ok",
+        "expected_artifact_count": 18,
+        "existing_artifact_count": 18,
+        "missing_artifact_count": 0,
+        "missing_artifacts": [],
+        "recommended_rerun_role": ""
+      }
+    },
+    "memory": {
+      "schema_version": "1.0.0",
+      "kind": "task-memory",
+      "task_id": "b7e9e7ed-718a-4b25-8e5f-163ed7345fa1",
+      "project_name": "acceptance-general-e2b2a0",
+      "current_known_state": {
+        "status": "failed",
+        "latest_completed_role": "backend",
+        "failed_roles": [
+          "qa"
+        ],
+        "open_change_count": 0,
+        "artifacts_count": 26,
+        "large_scale_task": false,
+        "delivery_gate_ok": true,
+        "artifact_integrity_status": "ok",
+        "missing_artifact_count": 0
+      },
+      "continuation": {
+        "recommended_resume_role": "qa",
+        "reason": "QA report does not contain passing compile and unit execution evidence."
+      },
+      "recent_events": [
+        {
+          "ts": "2026-05-06T19:32:07.139510+00:00",
+          "source": "backend",
+          "level": "info",
+          "message": "Backend started."
+        },
+        {
+          "ts": "2026-05-06T19:32:07.148326+00:00",
+          "source": "work-package",
+          "level": "info",
+          "message": "Work package implementation started."
+        },
+        {
+          "ts": "2026-05-06T19:32:07.269334+00:00",
+          "source": "work-package",
+          "level": "info",
+          "message": "Work package implementation finished."
+        },
+        {
+          "ts": "2026-05-06T19:32:07.275284+00:00",
+          "source": "backend",
+          "level": "info",
+          "message": "Backend completed."
+        },
+        {
+          "ts": "2026-05-06T19:32:07.279063+00:00",
+          "source": "work-package",
+          "level": "info",
+          "message": "Implementation package pipeline completed."
+        },
+        {
+          "ts": "2026-05-06T19:32:07.296088+00:00",
+          "source": "qa",
+          "level": "info",
+          "message": "QA started."
+        },
+        {
+          "ts": "2026-05-06T19:32:08.571009+00:00",
+          "source": "qa",
+          "level": "error",
+          "message": "qa output failed validation."
+        },
+        {
+          "ts": "2026-05-06T19:32:08.578033+00:00",
+          "source": "orchestrator",
+          "level": "error",
+          "message": "Workflow failed: qa output failed validation."
+        }
+      ],
+      "recent_checkpoints": [
+        {
+          "role": "backend",
+          "phase": "implementation",
+          "status": "started",
+          "created_at": "2026-05-06T19:32:06.691622+00:00"
+        },
+        {
+          "role": "backend",
+          "phase": "implementation",
+          "status": "completed",
+          "created_at": "2026-05-06T19:32:06.853433+00:00"
+        },
+        {
+          "role": "frontend",
+          "phase": "implementation",
+          "status": "started",
+          "created_at": "2026-05-06T19:32:06.867054+00:00"
+        },
+        {
+          "role": "frontend",
+          "phase": "implementation",
+          "status": "completed",
+          "created_at": "2026-05-06T19:32:06.991184+00:00"
+        },
+        {
+          "role": "backend",
+          "phase": "implementation",
+          "status": "started",
+          "created_at": "2026-05-06T19:32:07.004727+00:00"
+        },
+        {
+          "role": "backend",
+          "phase": "implementation",
+          "status": "completed",
+          "created_at": "2026-05-06T19:32:07.128789+00:00"
+        },
+        {
+          "role": "backend",
+          "phase": "implementation",
+          "status": "started",
+          "created_at": "2026-05-06T19:32:07.137635+00:00"
+        },
+        {
+          "role": "backend",
+          "phase": "implementation",
+          "status": "completed",
+          "created_at": "2026-05-06T19:32:07.272214+00:00"
+        },
+        {
+          "role": "qa",
+          "phase": "verification",
+          "status": "started",
+          "created_at": "2026-05-06T19:32:07.292622+00:00"
+        },
+        {
+          "role": "qa",
+          "phase": "verification",
+          "status": "blocked",
+          "created_at": "2026-05-06T19:32:08.567745+00:00"
+        }
+      ],
+      "open_changes": [],
+      "rerun_guidance": {
+        "qa": {
+          "recommended_from_role": "qa",
+          "reason": "QA report does not contain passing compile and unit execution evidence.",
+          "repairable": true
+        }
+      },
+      "progress_snapshot": {
+        "completed_role_count": 4,
+        "workflow_role_count": 7,
+        "delivery_gate_ok": true,
+        "source_lines": 307,
+        "source_file_count": 9,
+        "normalized_roles": [
+          "qa"
+        ],
+        "artifact_integrity_status": "ok",
+        "missing_artifact_count": 0
+      }
+    },
+    "files": {
+      "governance-report.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\governance-report.md",
+      "pr-summary.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\pr-summary.md",
+      "approval-brief.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\approval-brief.md",
+      "release-checklist.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\release-checklist.md",
+      "stakeholder-summary.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\stakeholder-summary.md",
+      "delivery-index.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\delivery-index.md"
+    },
+    "manifest": {
+      "schema_version": "1.0.0",
+      "kind": "delivery-bundle-manifest",
+      "bundle_id": "20260506T193208Z-cfa79b",
+      "sequence": 1,
+      "exported_at": "2026-05-06T19:32:08.713254+00:00",
+      "task_id": "b7e9e7ed-718a-4b25-8e5f-163ed7345fa1",
+      "template_id": "general-product",
+      "decision": "HOLD",
+      "status": "failed",
+      "external_status": "blocked",
+      "file_count": 24,
+      "files": {
+        "governance-report.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\governance-report.md",
+        "pr-summary.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\pr-summary.md",
+        "approval-brief.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\approval-brief.md",
+        "release-checklist.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\release-checklist.md",
+        "stakeholder-summary.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\stakeholder-summary.md",
+        "delivery-index.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\delivery-index.md",
+        "delivery-pack.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\delivery-pack.json",
+        "pr-packet.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\pr-packet.json",
+        "approval-packet.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\approval-packet.json",
+        "overview-packet.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\overview-packet.json",
+        "github-pr-mapping.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\github-pr-mapping.json",
+        "approval-request-mapping.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\approval-request-mapping.json",
+        "dashboard-card-mapping.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\dashboard-card-mapping.json",
+        "repository-context.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\repository-context.json",
+        "connector-hooks.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\connector-hooks.json",
+        "task-decomposition-overview.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\task-decomposition-overview.json",
+        "proof-stage-overview.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\proof-stage-overview.json",
+        "task-memory.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\task-memory.json",
+        "productionization-scaffold.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\productionization-scaffold.json",
+        "contract-descriptors.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\contract-descriptors.json",
+        "mapping-descriptors.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\mapping-descriptors.json",
+        "code-metrics.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\code-metrics.json",
+        "implementation-ledger.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\implementation-ledger.json",
+        "repair-history.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\repair-history.json",
+        "bundle-manifest.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\bundle-manifest.json",
+        "latest-delivery-pack.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\latest-delivery-pack.json"
+      },
+      "file_inventory": {
+        "governance-report.md": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\governance-report.md",
+          "size_bytes": 1098,
+          "sha256": "84c40c62525d71c27f412bdc73cdfdc704d6e14cc150cc1ab56920a950a97fe8",
+          "kind": "md"
+        },
+        "pr-summary.md": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\pr-summary.md",
+          "size_bytes": 1491,
+          "sha256": "caf98448c677681e38f77799dcbccf4312475fd69c92037f89e901306098557f",
+          "kind": "md"
+        },
+        "approval-brief.md": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\approval-brief.md",
+          "size_bytes": 422,
+          "sha256": "23797be1a1b8695e709e0c3c70829223fcd4a8fc95c933e50101ecd14b368882",
+          "kind": "md"
+        },
+        "release-checklist.md": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\release-checklist.md",
+          "size_bytes": 413,
+          "sha256": "620584fc1034b9c03f3b1537d6e49dd60e5f3dc67ed5c8617192849fd8e2e091",
+          "kind": "md"
+        },
+        "stakeholder-summary.md": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\stakeholder-summary.md",
+          "size_bytes": 412,
+          "sha256": "4aea6347896f13fdb3f42fea310b1d2c5e71911ec8a7b7d8e441a3e6bb1f2a60",
+          "kind": "md"
+        },
+        "delivery-index.md": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\delivery-index.md",
+          "size_bytes": 935,
+          "sha256": "086a2f9e8cb47d8308c61ddeb4690078d4330e14955987ef955fdc55daa60a77",
+          "kind": "md"
+        },
+        "delivery-pack.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\delivery-pack.json",
+          "size_bytes": 36711,
+          "sha256": "d5292c93eec8eb395e7be33af5e40f057191b022ec9ae9091d70d3791cb5c880",
+          "kind": "json"
+        },
+        "pr-packet.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\pr-packet.json",
+          "size_bytes": 6369,
+          "sha256": "ce15d55109531aa5e9854f4a7bdfd45785a388abd8b47d4525d50094b3b033a8",
+          "kind": "json"
+        },
+        "approval-packet.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\approval-packet.json",
+          "size_bytes": 2083,
+          "sha256": "f62befce7bafab10ae8da7de173b6d96e126df4e08fcb11623a088f12f56bb90",
+          "kind": "json"
+        },
+        "overview-packet.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\overview-packet.json",
+          "size_bytes": 9859,
+          "sha256": "e0e5773e7439a9a5d5899436db7e3f99dc90f2446a0906de161a0c54ceb8a602",
+          "kind": "json"
+        },
+        "github-pr-mapping.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\github-pr-mapping.json",
+          "size_bytes": 1242,
+          "sha256": "c68145f3601c4d5acb901faa5f82d7205db32cf28330b76fdf1e404f2f01d01a",
+          "kind": "json"
+        },
+        "approval-request-mapping.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\approval-request-mapping.json",
+          "size_bytes": 451,
+          "sha256": "f2e8a5ce363080f9b23a2fb6f8b1a2f4fac9c8c007d41ce895b994bd30312e87",
+          "kind": "json"
+        },
+        "dashboard-card-mapping.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\dashboard-card-mapping.json",
+          "size_bytes": 525,
+          "sha256": "50a8bed52e9bfcb2be8ddcb91fe2f213fd6c7d797bae4400b7742340cdbcc296",
+          "kind": "json"
+        },
+        "repository-context.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\repository-context.json",
+          "size_bytes": 728,
+          "sha256": "8e1db0b8ed9815fe40e9a8bd3790482574a8596b989befcb613ccea1ecf1b4a7",
+          "kind": "json"
+        },
+        "connector-hooks.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\connector-hooks.json",
+          "size_bytes": 621,
+          "sha256": "34e06052356b0cddeca284fecb8337f14c3da5ec2117bfca18d4ae3f34d5ecdc",
+          "kind": "json"
+        },
+        "task-decomposition-overview.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\task-decomposition-overview.json",
+          "size_bytes": 15406,
+          "sha256": "6d80ca496dc469256223d9d72ec95a527f5701810b28a37ee060e24fbb89c820",
+          "kind": "json"
+        },
+        "proof-stage-overview.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\proof-stage-overview.json",
+          "size_bytes": 2237,
+          "sha256": "a4242061fa3db0f7445cab7d7011a0a6be2905aa07ac11e893389928eedac6ef",
+          "kind": "json"
+        },
+        "task-memory.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\task-memory.json",
+          "size_bytes": 4166,
+          "sha256": "2abf874feb5f3e7f5c0a7277f39188b20d9d72ad6a1e058f4b5873ace18b8411",
+          "kind": "json"
+        },
+        "productionization-scaffold.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\productionization-scaffold.json",
+          "size_bytes": 1152,
+          "sha256": "f93bd2b5a67e530d57750e0870d01a7b4f6e232bea542e9593d155c131179d1a",
+          "kind": "json"
+        },
+        "contract-descriptors.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\contract-descriptors.json",
+          "size_bytes": 9706,
+          "sha256": "6989baa8aca6abccbb3f59c6065a01afcfbc20ee0ebe4169b0ee71b24daed855",
+          "kind": "json"
+        },
+        "mapping-descriptors.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\mapping-descriptors.json",
+          "size_bytes": 1661,
+          "sha256": "9dcea972ecacd49e54e37e2f573c2602c94227a670cb0b356f41e44a47be7559",
+          "kind": "json"
+        },
+        "code-metrics.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\code-metrics.json",
+          "size_bytes": 1134,
+          "sha256": "51a965c4b7ecc86fe37c03e613dd0fae13e230e43e2b781924d81bb890224f4d",
+          "kind": "json"
+        },
+        "implementation-ledger.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\implementation-ledger.json",
+          "size_bytes": 19347,
+          "sha256": "975d4d132c91cbb3551b39ae9df8c067b9a90f82b2e4e3061d87f5313db466e1",
+          "kind": "json"
+        },
+        "repair-history.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\repair-history.json",
+          "size_bytes": 396,
+          "sha256": "c78b817bd97d524d67d8325e86057a2b6c1eb6e48c09ce308f75cbe5a720636e",
+          "kind": "json"
+        }
+      },
+      "repository_context": {
+        "schema_version": "1.0.0",
+        "kind": "repository-context",
+        "repository_present": false,
+        "repository_root": "",
+        "project_root": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0",
+        "branch": "",
+        "working_tree": {
+          "is_dirty": false,
+          "tracked_change_count": 0,
+          "staged_change_count": 0,
+          "unstaged_change_count": 0,
+          "untracked_count": 0
+        },
+        "diff_summary": {
+          "has_tracked_changes": false,
+          "staged_paths": [],
+          "unstaged_paths": [],
+          "untracked_paths": []
+        },
+        "readiness": {
+          "status": "not_repo",
+          "can_prepare_pr": false,
+          "reasons": [
+            "No git repository detected from the current project root."
+          ]
+        }
+      },
+      "connector_hooks": {
+        "schema_version": "1.0.0",
+        "kind": "connector-hooks",
+        "repository_state": "not_repo",
+        "hooks": {
+          "github_pull_request": {
+            "ready": false,
+            "recommended_input_fields": [
+              "title",
+              "body",
+              "labels",
+              "base_branch",
+              "head_branch"
+            ],
+            "requires_human_review": true
+          },
+          "gitlab_merge_request": {
+            "ready": false,
+            "recommended_input_fields": [
+              "title",
+              "description",
+              "labels",
+              "target_branch",
+              "source_branch"
+            ],
+            "requires_human_review": true
+          }
+        }
+      },
+      "productionization_scaffold": {
+        "schema_version": "1.0.0",
+        "kind": "productionization-scaffold",
+        "identity_boundary": {
+          "mode": "single-local-operator",
+          "user_header": "X-Local-User",
+          "default_user": "local-user",
+          "tenant_mode": "single-tenant",
+          "default_tenant": "local-workspace",
+          "future_ready": false
+        },
+        "queue_boundary": {
+          "queue_mode": "in_process",
+          "queue_backend": "in-process",
+          "worker_model": "same-process-thread",
+          "future_ready": false
+        },
+        "sandbox_boundary": {
+          "sandbox_mode": "role-governed-local",
+          "max_shell_seconds": 120,
+          "governed": true,
+          "future_ready": false
+        },
+        "deployment_scaffold": {
+          "deployment_mode": "local-single-user",
+          "deployment_target": "local-dev",
+          "diagnostics_enabled": true,
+          "future_auth_enabled": false
+        },
+        "operational_diagnostics": {
+          "logs_path": "E:\\ProgramProjects\\AI_Agent\\logs",
+          "workspace_root": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects",
+          "db_path": "E:\\ProgramProjects\\AI_Agent\\workspace\\orchestrator.db",
+          "diagnostics_enabled": true,
+          "hosted_execution_ready": false
+        }
+      },
+      "compatibility": {
+        "machine_payload_file": "delivery-pack.json",
+        "pr_packet_file": "pr-packet.json",
+        "approval_packet_file": "approval-packet.json",
+        "overview_packet_file": "overview-packet.json",
+        "github_pr_mapping_file": "github-pr-mapping.json",
+        "approval_request_mapping_file": "approval-request-mapping.json",
+        "dashboard_card_mapping_file": "dashboard-card-mapping.json",
+        "repository_context_file": "repository-context.json",
+        "connector_hooks_file": "connector-hooks.json",
+        "task_decomposition_overview_file": "task-decomposition-overview.json",
+        "proof_stage_overview_file": "proof-stage-overview.json",
+        "task_memory_file": "task-memory.json",
+        "productionization_scaffold_file": "productionization-scaffold.json",
+        "contract_descriptors_file": "contract-descriptors.json",
+        "mapping_descriptors_file": "mapping-descriptors.json",
+        "code_metrics_file": "code-metrics.json",
+        "implementation_ledger_file": "implementation-ledger.json",
+        "repair_history_file": "repair-history.json",
+        "human_index_file": "delivery-index.md",
+        "latest_pointer_file": "latest-delivery-pack.json",
+        "history_file": "delivery-history.json"
+      }
+    },
+    "history_count": 1
+  },
+  "latest_overview_packet": {
+    "schema_version": "1.0.0",
+    "kind": "overview-packet",
+    "consumer": "dashboard-system",
+    "decision": "HOLD",
+    "external_status": "blocked",
+    "headline": "Current conclusion: task `failed` with blockers in failed validations: qa.",
+    "stable_fields": {
+      "identity": [
+        "task.id",
+        "task.title",
+        "task.template_id",
+        "decision",
+        "external_status"
+      ],
+      "overview": [
+        "headline",
+        "queue_stats",
+        "files"
+      ]
+    },
+    "compatibility": {
+      "contract_level": "stable-core",
+      "preferred_fields": [
+        "decision",
+        "headline",
+        "queue_stats",
+        "task",
+        "files"
+      ]
+    },
+    "contract": {
+      "kind": "overview-packet",
+      "schema_version": "1.0.0",
+      "contract_level": "stable-core"
+    },
+    "task": {
+      "id": "b7e9e7ed-718a-4b25-8e5f-163ed7345fa1",
+      "title": "Acceptance general-product",
+      "template_id": "general-product",
+      "status": "failed"
+    },
+    "queue_stats": {
+      "manual_review_count": 0,
+      "conflict_count": 0,
+      "blocked_high_risk_count": 0,
+      "failed_validation_count": 1
+    },
+    "repository_readiness": {
+      "status": "not_repo",
+      "can_prepare_pr": false,
+      "reasons": [
+        "No git repository detected from the current project root."
+      ]
+    },
+    "decomposition": {
+      "subsystem_count": 6,
+      "work_package_count": 11
+    },
+    "proof_stages": {
+      "schema_version": "1.0.0",
+      "kind": "proof-stage-overview",
+      "contract": {
+        "kind": "proof-stage-overview",
+        "schema_version": "1.0.0",
+        "contract_level": "stable-core"
+      },
+      "task": {
+        "id": "b7e9e7ed-718a-4b25-8e5f-163ed7345fa1",
+        "title": "Acceptance general-product",
+        "template_id": "general-product"
+      },
+      "proof_stage_count": 4,
+      "proof_stages": [
+        {
+          "id": "proof-01",
+          "title": "Real planner and architect compatibility",
+          "success_signal": "Planner and architect complete under real-model execution with valid governed artifacts.",
+          "evidence_targets": [
+            "docs/plan.md",
+            "docs/architecture.md",
+            "docs/api-contract.md"
+          ],
+          "status": "proven",
+          "matched_evidence_targets": [
+            "docs/plan.md",
+            "docs/architecture.md",
+            "docs/api-contract.md"
+          ]
+        },
+        {
+          "id": "proof-02",
+          "title": "Bounded package implementation proof",
+          "success_signal": "At least one bounded implementation package completes with governed artifacts and validation.",
+          "evidence_targets": [
+            "apps/web",
+            "apps/api",
+            "tests/qa-report.md"
+          ],
+          "status": "planned",
+          "matched_evidence_targets": [
+            "tests/qa-report.md"
+          ]
+        },
+        {
+          "id": "proof-03",
+          "title": "Multi-package verification proof",
+          "success_signal": "Cross-package QA and review evidence complete without collapsing the workflow.",
+          "evidence_targets": [
+            "tests/package-verification.md",
+            "docs/review.md",
+            "docs/package-review.md"
+          ],
+          "status": "planned",
+          "matched_evidence_targets": [
+            "tests/package-verification.md"
+          ]
+        },
+        {
+          "id": "proof-04",
+          "title": "Large-system delivery proof",
+          "success_signal": "Delivery artifacts, memory, decomposition, and approval state are exported for the large-system task.",
+          "evidence_targets": [
+            "reports/",
+            "infra/",
+            "task-memory.json"
+          ],
+          "status": "planned",
+          "matched_evidence_targets": [
+            "reports/",
+            "infra/"
+          ]
+        }
+      ]
+    },
+    "memory": {
+      "schema_version": "1.0.0",
+      "kind": "task-memory",
+      "task_id": "b7e9e7ed-718a-4b25-8e5f-163ed7345fa1",
+      "project_name": "acceptance-general-e2b2a0",
+      "current_known_state": {
+        "status": "failed",
+        "latest_completed_role": "backend",
+        "failed_roles": [
+          "qa"
+        ],
+        "open_change_count": 0,
+        "artifacts_count": 26,
+        "large_scale_task": false,
+        "delivery_gate_ok": true,
+        "artifact_integrity_status": "ok",
+        "missing_artifact_count": 0
+      },
+      "continuation": {
+        "recommended_resume_role": "qa",
+        "reason": "QA report does not contain passing compile and unit execution evidence."
+      },
+      "recent_events": [
+        {
+          "ts": "2026-05-06T19:32:07.139510+00:00",
+          "source": "backend",
+          "level": "info",
+          "message": "Backend started."
+        },
+        {
+          "ts": "2026-05-06T19:32:07.148326+00:00",
+          "source": "work-package",
+          "level": "info",
+          "message": "Work package implementation started."
+        },
+        {
+          "ts": "2026-05-06T19:32:07.269334+00:00",
+          "source": "work-package",
+          "level": "info",
+          "message": "Work package implementation finished."
+        },
+        {
+          "ts": "2026-05-06T19:32:07.275284+00:00",
+          "source": "backend",
+          "level": "info",
+          "message": "Backend completed."
+        },
+        {
+          "ts": "2026-05-06T19:32:07.279063+00:00",
+          "source": "work-package",
+          "level": "info",
+          "message": "Implementation package pipeline completed."
+        },
+        {
+          "ts": "2026-05-06T19:32:07.296088+00:00",
+          "source": "qa",
+          "level": "info",
+          "message": "QA started."
+        },
+        {
+          "ts": "2026-05-06T19:32:08.571009+00:00",
+          "source": "qa",
+          "level": "error",
+          "message": "qa output failed validation."
+        },
+        {
+          "ts": "2026-05-06T19:32:08.578033+00:00",
+          "source": "orchestrator",
+          "level": "error",
+          "message": "Workflow failed: qa output failed validation."
+        }
+      ],
+      "recent_checkpoints": [
+        {
+          "role": "backend",
+          "phase": "implementation",
+          "status": "started",
+          "created_at": "2026-05-06T19:32:06.691622+00:00"
+        },
+        {
+          "role": "backend",
+          "phase": "implementation",
+          "status": "completed",
+          "created_at": "2026-05-06T19:32:06.853433+00:00"
+        },
+        {
+          "role": "frontend",
+          "phase": "implementation",
+          "status": "started",
+          "created_at": "2026-05-06T19:32:06.867054+00:00"
+        },
+        {
+          "role": "frontend",
+          "phase": "implementation",
+          "status": "completed",
+          "created_at": "2026-05-06T19:32:06.991184+00:00"
+        },
+        {
+          "role": "backend",
+          "phase": "implementation",
+          "status": "started",
+          "created_at": "2026-05-06T19:32:07.004727+00:00"
+        },
+        {
+          "role": "backend",
+          "phase": "implementation",
+          "status": "completed",
+          "created_at": "2026-05-06T19:32:07.128789+00:00"
+        },
+        {
+          "role": "backend",
+          "phase": "implementation",
+          "status": "started",
+          "created_at": "2026-05-06T19:32:07.137635+00:00"
+        },
+        {
+          "role": "backend",
+          "phase": "implementation",
+          "status": "completed",
+          "created_at": "2026-05-06T19:32:07.272214+00:00"
+        },
+        {
+          "role": "qa",
+          "phase": "verification",
+          "status": "started",
+          "created_at": "2026-05-06T19:32:07.292622+00:00"
+        },
+        {
+          "role": "qa",
+          "phase": "verification",
+          "status": "blocked",
+          "created_at": "2026-05-06T19:32:08.567745+00:00"
+        }
+      ],
+      "open_changes": [],
+      "rerun_guidance": {
+        "qa": {
+          "recommended_from_role": "qa",
+          "reason": "QA report does not contain passing compile and unit execution evidence.",
+          "repairable": true
+        }
+      },
+      "progress_snapshot": {
+        "completed_role_count": 4,
+        "workflow_role_count": 7,
+        "delivery_gate_ok": true,
+        "source_lines": 307,
+        "source_file_count": 9,
+        "normalized_roles": [
+          "qa"
+        ],
+        "artifact_integrity_status": "ok",
+        "missing_artifact_count": 0
+      }
+    },
+    "files": {
+      "governance-report.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\governance-report.md",
+      "pr-summary.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\pr-summary.md",
+      "approval-brief.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\approval-brief.md",
+      "release-checklist.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\release-checklist.md",
+      "stakeholder-summary.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\stakeholder-summary.md",
+      "delivery-index.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\delivery-index.md",
+      "delivery-pack.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\delivery-pack.json",
+      "pr-packet.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\pr-packet.json",
+      "approval-packet.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\approval-packet.json"
+    },
+    "manifest": {
+      "schema_version": "1.0.0",
+      "kind": "delivery-bundle-manifest",
+      "bundle_id": "20260506T193208Z-cfa79b",
+      "sequence": 1,
+      "exported_at": "2026-05-06T19:32:08.713254+00:00",
+      "task_id": "b7e9e7ed-718a-4b25-8e5f-163ed7345fa1",
+      "template_id": "general-product",
+      "decision": "HOLD",
+      "status": "failed",
+      "external_status": "blocked",
+      "file_count": 24,
+      "files": {
+        "governance-report.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\governance-report.md",
+        "pr-summary.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\pr-summary.md",
+        "approval-brief.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\approval-brief.md",
+        "release-checklist.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\release-checklist.md",
+        "stakeholder-summary.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\stakeholder-summary.md",
+        "delivery-index.md": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\delivery-index.md",
+        "delivery-pack.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\delivery-pack.json",
+        "pr-packet.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\pr-packet.json",
+        "approval-packet.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\approval-packet.json",
+        "overview-packet.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\overview-packet.json",
+        "github-pr-mapping.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\github-pr-mapping.json",
+        "approval-request-mapping.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\approval-request-mapping.json",
+        "dashboard-card-mapping.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\dashboard-card-mapping.json",
+        "repository-context.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\repository-context.json",
+        "connector-hooks.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\connector-hooks.json",
+        "task-decomposition-overview.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\task-decomposition-overview.json",
+        "proof-stage-overview.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\proof-stage-overview.json",
+        "task-memory.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\task-memory.json",
+        "productionization-scaffold.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\productionization-scaffold.json",
+        "contract-descriptors.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\contract-descriptors.json",
+        "mapping-descriptors.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\mapping-descriptors.json",
+        "code-metrics.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\code-metrics.json",
+        "implementation-ledger.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\implementation-ledger.json",
+        "repair-history.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\repair-history.json",
+        "bundle-manifest.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\bundle-manifest.json",
+        "latest-delivery-pack.json": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\latest-delivery-pack.json"
+      },
+      "file_inventory": {
+        "governance-report.md": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\governance-report.md",
+          "size_bytes": 1098,
+          "sha256": "84c40c62525d71c27f412bdc73cdfdc704d6e14cc150cc1ab56920a950a97fe8",
+          "kind": "md"
+        },
+        "pr-summary.md": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\pr-summary.md",
+          "size_bytes": 1491,
+          "sha256": "caf98448c677681e38f77799dcbccf4312475fd69c92037f89e901306098557f",
+          "kind": "md"
+        },
+        "approval-brief.md": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\approval-brief.md",
+          "size_bytes": 422,
+          "sha256": "23797be1a1b8695e709e0c3c70829223fcd4a8fc95c933e50101ecd14b368882",
+          "kind": "md"
+        },
+        "release-checklist.md": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\release-checklist.md",
+          "size_bytes": 413,
+          "sha256": "620584fc1034b9c03f3b1537d6e49dd60e5f3dc67ed5c8617192849fd8e2e091",
+          "kind": "md"
+        },
+        "stakeholder-summary.md": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\stakeholder-summary.md",
+          "size_bytes": 412,
+          "sha256": "4aea6347896f13fdb3f42fea310b1d2c5e71911ec8a7b7d8e441a3e6bb1f2a60",
+          "kind": "md"
+        },
+        "delivery-index.md": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\delivery-index.md",
+          "size_bytes": 935,
+          "sha256": "086a2f9e8cb47d8308c61ddeb4690078d4330e14955987ef955fdc55daa60a77",
+          "kind": "md"
+        },
+        "delivery-pack.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\delivery-pack.json",
+          "size_bytes": 36711,
+          "sha256": "d5292c93eec8eb395e7be33af5e40f057191b022ec9ae9091d70d3791cb5c880",
+          "kind": "json"
+        },
+        "pr-packet.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\pr-packet.json",
+          "size_bytes": 6369,
+          "sha256": "ce15d55109531aa5e9854f4a7bdfd45785a388abd8b47d4525d50094b3b033a8",
+          "kind": "json"
+        },
+        "approval-packet.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\approval-packet.json",
+          "size_bytes": 2083,
+          "sha256": "f62befce7bafab10ae8da7de173b6d96e126df4e08fcb11623a088f12f56bb90",
+          "kind": "json"
+        },
+        "overview-packet.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\overview-packet.json",
+          "size_bytes": 9859,
+          "sha256": "e0e5773e7439a9a5d5899436db7e3f99dc90f2446a0906de161a0c54ceb8a602",
+          "kind": "json"
+        },
+        "github-pr-mapping.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\github-pr-mapping.json",
+          "size_bytes": 1242,
+          "sha256": "c68145f3601c4d5acb901faa5f82d7205db32cf28330b76fdf1e404f2f01d01a",
+          "kind": "json"
+        },
+        "approval-request-mapping.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\approval-request-mapping.json",
+          "size_bytes": 451,
+          "sha256": "f2e8a5ce363080f9b23a2fb6f8b1a2f4fac9c8c007d41ce895b994bd30312e87",
+          "kind": "json"
+        },
+        "dashboard-card-mapping.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\dashboard-card-mapping.json",
+          "size_bytes": 525,
+          "sha256": "50a8bed52e9bfcb2be8ddcb91fe2f213fd6c7d797bae4400b7742340cdbcc296",
+          "kind": "json"
+        },
+        "repository-context.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\repository-context.json",
+          "size_bytes": 728,
+          "sha256": "8e1db0b8ed9815fe40e9a8bd3790482574a8596b989befcb613ccea1ecf1b4a7",
+          "kind": "json"
+        },
+        "connector-hooks.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\connector-hooks.json",
+          "size_bytes": 621,
+          "sha256": "34e06052356b0cddeca284fecb8337f14c3da5ec2117bfca18d4ae3f34d5ecdc",
+          "kind": "json"
+        },
+        "task-decomposition-overview.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\task-decomposition-overview.json",
+          "size_bytes": 15406,
+          "sha256": "6d80ca496dc469256223d9d72ec95a527f5701810b28a37ee060e24fbb89c820",
+          "kind": "json"
+        },
+        "proof-stage-overview.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\proof-stage-overview.json",
+          "size_bytes": 2237,
+          "sha256": "a4242061fa3db0f7445cab7d7011a0a6be2905aa07ac11e893389928eedac6ef",
+          "kind": "json"
+        },
+        "task-memory.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\task-memory.json",
+          "size_bytes": 4166,
+          "sha256": "2abf874feb5f3e7f5c0a7277f39188b20d9d72ad6a1e058f4b5873ace18b8411",
+          "kind": "json"
+        },
+        "productionization-scaffold.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\productionization-scaffold.json",
+          "size_bytes": 1152,
+          "sha256": "f93bd2b5a67e530d57750e0870d01a7b4f6e232bea542e9593d155c131179d1a",
+          "kind": "json"
+        },
+        "contract-descriptors.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\contract-descriptors.json",
+          "size_bytes": 9706,
+          "sha256": "6989baa8aca6abccbb3f59c6065a01afcfbc20ee0ebe4169b0ee71b24daed855",
+          "kind": "json"
+        },
+        "mapping-descriptors.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\mapping-descriptors.json",
+          "size_bytes": 1661,
+          "sha256": "9dcea972ecacd49e54e37e2f573c2602c94227a670cb0b356f41e44a47be7559",
+          "kind": "json"
+        },
+        "code-metrics.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\code-metrics.json",
+          "size_bytes": 1134,
+          "sha256": "51a965c4b7ecc86fe37c03e613dd0fae13e230e43e2b781924d81bb890224f4d",
+          "kind": "json"
+        },
+        "implementation-ledger.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\implementation-ledger.json",
+          "size_bytes": 19347,
+          "sha256": "975d4d132c91cbb3551b39ae9df8c067b9a90f82b2e4e3061d87f5313db466e1",
+          "kind": "json"
+        },
+        "repair-history.json": {
+          "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0\\reports\\bundles\\20260506T193208Z-cfa79b\\repair-history.json",
+          "size_bytes": 396,
+          "sha256": "c78b817bd97d524d67d8325e86057a2b6c1eb6e48c09ce308f75cbe5a720636e",
+          "kind": "json"
+        }
+      },
+      "repository_context": {
+        "schema_version": "1.0.0",
+        "kind": "repository-context",
+        "repository_present": false,
+        "repository_root": "",
+        "project_root": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0",
+        "branch": "",
+        "working_tree": {
+          "is_dirty": false,
+          "tracked_change_count": 0,
+          "staged_change_count": 0,
+          "unstaged_change_count": 0,
+          "untracked_count": 0
+        },
+        "diff_summary": {
+          "has_tracked_changes": false,
+          "staged_paths": [],
+          "unstaged_paths": [],
+          "untracked_paths": []
+        },
+        "readiness": {
+          "status": "not_repo",
+          "can_prepare_pr": false,
+          "reasons": [
+            "No git repository detected from the current project root."
+          ]
+        }
+      },
+      "connector_hooks": {
+        "schema_version": "1.0.0",
+        "kind": "connector-hooks",
+        "repository_state": "not_repo",
+        "hooks": {
+          "github_pull_request": {
+            "ready": false,
+            "recommended_input_fields": [
+              "title",
+              "body",
+              "labels",
+              "base_branch",
+              "head_branch"
+            ],
+            "requires_human_review": true
+          },
+          "gitlab_merge_request": {
+            "ready": false,
+            "recommended_input_fields": [
+              "title",
+              "description",
+              "labels",
+              "target_branch",
+              "source_branch"
+            ],
+            "requires_human_review": true
+          }
+        }
+      },
+      "productionization_scaffold": {
+        "schema_version": "1.0.0",
+        "kind": "productionization-scaffold",
+        "identity_boundary": {
+          "mode": "single-local-operator",
+          "user_header": "X-Local-User",
+          "default_user": "local-user",
+          "tenant_mode": "single-tenant",
+          "default_tenant": "local-workspace",
+          "future_ready": false
+        },
+        "queue_boundary": {
+          "queue_mode": "in_process",
+          "queue_backend": "in-process",
+          "worker_model": "same-process-thread",
+          "future_ready": false
+        },
+        "sandbox_boundary": {
+          "sandbox_mode": "role-governed-local",
+          "max_shell_seconds": 120,
+          "governed": true,
+          "future_ready": false
+        },
+        "deployment_scaffold": {
+          "deployment_mode": "local-single-user",
+          "deployment_target": "local-dev",
+          "diagnostics_enabled": true,
+          "future_auth_enabled": false
+        },
+        "operational_diagnostics": {
+          "logs_path": "E:\\ProgramProjects\\AI_Agent\\logs",
+          "workspace_root": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects",
+          "db_path": "E:\\ProgramProjects\\AI_Agent\\workspace\\orchestrator.db",
+          "diagnostics_enabled": true,
+          "hosted_execution_ready": false
+        }
+      },
+      "compatibility": {
+        "machine_payload_file": "delivery-pack.json",
+        "pr_packet_file": "pr-packet.json",
+        "approval_packet_file": "approval-packet.json",
+        "overview_packet_file": "overview-packet.json",
+        "github_pr_mapping_file": "github-pr-mapping.json",
+        "approval_request_mapping_file": "approval-request-mapping.json",
+        "dashboard_card_mapping_file": "dashboard-card-mapping.json",
+        "repository_context_file": "repository-context.json",
+        "connector_hooks_file": "connector-hooks.json",
+        "task_decomposition_overview_file": "task-decomposition-overview.json",
+        "proof_stage_overview_file": "proof-stage-overview.json",
+        "task_memory_file": "task-memory.json",
+        "productionization_scaffold_file": "productionization-scaffold.json",
+        "contract_descriptors_file": "contract-descriptors.json",
+        "mapping_descriptors_file": "mapping-descriptors.json",
+        "code_metrics_file": "code-metrics.json",
+        "implementation_ledger_file": "implementation-ledger.json",
+        "repair_history_file": "repair-history.json",
+        "human_index_file": "delivery-index.md",
+        "latest_pointer_file": "latest-delivery-pack.json",
+        "history_file": "delivery-history.json"
+      }
+    },
+    "history_count": 1
+  },
+  "repository_context": {
+    "schema_version": "1.0.0",
+    "kind": "repository-context",
+    "repository_present": false,
+    "repository_root": "",
+    "project_root": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-general-e2b2a0",
+    "branch": "",
+    "working_tree": {
+      "is_dirty": false,
+      "tracked_change_count": 0,
+      "staged_change_count": 0,
+      "unstaged_change_count": 0,
+      "untracked_count": 0
+    },
+    "diff_summary": {
+      "has_tracked_changes": false,
+      "staged_paths": [],
+      "unstaged_paths": [],
+      "untracked_paths": []
+    },
+    "readiness": {
+      "status": "not_repo",
+      "can_prepare_pr": false,
+      "reasons": [
+        "No git repository detected from the current project root."
+      ]
+    }
+  },
+  "connector_hooks": {
+    "schema_version": "1.0.0",
+    "kind": "connector-hooks",
+    "repository_state": "not_repo",
+    "hooks": {
+      "github_pull_request": {
+        "ready": false,
+        "recommended_input_fields": [
+          "title",
+          "body",
+          "labels",
+          "base_branch",
+          "head_branch"
+        ],
+        "requires_human_review": true
+      },
+      "gitlab_merge_request": {
+        "ready": false,
+        "recommended_input_fields": [
+          "title",
+          "description",
+          "labels",
+          "target_branch",
+          "source_branch"
+        ],
+        "requires_human_review": true
+      }
+    }
+  },
+  "delivery_surface_index": {
+    "schema_version": "1.0.0",
+    "kind": "delivery-surface-index",
+    "latest": {
+      "bundle_manifest": "delivery-bundle-latest",
+      "delivery_pack": "delivery-pack-latest",
+      "delivery_overview": "delivery-overview-latest",
+      "pr_packet": "pr-packet-latest",
+      "approval_packet": "approval-packet-latest",
+      "overview_packet": "overview-packet-latest",
+      "github_pr_mapping": "github-pr-mapping-latest",
+      "approval_request_mapping": "approval-request-mapping-latest",
+      "dashboard_card_mapping": "dashboard-card-mapping-latest"
+    },
+    "history": {
+      "bundles": "delivery-bundles",
+      "history": "delivery-history",
+      "history_index": "delivery-history-index"
+    },
+    "named_surfaces": {
+      "task_memory": "task-memory.json",
+      "task_decomposition_overview": "task-decomposition-overview.json",
+      "contract_descriptors": "contract-descriptors.json",
+      "mapping_descriptors": "mapping-descriptors.json"
+    },
+    "by_id_patterns": {
+      "bundle_manifest": "delivery-bundles/{bundle_id}",
+      "delivery_pack": "delivery-bundles/{bundle_id}/delivery-pack",
+      "named_json": "delivery-bundles/{bundle_id}/named-surface/{surface_name}"
+    },
+    "latest_bundle_id": "20260506T193208Z-cfa79b"
+  },
+  "productionization_overview": {
+    "schema_version": "1.0.0",
+    "kind": "productionization-overview",
+    "identity_mode": "single-local-operator",
+    "tenant_mode": "single-tenant",
+    "queue_mode": "in_process",
+    "sandbox_mode": "role-governed-local",
+    "deployment_mode": "local-single-user"
+  }
+}

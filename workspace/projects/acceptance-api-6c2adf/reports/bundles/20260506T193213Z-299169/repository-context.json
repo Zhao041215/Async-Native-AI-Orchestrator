@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0.0",
+  "kind": "repository-context",
+  "repository_present": false,
+  "repository_root": "",
+  "project_root": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-api-6c2adf",
+  "branch": "",
+  "working_tree": {
+    "is_dirty": false,
+    "tracked_change_count": 0,
+    "staged_change_count": 0,
+    "unstaged_change_count": 0,
+    "untracked_count": 0
+  },
+  "diff_summary": {
+    "has_tracked_changes": false,
+    "staged_paths": [],
+    "unstaged_paths": [],
+    "untracked_paths": []
+  },
+  "readiness": {
+    "status": "not_repo",
+    "can_prepare_pr": false,
+    "reasons": [
+      "No git repository detected from the current project root."
+    ]
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "schema_version": "1.0.0",
+  "kind": "code-metrics",
+  "generated_at": "2026-05-06T19:32:11.168704+00:00",
+  "project_root": "E:\\ProgramProjects\\AI_Agent\\workspace\\projects\\acceptance-saas-745666",
+  "source_lines": 307,
+  "source_file_count": 9,
+  "coverage_areas": [
+    "apps",
+    "tests"
+  ],
+  "contentful_files": [
+    "apps/api/app.py",
+    "apps/api/models.py",
+    "apps/api/repository.py",
+    "apps/web/api.js",
+    "apps/web/app.js",
+    "apps/web/index.html",
+    "apps/web/state.js",
+    "apps/web/styles.css",
+    "tests/test_operations_platform.py"
+  ],
+  "by_area": {
+    "tests": {
+      "source_lines": 49,
+      "source_file_count": 1
+    },
+    "apps": {
+      "source_lines": 258,
+      "source_file_count": 8
+    }
+  },
+  "by_extension": {
+    ".py": {
+      "source_lines": 148,
+      "source_file_count": 4
+    },
+    ".js": {
+      "source_lines": 59,
+      "source_file_count": 3
+    },
+    ".html": {
+      "source_lines": 35,
+      "source_file_count": 1
+    },
+    ".css": {
+      "source_lines": 65,
+      "source_file_count": 1
+    }
+  }
+}

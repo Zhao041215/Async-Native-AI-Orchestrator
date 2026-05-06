@@ -1,0 +1,155 @@
+{
+  "schema_version": "1.0.0",
+  "kind": "task-memory",
+  "task_id": "cb10026b-bb86-49ed-ac5c-e2b02ff3a1f5",
+  "project_name": "acceptance-api-6c2adf",
+  "current_known_state": {
+    "status": "failed",
+    "latest_completed_role": "backend",
+    "failed_roles": [
+      "qa"
+    ],
+    "open_change_count": 0,
+    "artifacts_count": 25,
+    "large_scale_task": false,
+    "delivery_gate_ok": true,
+    "artifact_integrity_status": "ok",
+    "missing_artifact_count": 0
+  },
+  "continuation": {
+    "recommended_resume_role": "qa",
+    "reason": "QA report does not contain passing compile and unit execution evidence."
+  },
+  "recent_events": [
+    {
+      "ts": "2026-05-06T19:32:12.007648+00:00",
+      "source": "backend",
+      "level": "info",
+      "message": "Backend started."
+    },
+    {
+      "ts": "2026-05-06T19:32:12.016289+00:00",
+      "source": "work-package",
+      "level": "info",
+      "message": "Work package implementation started."
+    },
+    {
+      "ts": "2026-05-06T19:32:12.136895+00:00",
+      "source": "work-package",
+      "level": "info",
+      "message": "Work package implementation finished."
+    },
+    {
+      "ts": "2026-05-06T19:32:12.147534+00:00",
+      "source": "backend",
+      "level": "info",
+      "message": "Backend completed."
+    },
+    {
+      "ts": "2026-05-06T19:32:12.151977+00:00",
+      "source": "work-package",
+      "level": "info",
+      "message": "Implementation package pipeline completed."
+    },
+    {
+      "ts": "2026-05-06T19:32:12.170320+00:00",
+      "source": "qa",
+      "level": "info",
+      "message": "QA started."
+    },
+    {
+      "ts": "2026-05-06T19:32:13.437829+00:00",
+      "source": "qa",
+      "level": "error",
+      "message": "qa output failed validation."
+    },
+    {
+      "ts": "2026-05-06T19:32:13.448936+00:00",
+      "source": "orchestrator",
+      "level": "error",
+      "message": "Workflow failed: qa output failed validation."
+    }
+  ],
+  "recent_checkpoints": [
+    {
+      "role": "backend",
+      "phase": "implementation",
+      "status": "started",
+      "created_at": "2026-05-06T19:32:11.599752+00:00"
+    },
+    {
+      "role": "backend",
+      "phase": "implementation",
+      "status": "completed",
+      "created_at": "2026-05-06T19:32:11.726789+00:00"
+    },
+    {
+      "role": "backend",
+      "phase": "implementation",
+      "status": "started",
+      "created_at": "2026-05-06T19:32:11.739366+00:00"
+    },
+    {
+      "role": "backend",
+      "phase": "implementation",
+      "status": "completed",
+      "created_at": "2026-05-06T19:32:11.858851+00:00"
+    },
+    {
+      "role": "backend",
+      "phase": "implementation",
+      "status": "started",
+      "created_at": "2026-05-06T19:32:11.874225+00:00"
+    },
+    {
+      "role": "backend",
+      "phase": "implementation",
+      "status": "completed",
+      "created_at": "2026-05-06T19:32:11.988184+00:00"
+    },
+    {
+      "role": "backend",
+      "phase": "implementation",
+      "status": "started",
+      "created_at": "2026-05-06T19:32:12.004640+00:00"
+    },
+    {
+      "role": "backend",
+      "phase": "implementation",
+      "status": "completed",
+      "created_at": "2026-05-06T19:32:12.141620+00:00"
+    },
+    {
+      "role": "qa",
+      "phase": "verification",
+      "status": "started",
+      "created_at": "2026-05-06T19:32:12.166702+00:00"
+    },
+    {
+      "role": "qa",
+      "phase": "verification",
+      "status": "blocked",
+      "created_at": "2026-05-06T19:32:13.433523+00:00"
+    }
+  ],
+  "open_changes": [],
+  "rerun_guidance": {
+    "qa": {
+      "recommended_from_role": "qa",
+      "reason": "QA report does not contain passing compile and unit execution evidence.",
+      "repairable": true
+    }
+  },
+  "progress_snapshot": {
+    "completed_role_count": 3,
+    "workflow_role_count": 7,
+    "delivery_gate_ok": true,
+    "source_lines": 148,
+    "source_file_count": 4,
+    "normalized_roles": [
+      "qa"
+    ],
+    "artifact_integrity_status": "ok",
+    "missing_artifact_count": 0
+  }
+}
