@@ -11,10 +11,12 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import IO
 
+from dev_orchestrator.config import load_config
 from dev_orchestrator.v2.service import V2Orchestrator
 
 
 DEFAULT_WORKER_ROLES = ("chief", "planner", "architect", "frontend", "backend", "qa", "security", "integration", "release")
+WORKER_STATE_SCHEMA_VERSION = "1.0.0"
 
 
 @dataclass
@@ -58,6 +60,7 @@ class DurableWorker:
         self._stop.set()
 
     def run_once(self) -> dict:
+        self._reload_service_config()
         claimed = self.service.claim_durable_job(
             tenant_id=self.tenant_id,
             role=self.role,
@@ -77,6 +80,10 @@ class DurableWorker:
         finally:
             heartbeat_stop.set()
             heartbeat.join(timeout=2)
+
+    def _reload_service_config(self) -> None:
+        root_dir = self.service.config.root_dir
+        self.service = V2Orchestrator(config=load_config(root_dir))
 
     def run_forever(self, max_jobs: int | None = None) -> WorkerLoopResult:
         processed = 0
@@ -198,4 +205,132 @@ class LocalWorkerSupervisor:
         return WorkerProcess(role=role, index=index, process=process, stdout=stdout, stderr=stderr)
 
     def _process_summary(self, item: WorkerProcess) -> dict:
-        return {"role": item.role, "index": item.index, "pid": item.process.pid, "status": "running"}
+        status = "running" if item.process.poll() is None else f"exited:{item.process.returncode}"
+        return {
+            "role": item.role,
+            "index": item.index,
+            "pid": item.process.pid,
+            "status": status,
+            "worker_id_hint": f"{item.role}-{item.process.pid}",
+        }
+
+
+def _parse_worker_pid(worker_id: str) -> int | None:
+    parts = (worker_id or "").split("-")
+    if len(parts) < 2:
+        return None
+    try:
+        return int(parts[1])
+    except ValueError:
+        return None
+
+
+def _tail_text(path: Path, limit: int = 4000) -> str:
+    try:
+        with path.open("rb") as handle:
+            handle.seek(0, os.SEEK_END)
+            size = handle.tell()
+            handle.seek(max(0, size - limit), os.SEEK_SET)
+            return handle.read().decode("utf-8", errors="ignore")
+    except OSError:
+        return ""
+
+
+def describe_worker_runtime(root_dir: Path, durable_jobs: list[dict], worker_jobs: list[dict], roles: list[str] | None = None) -> dict:
+    """Build a DB-backed worker/supervisor status view for the hosted API."""
+    root = Path(root_dir)
+    logs_dir = root / "logs"
+    configured_roles = roles or list(DEFAULT_WORKER_ROLES)
+    queue_counts: dict[str, int] = {}
+    role_counts: dict[str, dict[str, int]] = {}
+    observed: dict[str, dict] = {}
+
+    for job in durable_jobs:
+        status = job.get("status", "")
+        role = job.get("role", "")
+        queue_counts[status] = queue_counts.get(status, 0) + 1
+        role_bucket = role_counts.setdefault(role, {})
+        role_bucket[status] = role_bucket.get(status, 0) + 1
+        worker_id = job.get("worker_id", "")
+        if not worker_id:
+            continue
+        item = observed.setdefault(
+            worker_id,
+            {
+                "worker_id": worker_id,
+                "pid": _parse_worker_pid(worker_id),
+                "role": role,
+                "processed_job_count": 0,
+                "recent_job_count": 0,
+                "last_heartbeat": "",
+                "last_error": "",
+                "states": {},
+            },
+        )
+        item["role"] = item.get("role") or role
+        item["recent_job_count"] += 1
+        item["states"][status] = item["states"].get(status, 0) + 1
+        if status in {"completed", "failed", "dead_letter"}:
+            item["processed_job_count"] += 1
+        heartbeat = job.get("heartbeat_at") or job.get("updated_at") or ""
+        if heartbeat > item.get("last_heartbeat", ""):
+            item["last_heartbeat"] = heartbeat
+        if job.get("error"):
+            item["last_error"] = job["error"]
+
+    for job in worker_jobs:
+        worker_id = job.get("worker_id", "")
+        if not worker_id:
+            continue
+        item = observed.setdefault(
+            worker_id,
+            {
+                "worker_id": worker_id,
+                "pid": _parse_worker_pid(worker_id),
+                "role": "",
+                "processed_job_count": 0,
+                "recent_job_count": 0,
+                "last_heartbeat": "",
+                "last_error": "",
+                "states": {},
+            },
+        )
+        if job.get("status") == "finished":
+            item["processed_job_count"] += 1
+        heartbeat = job.get("locked_at") or job.get("updated_at") or ""
+        if heartbeat > item.get("last_heartbeat", ""):
+            item["last_heartbeat"] = heartbeat
+
+    log_processes: list[dict] = []
+    if logs_dir.exists():
+        for stdout_path in sorted(logs_dir.glob("worker-*.stdout.log")):
+            stem = stdout_path.name[: -len(".stdout.log")]
+            stderr_path = logs_dir / f"{stem}.stderr.log"
+            parts = stem.split("-")
+            role = "-".join(parts[1:-1]) if len(parts) >= 3 else stem.replace("worker-", "")
+            try:
+                stat = stdout_path.stat()
+            except OSError:
+                continue
+            log_processes.append(
+                {
+                    "role": role,
+                    "stdout_path": str(stdout_path),
+                    "stderr_path": str(stderr_path),
+                    "stdout_size_bytes": stat.st_size,
+                    "stderr_size_bytes": stderr_path.stat().st_size if stderr_path.exists() else 0,
+                    "last_log_at": stat.st_mtime,
+                    "last_error": _tail_text(stderr_path, 2000).strip()[-1000:] if stderr_path.exists() else "",
+                }
+            )
+
+    return {
+        "schema_version": WORKER_STATE_SCHEMA_VERSION,
+        "mode": "local-process-supervisor",
+        "configured_roles": configured_roles,
+        "status_model": "queued -> leased -> completed|retry|dead_letter|cancelled|paused",
+        "queue_counts": queue_counts,
+        "role_counts": role_counts,
+        "workers": sorted(observed.values(), key=lambda item: (item.get("role", ""), item.get("worker_id", ""))),
+        "log_processes": log_processes,
+    }

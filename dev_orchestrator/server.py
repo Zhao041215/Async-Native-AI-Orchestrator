@@ -94,6 +94,9 @@ def build_handler(app: Application):
                 if parsed.path == "/api/v2/durable-jobs":
                     self._write_json({"items": app.v2.list_durable_jobs(tenant_id=tenant_id)})
                     return
+                if parsed.path == "/api/v2/workers":
+                    self._write_json(app.v2.get_worker_status(tenant_id=tenant_id))
+                    return
                 if parsed.path == "/api/v2/benchmarks/enterprise-saas":
                     self._write_json(app.v2.get_enterprise_saas_benchmark())
                     return

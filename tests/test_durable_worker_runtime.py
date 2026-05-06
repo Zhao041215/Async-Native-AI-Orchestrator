@@ -17,6 +17,7 @@ from dev_orchestrator.config import (
 from dev_orchestrator.v2.models import utc_now
 from dev_orchestrator.v2.service import V2Orchestrator
 from dev_orchestrator.v2.storage import V2Storage
+from dev_orchestrator.v2.worker import DurableWorker
 
 
 def build_config(root: Path, queue_mode: str = "external-worker") -> AppConfig:
@@ -167,6 +168,35 @@ class DurableWorkerRuntimeTests(unittest.TestCase):
             self.assertTrue(any(item["finding_code"] == "resume_missing_artifact" for item in repairs))
             self.assertFalse(any(item["status"] == "queued" for item in jobs))
 
+    def test_resume_blocks_when_manifest_hash_mismatches(self) -> None:
+        with WorkspaceSandbox() as root:
+            config = build_config(root)
+            storage = V2Storage(config.db_path)
+            service = V2Orchestrator(config=config, storage=storage)
+            project = service.create_project(
+                name="hash-mismatch-resume",
+                title="Hash Mismatch Resume",
+                description=(
+                    "Must support tenant scoped API workflow, RBAC SSO auth, audit logs, "
+                    "frontend console dashboard, contract tests, Docker deployment, and release approvals."
+                ),
+            )
+            run = service.start_project_run(project["id"])
+            service.run_worker_once(tenant_id=project["tenant_id"], role="planner", worker_id="test-worker")
+            finished = service.get_run(run["id"])
+            manifest = Path(finished["artifact_manifest_path"])
+            manifest.write_text(manifest.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+            storage.update_run(
+                run["id"],
+                status="paused",
+                continuation_state={**finished["continuation_state"], "state": "paused", "next_action": "resume"},
+            )
+
+            resumed = service.resume_run(run["id"])
+
+            self.assertEqual(resumed["status"], "blocked")
+            self.assertTrue(resumed["continuation_state"]["mismatched_artifacts"])
+
     def test_continuation_exposes_recovery_contract(self) -> None:
         with WorkspaceSandbox() as root:
             config = build_config(root)
@@ -188,6 +218,48 @@ class DurableWorkerRuntimeTests(unittest.TestCase):
             self.assertEqual(continuation["continuation_state"]["schema_version"], "2.2.0")
             self.assertTrue(continuation["recovery_contract"]["ok"])
             self.assertTrue(continuation["recovery_contract"]["checked"])
+
+    def test_worker_status_api_payload_reports_queue_and_workers(self) -> None:
+        with WorkspaceSandbox() as root:
+            config = build_config(root)
+            storage = V2Storage(config.db_path)
+            service = V2Orchestrator(config=config, storage=storage)
+            storage.get_or_create_tenant("local-workspace")
+            storage.enqueue_durable_job(
+                {
+                    "tenant_id": "local-workspace",
+                    "project_id": "project-1",
+                    "run_id": "run-1",
+                    "kind": "run",
+                    "role": "planner",
+                    "resume_key": "worker-status-run",
+                    "status": "completed",
+                    "worker_id": "planner-1234-test",
+                    "payload": {},
+                }
+            )
+
+            status = service.get_worker_status("local-workspace")
+
+            self.assertEqual(status["status_model"], "queued -> leased -> completed|retry|dead_letter|cancelled|paused")
+            self.assertEqual(status["queue_counts"]["completed"], 1)
+            self.assertTrue(any(item["pid"] == 1234 for item in status["workers"]))
+
+    def test_worker_reloads_secret_store_before_claiming(self) -> None:
+        with WorkspaceSandbox() as root:
+            config = build_config(root)
+            storage = V2Storage(config.db_path)
+            service = V2Orchestrator(config=config, storage=storage)
+            secret_path = root / "workspace" / "secrets" / "local-llm.json"
+            secret_path.parent.mkdir(parents=True, exist_ok=True)
+            secret_path.write_text('{"api_key":"rotated-secret"}', encoding="utf-8")
+            self.assertEqual(service.config.llm.api_key, "")
+
+            worker = DurableWorker(service=service, role="planner", tenant_id=service.default_tenant["id"])
+            result = worker.run_once()
+
+            self.assertFalse(result["claimed"])
+            self.assertEqual(worker.service.config.llm.api_key, "rotated-secret")
 
 
 if __name__ == "__main__":

@@ -76,6 +76,9 @@ class AutonomousFoundationTests(unittest.TestCase):
             self.assertGreaterEqual(run["benchmark_score"], 0)
             self.assertIn("effective_loc", run["effective_loc_metrics"])
             self.assertEqual(continuation["durable_queue_state"]["state"], "completed")
+            self.assertEqual(continuation["context_snapshot"]["payload"]["schema_version"], "2.0.0")
+            self.assertTrue(continuation["context_snapshot"]["payload"]["boundary_rules"])
+            self.assertIn("ladder", storage.list_benchmark_runs(project_id=project["id"])[0]["payload"])
             self.assertTrue(any(item["kind"] == "manifest" for item in artifacts["items"]))
             self.assertTrue(storage.list_code_index(project["id"], run_id=run["id"]))
             self.assertTrue(storage.list_benchmark_runs(project_id=project["id"]))
@@ -96,6 +99,36 @@ class AutonomousFoundationTests(unittest.TestCase):
             self.assertFalse(result["valid"])
             self.assertIn("xlarge_readiness", result["blueprint"])
             self.assertIn("deployment", result["blueprint"]["xlarge_readiness"]["missing_domains"])
+
+    def test_complete_enterprise_saas_xlarge_blueprint_has_30_packages(self) -> None:
+        with WorkspaceSandbox() as root:
+            config = build_config(root)
+            service = V2Orchestrator(config=config, storage=V2Storage(config.db_path))
+            project = service.create_project(
+                name="xlarge-enterprise-saas",
+                title="Xlarge Enterprise SaaS",
+                target_scale="xlarge_100k",
+                description=(
+                    "Must define a customer business domain workflow and onboarding journey.\n"
+                    "Must support tenant isolation and multi-tenant workspaces.\n"
+                    "Must support RBAC roles, SSO OAuth auth, permissions, and MFA.\n"
+                    "Must provide audit logs, security controls, privacy, GDPR, PIPL, and encryption.\n"
+                    "Must define data model, database retention, reporting warehouse, and analytics reports.\n"
+                    "Must provide API backend services, integration endpoints, and background job workers with scheduler queue.\n"
+                    "Must provide frontend web admin console, dashboard, reports, and notification center.\n"
+                    "Must provide notifications through email, webhook, and inbox.\n"
+                    "Must provide contract tests, unit tests, integration tests, smoke tests, security tests, and QA evidence.\n"
+                    "Must provide Docker deployment, Kubernetes Helm release, auto publish release, rollback reverse patch, and operations manual runbook."
+                ),
+            )
+
+            result = service.validate_project_blueprint(project["id"])
+            bundle = service.storage.get_requirement_bundle(project["id"])
+
+            self.assertTrue(result["valid"])
+            self.assertGreaterEqual(len(bundle["work_packages"]), 30)
+            self.assertTrue(result["blueprint"]["xlarge_readiness"]["minimum_work_packages_met"])
+            self.assertFalse(result["blueprint"]["xlarge_readiness"]["cross_domain_violations"])
 
     def test_auto_apply_prepares_rollback_and_smoke_failure_rolls_back(self) -> None:
         with WorkspaceSandbox() as root:

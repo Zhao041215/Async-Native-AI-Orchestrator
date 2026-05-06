@@ -23,13 +23,17 @@ ENTERPRISE_SAAS_BENCHMARK = {
         "tenant_isolation",
         "rbac_or_sso",
         "audit_logs",
+        "security_controls",
+        "data_model",
         "frontend_console",
         "api_services",
         "background_jobs",
         "reports",
+        "notifications",
         "contract_tests",
         "deployment",
         "release_rollback",
+        "operations_manual",
     ],
     "quality_rules": [
         "must_requirements_mapped",
@@ -37,8 +41,18 @@ ENTERPRISE_SAAS_BENCHMARK = {
         "quality_gates_pass",
         "no_fallback_artifacts",
         "effective_loc_only",
+        "subsystem_gates_pass",
+        "rollback_verified",
     ],
 }
+
+
+BENCHMARK_LADDER = [
+    {"id": "10k", "effective_loc": 10000, "label": "10k effective LOC"},
+    {"id": "30k", "effective_loc": 30000, "label": "30k effective LOC"},
+    {"id": "60k", "effective_loc": 60000, "label": "60k effective LOC"},
+    {"id": "100k", "effective_loc": 100000, "label": "100k effective LOC"},
+]
 
 
 TEMPLATE_MARKERS = (
@@ -124,6 +138,19 @@ def write_artifact_file(root: Path, tenant_id: str, project_id: str, run_id: str
     }
 
 
+def write_json_with_integrity(path: Path, payload: dict) -> dict:
+    """Write JSON and return integrity fields for the exact on-disk bytes."""
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    current = {key: value for key, value in payload.items() if key not in {"sha256", "size_bytes"}}
+    target.write_text(json.dumps(current, indent=2, ensure_ascii=True), encoding="utf-8")
+    sha = sha256_file(target)
+    size = target.stat().st_size
+    current["sha256"] = sha
+    current["size_bytes"] = size
+    return {"path": str(target), "sha256": sha256_file(target), "size_bytes": target.stat().st_size, "payload": current}
+
+
 def build_artifact_manifest(artifacts: list[dict]) -> dict:
     return {
         "schema_version": "2.2.0",
@@ -156,6 +183,8 @@ def measure_effective_loc(project_root: Path, requirement_bundle: dict) -> dict:
     excluded_lines = 0
     counted_files: list[str] = []
     excluded_files: list[str] = []
+    content_fingerprints: dict[str, str] = {}
+    duplicate_files: list[str] = []
     for relative in contentful_files:
         path = Path(project_root) / relative
         try:
@@ -164,13 +193,20 @@ def measure_effective_loc(project_root: Path, requirement_bundle: dict) -> dict:
             continue
         line_count = len(text.splitlines())
         lowered = text.lower()
+        normalized = re.sub(r"\s+", "", lowered)
+        fingerprint = hashlib.sha256(normalized.encode("utf-8", errors="ignore")).hexdigest() if normalized else ""
         marker_hit = any(marker.lower() in lowered for marker in TEMPLATE_MARKERS)
         keyword_hits = [keyword for keyword in requirement_keywords if keyword in lowered]
         is_test_or_infra = relative.startswith(("tests/", "infra/"))
-        if marker_hit or (requirement_keywords and not keyword_hits and not is_test_or_infra):
+        duplicate_hit = bool(fingerprint and fingerprint in content_fingerprints and relative.startswith("apps/"))
+        if marker_hit or duplicate_hit or (requirement_keywords and not keyword_hits and not is_test_or_infra):
             excluded_lines += line_count
             excluded_files.append(relative)
+            if duplicate_hit:
+                duplicate_files.append(relative)
             continue
+        if fingerprint:
+            content_fingerprints[fingerprint] = relative
         effective_lines += line_count
         counted_files.append(relative)
     return {
@@ -184,6 +220,7 @@ def measure_effective_loc(project_root: Path, requirement_bundle: dict) -> dict:
         "excluded_file_count": len(excluded_files),
         "counted_files": counted_files,
         "excluded_files": excluded_files[:200],
+        "duplicate_files": duplicate_files[:200],
         "target_ready": False,
     }
 
@@ -199,6 +236,10 @@ def build_code_index(project_root: Path, tenant_id: str, project_id: str, run_id
             continue
         suffix = path.suffix.lower()
         symbols = re.findall(r"^\s*(?:class|def|function|const|let|var)\s+([A-Za-z_][A-Za-z0-9_]*)", text, flags=re.MULTILINE)
+        api_routes = re.findall(r"@\w+\.(?:get|post|put|patch|delete)\(['\"]([^'\"]+)['\"]", text)
+        api_routes.extend(re.findall(r"(?:app|router)\.(?:get|post|put|patch|delete)\(['\"]([^'\"]+)['\"]", text))
+        db_models = re.findall(r"^\s*class\s+([A-Za-z_][A-Za-z0-9_]*(?:Model|Record|Entity))", text, flags=re.MULTILINE)
+        test_symbols = re.findall(r"^\s*(?:def|function)\s+(test_[A-Za-z_][A-Za-z0-9_]*)", text, flags=re.MULTILINE)
         keywords = sorted({item.lower() for item in re.findall(r"[A-Za-z][A-Za-z0-9_-]{3,}", text)})[:30]
         parts = relative.split("/")
         entries.append(
@@ -214,14 +255,42 @@ def build_code_index(project_root: Path, tenant_id: str, project_id: str, run_id
                 "line_count": len(text.splitlines()),
                 "keywords": keywords,
                 "summary": ", ".join(symbols[:12]) or relative,
+                "symbols": symbols[:50],
+                "api_routes": sorted(set(api_routes))[:50],
+                "db_models": sorted(set(db_models))[:50],
+                "test_symbols": sorted(set(test_symbols))[:50],
+                "is_test": relative.startswith("tests/") or bool(test_symbols),
+                "domain_keywords": [item for item in keywords if item in {"tenant", "rbac", "sso", "audit", "privacy", "report", "notification", "workflow", "rollback"}],
+                "recent_change": "",
             }
         )
     return entries
 
 
 def build_context_snapshot_payload(project: dict, requirement_bundle: dict, run: dict | None, code_index: list[dict]) -> dict:
+    decisions = requirement_bundle.get("decisions", [])
+    contracts = requirement_bundle.get("contracts", [])
+    boundary_rules = [
+        "Workers receive only package-relevant requirements, contracts, file summaries, boundary rules, and prior failures.",
+        "Tenant isolation, authorization, audit, and privacy boundaries are mandatory architecture constraints.",
+        "A package may only edit declared output paths unless the Chief creates a contract package first.",
+        "Release and rollback evidence must be preserved; missing evidence creates repair_missing_artifacts.",
+    ]
+    failure_history = [
+        {
+            "gate": item.get("gate", ""),
+            "status": item.get("status", ""),
+            "finding_count": item.get("finding_count", 0),
+            "created_at": item.get("created_at", ""),
+        }
+        for item in (run or {}).get("quality_gate_history", [])
+        if item.get("status") != "passed"
+    ]
+    routes = sorted({route for item in code_index for route in item.get("api_routes", [])})[:200]
+    db_models = sorted({model for item in code_index for model in item.get("db_models", [])})[:200]
+    test_files = [item for item in code_index if item.get("is_test")]
     return {
-        "schema_version": "1.0.0",
+        "schema_version": "2.0.0",
         "kind": "v2-context-snapshot",
         "project": {
             "id": project.get("id", ""),
@@ -235,15 +304,35 @@ def build_context_snapshot_payload(project: dict, requirement_bundle: dict, run:
             "atom_count": len(requirement_bundle.get("atoms", [])),
             "must_coverage_percent": requirement_bundle.get("coverage", {}).get("must_coverage_percent", 0),
             "work_package_count": len(requirement_bundle.get("work_packages", [])),
+            "atoms": requirement_bundle.get("atoms", [])[:120],
+            "coverage": requirement_bundle.get("coverage", {}),
         },
+        "adr": decisions,
+        "interface_contracts": contracts[:200],
+        "boundary_rules": boundary_rules,
         "run": {
             "id": (run or {}).get("id", ""),
             "status": (run or {}).get("status", ""),
             "continuation_state": (run or {}).get("continuation_state", {}),
             "quality_gate_history": (run or {}).get("quality_gate_history", []),
         },
+        "failure_history": failure_history,
+        "repair_history": [],
+        "release_history": {
+            "artifact_manifest_path": (run or {}).get("artifact_manifest_path", ""),
+            "rollback_manifest_path": (run or {}).get("rollback_manifest_path", ""),
+            "benchmark_score": (run or {}).get("benchmark_score", 0),
+        },
+        "retrieval_policy": {
+            "mode": "package-scoped",
+            "inputs": ["requirements", "interface_contracts", "boundary_rules", "code_index", "failure_history"],
+            "forbidden": ["full_project_dump", "cross_package_unapproved_edits", "silent_artifact_regeneration"],
+        },
         "code_index": {
             "file_count": len(code_index),
+            "api_routes": routes,
+            "db_models": db_models,
+            "test_file_count": len(test_files),
             "files": [
                 {
                     "path": item.get("path", ""),
@@ -251,6 +340,11 @@ def build_context_snapshot_payload(project: dict, requirement_bundle: dict, run:
                     "language": item.get("language", ""),
                     "line_count": item.get("line_count", 0),
                     "summary": item.get("summary", ""),
+                    "symbols": item.get("symbols", [])[:20],
+                    "api_routes": item.get("api_routes", [])[:20],
+                    "db_models": item.get("db_models", [])[:20],
+                    "is_test": item.get("is_test", False),
+                    "domain_keywords": item.get("domain_keywords", []),
                 }
                 for item in code_index[:300]
             ],
@@ -275,11 +369,23 @@ def score_enterprise_saas_benchmark(project: dict, requirement_bundle: dict, eff
     if requirement_bundle.get("work_packages"):
         score += 15
     status = "passed" if score >= 85 else "partial" if score >= 50 else "failed"
+    effective = int(effective_loc.get("effective_loc", 0) or 0)
+    ladder = [
+        {
+            **rung,
+            "ready": effective >= int(rung["effective_loc"]) and quality.get("status") == "passed",
+            "effective_loc": int(rung["effective_loc"]),
+            "current_effective_loc": effective,
+            "quality_status": quality.get("status", "not_run"),
+        }
+        for rung in BENCHMARK_LADDER
+    ]
     return {
         "benchmark": ENTERPRISE_SAAS_BENCHMARK,
         "status": status,
         "score": min(100, score),
-        "effective_loc": effective_loc.get("effective_loc", 0),
+        "effective_loc": effective,
         "must_coverage_percent": coverage.get("must_coverage_percent", 0),
         "quality_status": quality.get("status", "not_run"),
+        "ladder": ladder,
     }

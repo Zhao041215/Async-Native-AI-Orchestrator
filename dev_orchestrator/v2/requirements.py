@@ -18,6 +18,9 @@ ROLE_KEYWORDS = {
         "ui",
         "dashboard",
         "web",
+        "console",
+        "report",
+        "notification",
         "mobile",
         "zh-cn",
         "chinese",
@@ -32,8 +35,10 @@ ROLE_KEYWORDS = {
         "rbac",
         "abac",
         "permission",
+        "auth",
         "tenant",
         "workflow",
+        "notification",
         "ticket",
     ],
     "ai-ml-engineer": [
@@ -51,6 +56,8 @@ ROLE_KEYWORDS = {
     ],
     "data-engineer": [
         "data",
+        "model",
+        "database",
         "hris",
         "feature store",
         "warehouse",
@@ -63,6 +70,10 @@ ROLE_KEYWORDS = {
         "kubernetes",
         "helm",
         "docker",
+        "deploy",
+        "release",
+        "rollback",
+        "manual",
         "observability",
         "tracing",
         "latency",
@@ -79,6 +90,7 @@ ROLE_KEYWORDS = {
         "mfa",
         "audit",
         "ethics",
+        "tenant isolation",
     ],
 }
 
@@ -96,13 +108,17 @@ CATEGORY_KEYWORDS = {
 def _normalize_lines(text: str) -> list[str]:
     lines: list[str] = []
     for raw in text.replace("\r\n", "\n").split("\n"):
-        line = raw.strip()
-        line = re.sub(r"^[#*\-\d.\s]+", "", line).strip()
-        if len(line) < 18:
-            continue
-        if line.lower().startswith(("appendix", "document type", "version", "author")):
-            continue
-        lines.append(line)
+        candidates = [raw.strip()]
+        if len(raw) > 240 and ". " in raw:
+            candidates = [item.strip() for item in re.split(r"(?<=[.!?])\s+(?=(?:Must|Should|Could|[A-Z]))", raw.strip()) if item.strip()]
+        for candidate in candidates:
+            line = candidate.strip()
+            line = re.sub(r"^[#*\-\d.\s]+", "", line).strip()
+            if len(line) < 18:
+                continue
+            if line.lower().startswith(("appendix", "document type", "version", "author")):
+                continue
+            lines.append(line)
     return lines
 
 
@@ -207,7 +223,7 @@ def parse_requirements(raw_text: str) -> dict:
         contracts.append(contract)
 
     subsystems = _build_subsystems(atoms)
-    work_packages = _build_work_packages(subsystems)
+    work_packages = _expand_enterprise_saas_packages(raw_text, atoms, _build_work_packages(subsystems))
     decisions = _build_decisions(raw_text, subsystems)
     findings = _requirement_findings(raw_text, atoms)
     coverage = _coverage(atoms, work_packages)
@@ -281,6 +297,9 @@ def _build_work_packages(subsystems: list[Subsystem]) -> list[WorkPackage]:
         )
     ]
     for subsystem in subsystems:
+        implementation_outputs = [
+            path for path in subsystem.path_hints if not str(path).replace("\\", "/").startswith("tests/")
+        ] or subsystem.path_hints[:1]
         packages.append(
             WorkPackage(
                 id=f"WP-{len(packages):03d}-{subsystem.name}",
@@ -289,7 +308,7 @@ def _build_work_packages(subsystems: list[Subsystem]) -> list[WorkPackage]:
                 subsystem_id=subsystem.id,
                 requirement_ids=subsystem.requirement_ids,
                 dependencies=["WP-000-chief-contract"],
-                outputs=subsystem.path_hints,
+                outputs=implementation_outputs,
                 status="ready",
                 parallel_group="implementation",
             )
@@ -344,6 +363,107 @@ def _build_work_packages(subsystems: list[Subsystem]) -> list[WorkPackage]:
         ]
     )
     return packages
+
+
+ENTERPRISE_PACKAGE_TEMPLATES = [
+    ("contract", "Business domain contract map", "system-architect", "docs/architecture/domain-contracts.md"),
+    ("contract", "Tenant isolation contract", "system-architect", "docs/architecture/tenant-boundaries.md"),
+    ("contract", "RBAC and SSO interface contract", "system-architect", "docs/architecture/auth-contracts.md"),
+    ("contract", "Audit event contract", "system-architect", "docs/architecture/audit-contracts.md"),
+    ("contract", "Reporting and notification contract", "system-architect", "docs/architecture/reporting-contracts.md"),
+    ("backend", "Tenant domain service", "backend-lead", "apps/api/tenancy"),
+    ("backend", "RBAC policy service", "backend-lead", "apps/api/rbac"),
+    ("backend", "SSO identity adapter", "backend-lead", "apps/api/identity"),
+    ("backend", "Audit log service", "backend-lead", "apps/api/audit"),
+    ("backend", "Core workflow API", "backend-lead", "apps/api/workflows"),
+    ("backend", "Notification API", "backend-lead", "apps/api/notifications"),
+    ("backend", "Reporting API", "backend-lead", "apps/api/reports"),
+    ("data", "Tenant data model", "data-engineer", "apps/data/tenancy"),
+    ("data", "RBAC data model", "data-engineer", "apps/data/rbac"),
+    ("data", "Audit retention model", "data-engineer", "apps/data/audit"),
+    ("data", "Reporting warehouse model", "data-engineer", "apps/data/reporting"),
+    ("frontend", "Admin console shell", "frontend-lead", "apps/web/admin-console"),
+    ("frontend", "Tenant management UI", "frontend-lead", "apps/web/tenants"),
+    ("frontend", "Role and permission UI", "frontend-lead", "apps/web/rbac"),
+    ("frontend", "Audit explorer UI", "frontend-lead", "apps/web/audit"),
+    ("frontend", "Reports dashboard UI", "frontend-lead", "apps/web/reports"),
+    ("frontend", "Notification center UI", "frontend-lead", "apps/web/notifications"),
+    ("ops", "Background job runner", "sre-devops", "apps/jobs"),
+    ("ops", "Deployment compose runtime", "sre-devops", "infra/docker"),
+    ("ops", "Release automation", "sre-devops", "infra/release"),
+    ("ops", "Rollback automation", "sre-devops", "infra/rollback"),
+    ("security", "Tenant isolation security review", "security-reviewer", "docs/security/tenant-isolation.md"),
+    ("security", "Privacy and compliance review", "security-reviewer", "docs/security/privacy-compliance.md"),
+    ("verification", "Contract test suite", "qa-automation", "tests/contract"),
+    ("verification", "Unit test suite", "qa-automation", "tests/unit"),
+    ("verification", "Integration test suite", "qa-automation", "tests/integration"),
+    ("verification", "Smoke test suite", "qa-automation", "tests/smoke"),
+    ("verification", "Security test suite", "qa-automation", "tests/security"),
+    ("verification", "Anti-template effective LOC gate", "refactor-sheriff", "tests/quality"),
+    ("docs", "Operations manual", "sre-devops", "docs/operations/manual.md"),
+]
+
+
+def _enterprise_domain_hits(raw_text: str) -> int:
+    lowered = raw_text.lower()
+    groups = [
+        ("tenant", "multi-tenant", "tenant isolation"),
+        ("rbac", "sso", "oauth", "auth"),
+        ("audit", "security", "privacy", "compliance"),
+        ("data model", "database", "warehouse"),
+        ("api", "backend", "service"),
+        ("frontend", "console", "dashboard"),
+        ("background job", "worker", "scheduler"),
+        ("report", "analytics"),
+        ("notification", "email", "webhook"),
+        ("test", "contract", "smoke"),
+        ("deploy", "docker", "kubernetes", "release"),
+        ("rollback", "manual", "runbook"),
+    ]
+    return sum(1 for group in groups if any(token in lowered for token in group))
+
+
+def _expand_enterprise_saas_packages(
+    raw_text: str,
+    atoms: list[RequirementAtom],
+    packages: list[WorkPackage],
+) -> list[WorkPackage]:
+    if _enterprise_domain_hits(raw_text) < 8 or len(packages) >= 30:
+        return packages
+    requirement_ids = [item.id for item in atoms]
+    existing_ids = {item.id for item in packages}
+    expanded = list(packages)
+    previous_contract = "WP-000-chief-contract"
+    for index, (domain, title, role, output) in enumerate(ENTERPRISE_PACKAGE_TEMPLATES, start=1):
+        package_id = f"WP-X{index:03d}-{domain}"
+        while package_id in existing_ids:
+            package_id = f"{package_id}-{len(existing_ids)}"
+        dependencies = ["WP-000-chief-contract"]
+        if domain not in {"contract", "docs"}:
+            dependencies.append(previous_contract)
+        if domain == "verification":
+            dependencies.extend([item.id for item in expanded if item.parallel_group == "implementation"][:12])
+        if domain == "ops":
+            dependencies.extend([item.id for item in expanded if item.owner_role in {"backend-lead", "data-engineer"}][:4])
+        expanded.append(
+            WorkPackage(
+                id=package_id,
+                title=title,
+                owner_role=role,
+                subsystem_id=f"enterprise-{domain}",
+                requirement_ids=requirement_ids,
+                dependencies=sorted(set(dependencies)),
+                outputs=[output],
+                status="ready",
+                parallel_group="implementation" if domain in {"backend", "data", "frontend", "ops", "security"} else domain,
+            )
+        )
+        existing_ids.add(package_id)
+        if domain == "contract":
+            previous_contract = package_id
+        if len(expanded) >= 35:
+            break
+    return expanded
 
 
 def _build_decisions(raw_text: str, subsystems: list[Subsystem]) -> list[ArchitectureDecision]:

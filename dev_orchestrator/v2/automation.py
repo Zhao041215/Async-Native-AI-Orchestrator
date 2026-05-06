@@ -9,14 +9,20 @@ TARGET_SCALES = {"small", "medium", "large", "xlarge_100k"}
 BENCHMARK_TYPES = {"enterprise_saas"}
 XLARGE_REQUIRED_DOMAINS = {
     "business_domain": ("workflow", "customer", "tenant", "domain", "journey", "onboarding"),
-    "permissions": ("rbac", "sso", "oauth", "permission", "role", "auth"),
-    "security": ("security", "privacy", "audit", "gdpr", "pipl", "encryption"),
-    "data": ("data", "model", "database", "warehouse", "retention", "report"),
-    "frontend": ("frontend", "ui", "dashboard", "console", "web"),
-    "backend": ("api", "service", "backend", "integration"),
+    "tenant": ("tenant", "multi-tenant", "tenant isolation", "workspace"),
+    "rbac_sso": ("rbac", "sso", "oauth", "permission", "role", "auth"),
+    "audit": ("audit", "audit log", "evidence", "immutable log"),
+    "security": ("security", "privacy", "gdpr", "pipl", "encryption", "mfa"),
+    "data_model": ("data", "model", "database", "warehouse", "retention", "report"),
+    "api": ("api", "service", "backend", "integration", "endpoint"),
+    "frontend_console": ("frontend", "ui", "dashboard", "console", "web"),
+    "background_jobs": ("background", "job", "worker", "scheduler", "queue"),
+    "reports": ("report", "analytics", "dashboard", "export"),
+    "notifications": ("notification", "email", "webhook", "inbox"),
     "testing": ("test", "qa", "contract", "smoke", "integration"),
     "deployment": ("deploy", "docker", "kubernetes", "helm", "release"),
-    "acceptance": ("acceptance", "evidence", "approval", "gate"),
+    "release_rollback": ("release", "rollback", "reverse patch", "smoke"),
+    "operations_manual": ("manual", "runbook", "operation", "rollback path"),
 }
 
 
@@ -55,6 +61,48 @@ def _incremental_batches(work_packages: list[dict], batch_size: int = 8) -> list
             }
         )
     return batches
+
+
+def _package_domain(package: dict) -> str:
+    text = " ".join(
+        [
+            str(package.get("owner_role", "")),
+            str(package.get("subsystem_id", "")),
+            str(package.get("title", "")),
+            " ".join(str(item) for item in package.get("outputs", [])),
+        ]
+    ).lower()
+    if any(token in text for token in ("frontend", "apps/web", "ui", "console")):
+        return "frontend"
+    if any(token in text for token in ("backend", "apps/api", "service", "api")):
+        return "backend"
+    if any(token in text for token in ("tests", "qa", "verification", "contract test", "smoke")):
+        return "testing"
+    if any(token in text for token in ("infra", "deploy", "release", "rollback", "docker", "ops")):
+        return "deployment"
+    if any(token in text for token in ("security", "privacy", "audit")):
+        return "security"
+    if any(token in text for token in ("data", "database", "warehouse")):
+        return "data"
+    if "contract" in text or "architecture" in text:
+        return "contract"
+    return "product"
+
+
+def _cross_domain_package_violations(work_packages: list[dict]) -> list[dict]:
+    protected = {
+        "frontend": ("apps/web", "frontend", "ui"),
+        "backend": ("apps/api", "backend", "service"),
+        "testing": ("tests/", "contract test", "smoke"),
+        "deployment": ("infra/", "deploy", "release", "rollback", "docker"),
+    }
+    violations: list[dict] = []
+    for package in work_packages:
+        outputs = " ".join(str(item).replace("\\", "/").lower() for item in package.get("outputs", []))
+        domains = [domain for domain, tokens in protected.items() if any(token in outputs for token in tokens)]
+        if len(domains) > 1:
+            violations.append({"id": package.get("id", ""), "title": package.get("title", ""), "domains": domains})
+    return violations
 
 
 def build_project_blueprint(
@@ -148,10 +196,16 @@ def build_project_blueprint(
     normalized_scale = _normalize_target_scale(target_scale)
     domain_coverage = _domain_coverage(requirement_bundle.get("raw_text", ""), atoms)
     missing_xlarge_domains = [key for key, covered in domain_coverage.items() if not covered]
+    package_domains = [_package_domain(package) for package in work_packages]
+    cross_domain_violations = _cross_domain_package_violations(work_packages)
+    xlarge_work_package_min = 30
+    xlarge_work_package_max = 200
     xlarge_blocked = normalized_scale == "xlarge_100k" and (
         bool(missing_xlarge_domains)
         or len(subsystems) < 6
-        or len(work_packages) < 10
+        or len(work_packages) < xlarge_work_package_min
+        or len(work_packages) > xlarge_work_package_max
+        or bool(cross_domain_violations)
     )
     if xlarge_blocked:
         risks.append(
@@ -159,8 +213,9 @@ def build_project_blueprint(
                 "code": "blueprint_xlarge_scope_gap",
                 "severity": "critical",
                 "message": "xlarge_100k project scope is missing required enterprise delivery domains.",
-                "repair_prompt": "Add business, permissions, security, data, frontend, backend, testing, deployment, and acceptance requirements.",
+                "repair_prompt": "Add full enterprise SaaS scope and split work into 30-200 single-domain packages.",
                 "missing_domains": missing_xlarge_domains,
+                "cross_domain_violations": cross_domain_violations,
             }
         )
         penalty += 30
@@ -213,7 +268,12 @@ def build_project_blueprint(
             "domain_coverage": domain_coverage,
             "missing_domains": missing_xlarge_domains,
             "minimum_subsystems_met": len(subsystems) >= 6,
-            "minimum_work_packages_met": len(work_packages) >= 10,
+            "minimum_work_packages_met": len(work_packages) >= xlarge_work_package_min,
+            "maximum_work_packages_met": len(work_packages) <= xlarge_work_package_max,
+            "target_work_package_range": [xlarge_work_package_min, xlarge_work_package_max],
+            "single_domain_package_required": True,
+            "package_domain_counts": {domain: package_domains.count(domain) for domain in sorted(set(package_domains))},
+            "cross_domain_violations": cross_domain_violations,
         },
         "subsystem_tree": [
             {
@@ -249,6 +309,52 @@ def build_project_blueprint(
                 "required_evidence": item.get("required_evidence", []),
             }
             for item in requirement_bundle.get("contracts", [])
+        ],
+        "data_model_plan": [
+            {
+                "subsystem_id": item.get("id", ""),
+                "models": [
+                    f"{item.get('name', 'subsystem').replace('-', '_')}_record",
+                    f"{item.get('name', 'subsystem').replace('-', '_')}_audit_event",
+                ],
+                "tenant_scoped": True,
+                "retention_required": item.get("owner_role") in {"data-engineer", "security-reviewer"},
+            }
+            for item in subsystems
+        ],
+        "dependency_graph": {
+            "nodes": [package.get("id", "") for package in work_packages],
+            "edges": [
+                {"from": dependency, "to": package.get("id", "")}
+                for package in work_packages
+                for dependency in package.get("dependencies", [])
+            ],
+        },
+        "risk_register": risks,
+        "delivery_phases": [
+            {"id": "phase-01-contracts", "gate": "blueprint+contract", "package_domains": ["contract"]},
+            {"id": "phase-02-core-services", "gate": "unit+contract", "package_domains": ["backend", "data", "security"]},
+            {"id": "phase-03-experience", "gate": "ui+integration", "package_domains": ["frontend"]},
+            {"id": "phase-04-verification", "gate": "contract+unit+integration+smoke+security", "package_domains": ["testing"]},
+            {"id": "phase-05-release", "gate": "release+rollback+delivery-pack", "package_domains": ["deployment"]},
+        ],
+        "boundary_rules": [
+            "Every package must stay inside its declared output paths.",
+            "Frontend, backend, tests, and deployment changes require separate packages.",
+            "Tenant isolation and security boundaries cannot be weakened without an ADR update.",
+            "Public interfaces require contract package evidence before implementation packages.",
+        ],
+        "adr_seeds": [
+            {
+                "id": "ADR-X100K-001",
+                "title": "Single-node durable execution",
+                "decision": "Use SQLite-backed durable jobs and local worker processes for the first 100k benchmark.",
+            },
+            {
+                "id": "ADR-X100K-002",
+                "title": "Evidence-first release",
+                "decision": "Release candidates require manifest, test evidence, effective LOC metrics, and rollback manifests.",
+            },
         ],
         "testing_strategy": {
             "matrix": ["contract", "unit", "integration", "smoke", "security", "anti-template", "effective-loc"],

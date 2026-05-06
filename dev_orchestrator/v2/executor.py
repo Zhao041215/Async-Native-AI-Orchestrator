@@ -8,6 +8,7 @@ from pathlib import Path
 
 from dev_orchestrator.config import AppConfig
 from dev_orchestrator.v2.agent_runtime import AgentRunner, new_agent_run_payload
+from dev_orchestrator.v2.autonomy import sha256_file
 from dev_orchestrator.v2.chief import build_dag
 from dev_orchestrator.v2.git_runtime import GitRuntime, GitRuntimeError
 from dev_orchestrator.v2.models import RepairTask, utc_now
@@ -576,6 +577,8 @@ class V2ChiefExecutor:
             "base_sha": base_sha,
             "final_sha": final_sha,
             "release_patch_path": str(release_patch_path),
+            "release_patch_sha256": sha256_file(release_patch_path),
+            "release_patch_size_bytes": release_patch_path.stat().st_size,
             "changed_files": release_info["files_changed"],
             "patch_sets": [item["id"] for item in applied_patch_sets],
             "test_runs": self.storage.list_test_runs(run_id),
@@ -797,6 +800,8 @@ class V2ChiefExecutor:
                 "anti_shit_score": quality.get("anti_shit_score"),
             },
             "release_patch_path": manifest["release_patch_path"],
+            "release_patch_sha256": manifest.get("release_patch_sha256", ""),
+            "release_patch_size_bytes": manifest.get("release_patch_size_bytes", 0),
             "manifest_path": str(Path(manifest["release_patch_path"]).parent / "release-manifest.json"),
             "base_sha": manifest["base_sha"],
             "final_sha": manifest["final_sha"],

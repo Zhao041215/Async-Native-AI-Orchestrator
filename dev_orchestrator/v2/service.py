@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import threading
 import time
 import uuid
@@ -20,7 +21,9 @@ from dev_orchestrator.v2.autonomy import (
     normalize_target_scale,
     normalize_unattended_mode,
     score_enterprise_saas_benchmark,
+    sha256_file,
     write_artifact_file,
+    write_json_with_integrity,
 )
 from dev_orchestrator.v2.chief import build_dag, summarize_chief_plan
 from dev_orchestrator.v2.executor import TERMINAL_STATUSES, V2ChiefExecutor
@@ -643,11 +646,59 @@ class V2Orchestrator:
                 return Path(item["path"])
         return project_root
 
+    def _artifact_integrity_row(self, item: dict) -> dict:
+        row = dict(item)
+        path = Path(str(row.get("path", "")))
+        row["exists"] = path.exists()
+        row["actual_size_bytes"] = path.stat().st_size if path.exists() else 0
+        row["actual_sha256"] = sha256_file(path) if path.exists() and path.is_file() else ""
+        expected_size = int(row.get("size_bytes", 0) or 0)
+        expected_sha = str(row.get("sha256", "") or "")
+        row["size_ok"] = not expected_size or expected_size == row["actual_size_bytes"]
+        row["sha256_ok"] = not expected_sha or expected_sha == row["actual_sha256"]
+        row["integrity_ok"] = bool(row["exists"] and row["size_ok"] and row["sha256_ok"])
+        return row
+
+    def _read_json_file(self, path: Path) -> tuple[dict, str]:
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            return {}, str(exc)
+        return payload if isinstance(payload, dict) else {}, ""
+
+    def _manifest_items_for_validation(self, manifest_path: str) -> tuple[list[dict], list[dict]]:
+        path = Path(manifest_path)
+        if not path.exists():
+            return [], []
+        payload, error = self._read_json_file(path)
+        if error:
+            return [], [{"kind": "artifact_manifest", "path": manifest_path, "source": "artifact_manifest.items", "error": error}]
+        items = payload.get("items", [])
+        if not isinstance(items, list):
+            return [], [{"kind": "artifact_manifest", "path": manifest_path, "source": "artifact_manifest.items", "error": "manifest items must be a list"}]
+        normalized: list[dict] = []
+        for index, item in enumerate(items):
+            if not isinstance(item, dict):
+                continue
+            normalized.append(
+            {
+                "kind": item.get("kind", "artifact"),
+                "path": item.get("path", ""),
+                "source": f"artifact_manifest.items[{index}]",
+                "sha256": item.get("sha256", ""),
+                "size_bytes": item.get("size_bytes", 0),
+                "artifact_id": item.get("id", ""),
+                "strict_integrity": True,
+            }
+            )
+        return normalized, []
+
     def _validate_run_recovery_contract(self, run_id: str) -> dict:
         run = self.storage.get_run(run_id)
         candidate = self.storage.latest_release_candidate_for_project(run["project_id"])
         continuation = run.get("continuation_state", {})
         required: list[dict] = []
+        db_artifacts = self.storage.list_artifacts(run_id=run_id)
 
         def add_required(kind: str, path: object, source: str) -> None:
             if path is None:
@@ -660,6 +711,8 @@ class V2Orchestrator:
         add_required("rollback_manifest", run.get("rollback_manifest_path", ""), "run.rollback_manifest_path")
         add_required("release_manifest", continuation.get("release_manifest_path", ""), "continuation.release_manifest_path")
         add_required("release_patch", continuation.get("release_patch_path", ""), "continuation.release_patch_path")
+        if continuation.get("rollback_manifest_path"):
+            add_required("rollback_manifest", continuation.get("rollback_manifest_path", ""), "continuation.rollback_manifest_path")
         for path in continuation.get("patch_paths", []) or []:
             add_required("patch", path, "continuation.patch_paths")
         for patch_set in self.storage.list_patch_sets(run_id):
@@ -667,34 +720,112 @@ class V2Orchestrator:
                 add_required("patch", patch_set.get("patch_path", ""), f"patch_set:{patch_set.get('id', '')}")
         if candidate:
             add_required("release_manifest", candidate.get("manifest_path", ""), "release_candidate.manifest_path")
-            add_required("release_patch", candidate.get("release_patch_path", ""), "release_candidate.release_patch_path")
+            release_patch_reference = {
+                "kind": "release_patch",
+                "path": candidate.get("release_patch_path", ""),
+                "source": "release_candidate.release_patch_path",
+                "sha256": candidate.get("release_patch_sha256", ""),
+                "size_bytes": candidate.get("release_patch_size_bytes", 0),
+            }
+            manifest_path = Path(candidate.get("manifest_path", ""))
+            if manifest_path.exists():
+                try:
+                    manifest_payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+                    release_patch_reference.update(
+                        {
+                            "path": manifest_payload.get("release_patch_path", release_patch_reference["path"]),
+                            "sha256": manifest_payload.get("release_patch_sha256", release_patch_reference["sha256"]),
+                            "size_bytes": manifest_payload.get("release_patch_size_bytes", release_patch_reference["size_bytes"]),
+                            "source": "release_manifest.release_patch",
+                        }
+                    )
+                except (OSError, json.JSONDecodeError):
+                    pass
+            if release_patch_reference["path"]:
+                required.append(release_patch_reference)
+
+        for artifact in db_artifacts:
+            required.append(
+                {
+                    "kind": artifact.get("kind", "artifact"),
+                    "path": artifact.get("path", ""),
+                    "source": f"artifact_db:{artifact.get('id', '')}",
+                    "sha256": artifact.get("sha256", ""),
+                    "size_bytes": artifact.get("size_bytes", 0),
+                    "artifact_id": artifact.get("id", ""),
+                }
+            )
+
+        manifest_items, manifest_errors = [], []
+        if run.get("artifact_manifest_path"):
+            manifest_items, manifest_errors = self._manifest_items_for_validation(run["artifact_manifest_path"])
+            required.extend(manifest_items)
+        if run.get("rollback_manifest_path"):
+            payload, error = self._read_json_file(Path(run["rollback_manifest_path"]))
+            if error:
+                manifest_errors.append(
+                    {"kind": "rollback_manifest", "path": run["rollback_manifest_path"], "source": "rollback_manifest", "error": error}
+                )
+            else:
+                if payload.get("release_patch_path"):
+                    required.append(
+                        {
+                            "kind": "release_patch",
+                            "path": payload.get("release_patch_path", ""),
+                            "source": "rollback_manifest.release_patch",
+                            "sha256": payload.get("release_patch_sha256", ""),
+                            "size_bytes": payload.get("release_patch_size_bytes", 0),
+                        }
+                    )
+                if payload.get("reverse_patch_path"):
+                    required.append(
+                        {
+                            "kind": "reverse_patch",
+                            "path": payload.get("reverse_patch_path", ""),
+                            "source": "rollback_manifest.reverse_patch",
+                            "sha256": payload.get("reverse_patch_sha256", ""),
+                            "size_bytes": payload.get("reverse_patch_size_bytes", 0),
+                        }
+                    )
 
         seen: set[tuple[str, str]] = set()
         checked: list[dict] = []
         missing: list[dict] = []
+        mismatched: list[dict] = []
         for item in required:
-            key = (item["kind"], item["path"])
+            if not str(item.get("path", "")).strip():
+                continue
+            key = (item.get("kind", ""), item.get("path", ""), item.get("source", ""))
             if key in seen:
                 continue
             seen.add(key)
-            path = Path(item["path"])
-            exists = path.exists()
-            row = {**item, "exists": exists}
+            row = self._artifact_integrity_row(item)
             checked.append(row)
-            if not exists:
+            if not row["exists"]:
                 missing.append(row)
-        return {"ok": not missing, "checked": checked, "missing": missing}
+            elif not row["integrity_ok"]:
+                mismatched.append(row)
+        mismatched.extend(manifest_errors)
+        return {
+            "ok": not missing and not mismatched,
+            "checked": checked,
+            "missing": missing,
+            "mismatched": mismatched,
+            "manifest_item_count": len(manifest_items),
+            "artifact_db_count": len(db_artifacts),
+        }
 
     def _block_resume_missing_artifacts(self, run_id: str, validation: dict) -> dict:
         run = self.storage.get_run(run_id)
-        reason = "Resume blocked because required artifacts or patch files are missing."
+        reason = "Resume blocked because required artifacts or patch files are missing or failed integrity checks."
         missing_paths = [item["path"] for item in validation.get("missing", [])]
+        bad_paths = [item.get("path", "") for item in validation.get("mismatched", [])]
         self.storage.add_event(
             run_id,
             "error",
             "recovery",
             reason,
-            {"missing": validation.get("missing", [])},
+            {"missing": validation.get("missing", []), "mismatched": validation.get("mismatched", [])},
         )
         repair = RepairTask(
             id=str(uuid.uuid4()),
@@ -703,7 +834,7 @@ class V2Orchestrator:
             finding_code="resume_missing_artifact",
             assigned_role="integration",
             status="ready",
-            reason=f"{reason} Missing: {', '.join(missing_paths)[:3500]}",
+            reason=f"{reason} Missing: {', '.join(missing_paths)[:1800]} Corrupt: {', '.join(bad_paths)[:1800]}",
         )
         self.storage.save_repair_task(repair.to_dict())
         updated = self.storage.update_run(
@@ -718,6 +849,7 @@ class V2Orchestrator:
                 "next_action": "repair_missing_artifacts",
                 "failure_reason": reason,
                 "missing_artifacts": validation.get("missing", []),
+                "mismatched_artifacts": validation.get("mismatched", []),
             },
             durable_queue_state={**run.get("durable_queue_state", {}), "state": "blocked"},
         )
@@ -1126,6 +1258,12 @@ class V2Orchestrator:
         project_id = run["project_id"]
         jobs = self.storage.list_durable_jobs(run_id=run_id)
         artifacts = self.storage.list_artifacts(run_id=run_id)
+        snapshot = None
+        if run.get("context_snapshot_id"):
+            try:
+                snapshot = self.storage.get_context_snapshot(run["context_snapshot_id"])
+            except KeyError:
+                snapshot = None
         return {
             "run_id": run_id,
             "project_id": project_id,
@@ -1136,6 +1274,7 @@ class V2Orchestrator:
             "artifact_manifest_path": run.get("artifact_manifest_path", ""),
             "recovery_contract": self._validate_run_recovery_contract(run_id),
             "context_snapshot_id": run.get("context_snapshot_id", ""),
+            "context_snapshot": snapshot,
             "effective_loc_metrics": run.get("effective_loc_metrics", {}),
             "rollback_manifest_path": run.get("rollback_manifest_path", ""),
             "benchmark_score": run.get("benchmark_score", 0),
@@ -1360,21 +1499,33 @@ class V2Orchestrator:
             reverse_patch_path.write_text(release_patch_path.read_text(encoding="utf-8", errors="ignore"), encoding="utf-8")
         else:
             reverse_patch_path.write_text("", encoding="utf-8")
+        release_patch_sha = sha256_file(release_patch_path) if release_patch_path.exists() else ""
+        reverse_patch_sha = sha256_file(reverse_patch_path)
+        reverse_patch_size = reverse_patch_path.stat().st_size
+        release_patch_size = release_patch_path.stat().st_size if release_patch_path.exists() else 0
         manifest = {
-            "schema_version": "1.0.0",
+            "schema_version": "1.1.0",
             "kind": "v2-release-rollback-manifest",
             "release_candidate_id": candidate["id"],
             "project_id": candidate["project_id"],
             "run_id": candidate["run_id"],
             "base_sha_before_apply": base_sha,
             "reverse_patch_path": str(reverse_patch_path),
+            "reverse_patch_sha256": reverse_patch_sha,
+            "reverse_patch_size_bytes": reverse_patch_size,
             "reverse_patch_mode": "git_apply_reverse",
             "release_patch_path": candidate.get("release_patch_path", ""),
+            "release_patch_sha256": release_patch_sha,
+            "release_patch_size_bytes": release_patch_size,
+            "test_evidence_count": candidate.get("test_evidence_count", 0),
+            "quality_gate": candidate.get("quality_gate", {}),
             "reason": reason,
             "created_at": utc_now(),
         }
         manifest_path = rollback_dir / f"{candidate['id'][:12]}-rollback-manifest.json"
-        manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=True), encoding="utf-8")
+        manifest["manifest_path"] = str(manifest_path)
+        integrity = write_json_with_integrity(manifest_path, {**manifest, "sha256": "", "size_bytes": 0})
+        manifest = integrity["payload"]
         rollback = self.storage.save_release_rollback(
             {
                 "tenant_id": tenant_id,
@@ -1391,6 +1542,120 @@ class V2Orchestrator:
         self.storage.update_run(candidate["run_id"], rollback_manifest_path=str(manifest_path))
         return rollback
 
+    def _verify_project_base_sha(self, project: dict, expected_sha: str) -> dict:
+        git = GitRuntime(
+            project_root=Path(project["project_path"]),
+            worktree_root=self.config.root_dir / "workspace" / "v2-worktrees" / project["id"],
+            timeout_seconds=self.config.runtime.max_shell_seconds,
+        )
+        sandbox = git.ensure_repository()
+        dirty = sandbox.get("dirty_paths", [])
+        current_sha = sandbox.get("base_sha", "")
+        if dirty:
+            git.git(["add", "-A"], check=False)
+            commit = git.git(
+                [
+                    "-c",
+                    "user.name=V2 Chief",
+                    "-c",
+                    "user.email=v2-chief@local",
+                    "commit",
+                    "--allow-empty",
+                    "-m",
+                    "v2 rollback verification snapshot",
+                ],
+                check=False,
+            )
+            if commit.ok:
+                current_sha = git.git(["rev-parse", "HEAD"]).stdout.strip()
+                dirty = git.git(["status", "--porcelain"], check=False).stdout.strip().splitlines()
+        return {
+            "ok": (not expected_sha or current_sha == expected_sha) and not dirty,
+            "expected_sha": expected_sha,
+            "current_sha": current_sha,
+            "dirty_paths": dirty,
+        }
+
+    def _verify_release_files_reverted(self, project: dict, candidate: dict, rollback: dict) -> dict:
+        project_root = Path(project["project_path"])
+        release_patch = Path(candidate.get("release_patch_path", ""))
+        changed_files = candidate.get("changed_files", []) or []
+        forbidden_existing: list[str] = []
+        if release_patch.exists():
+            try:
+                diff_text = release_patch.read_text(encoding="utf-8", errors="ignore")
+            except OSError:
+                diff_text = ""
+            for relative in re.findall(r"^\+\+\+ b/(.+)$", diff_text, flags=re.MULTILINE):
+                if relative and relative not in changed_files:
+                    changed_files.append(relative)
+        for relative in changed_files:
+            if not str(relative).strip() or str(relative).startswith(".agent/v2/"):
+                continue
+            target = (project_root / str(relative)).resolve()
+            if project_root not in target.parents and target != project_root:
+                continue
+            if target.exists():
+                forbidden_existing.append(str(relative))
+        return {
+            "ok": not forbidden_existing,
+            "changed_files": changed_files,
+            "unexpected_existing_files": forbidden_existing,
+            "base_sha_before_apply": rollback.get("payload", {}).get("base_sha_before_apply", ""),
+        }
+
+    def _write_delivery_pack(self, candidate: dict, project: dict, rollback: dict, smoke_results: list[dict] | None = None) -> dict:
+        run = self.storage.get_run(candidate["run_id"])
+        requirement_bundle = self.storage.get_requirement_bundle(candidate["project_id"])
+        latest_quality = (self.storage.list_validations(candidate["run_id"]) or [{}])[-1]
+        payload = {
+            "schema_version": "1.0.0",
+            "kind": "v2-delivery-pack",
+            "project_id": candidate["project_id"],
+            "run_id": candidate["run_id"],
+            "release_candidate_id": candidate["id"],
+            "generated_at": utc_now(),
+            "change_summary": {
+                "changed_files": candidate.get("changed_files", []),
+                "base_sha": candidate.get("base_sha", ""),
+                "final_sha": candidate.get("final_sha", ""),
+                "release_patch_path": candidate.get("release_patch_path", ""),
+            },
+            "requirement_coverage": requirement_bundle.get("coverage", {}),
+            "effective_loc": run.get("effective_loc_metrics", {}),
+            "test_evidence": {
+                "candidate_test_evidence_count": candidate.get("test_evidence_count", 0),
+                "smoke": smoke_results or [],
+            },
+            "quality_gate": latest_quality,
+            "risk_summary": candidate.get("blockers", []),
+            "rollback_path": {
+                "manifest_path": rollback.get("manifest_path", ""),
+                "reverse_patch_path": rollback.get("reverse_patch_path", ""),
+                "status": rollback.get("status", ""),
+            },
+            "operations_manual_entry": "docs/operations/manual.md",
+        }
+        artifact = self._register_artifact(
+            tenant_id=project.get("tenant_id", self.default_tenant["id"]),
+            project_id=candidate["project_id"],
+            run_id=candidate["run_id"],
+            kind="delivery",
+            name="delivery-pack.json",
+            payload=payload,
+        )
+        self.storage.update_release_candidate(candidate["id"], delivery_pack_path=artifact["path"])
+        self.storage.add_event(candidate["run_id"], "info", "release", "Delivery pack recorded.", {"path": artifact["path"]})
+        current = self.storage.get_run(candidate["run_id"])
+        self.storage.update_run(
+            candidate["run_id"],
+            continuation_state={
+                **current.get("continuation_state", {}),
+                "delivery_pack_path": artifact["path"],
+            },
+        )
+        return artifact
+
     def apply_release_candidate(self, candidate_id: str) -> dict:
         candidate = self.storage.get_release_candidate(candidate_id)
         if candidate.get("decision") != "GO" or candidate.get("status") != "ready":
@@ -1398,6 +1663,11 @@ class V2Orchestrator:
         patch_path = Path(candidate.get("release_patch_path", ""))
         if not patch_path.exists():
             raise ValueError("Release patch file is missing.")
+        validation = self._validate_run_recovery_contract(candidate["run_id"])
+        if not validation.get("ok"):
+            raise ValueError("Release candidate artifacts failed recovery preflight.")
+        if candidate.get("quality_gate", {}).get("status") != "passed" or candidate.get("test_evidence_count", 0) <= 0:
+            raise ValueError("Release candidate lacks hard gate evidence.")
         project = self.storage.get_project(candidate["project_id"])
         git = GitRuntime(
             project_root=Path(project["project_path"]),
@@ -1424,6 +1694,7 @@ class V2Orchestrator:
             status="prepared",
             payload={**rollback.get("payload", {}), "reverse_patch_recorded_at": utc_now(), "reverse_patch_mode": "git_apply_reverse"},
         )
+        self.storage.update_run(candidate["run_id"], rollback_manifest_path=rollback.get("manifest_path", ""))
         self.storage.save_integration_step(
             {
                 "run_id": candidate["run_id"],
@@ -1435,6 +1706,18 @@ class V2Orchestrator:
                 "payload": {"candidate_id": candidate_id, "rollback_id": rollback["id"]},
             }
         )
+        current = self.storage.get_run(candidate["run_id"])
+        self.storage.update_run(
+            candidate["run_id"],
+            continuation_state={
+                **current.get("continuation_state", {}),
+                "schema_version": "2.2.0",
+                "checkpoint": "apply_complete",
+                "state": "applied",
+                "next_action": "post_apply_smoke",
+                "rollback_manifest_path": rollback.get("manifest_path", ""),
+            },
+        )
         self._audit(
             tenant_id=project.get("tenant_id", self.default_tenant["id"]),
             user_id=project.get("created_by", self.default_user["id"]),
@@ -1444,7 +1727,8 @@ class V2Orchestrator:
             message="Release candidate applied with rollback manifest prepared.",
             payload={"rollback_id": rollback["id"]},
         )
-        return {"ok": True, "candidate": updated_candidate, "rollback": rollback}
+        delivery_pack = self._write_delivery_pack(updated_candidate, project, rollback)
+        return {"ok": True, "candidate": self.storage.get_release_candidate(candidate_id), "rollback": rollback, "delivery_pack": delivery_pack}
 
     def auto_apply_release_candidate(self, candidate_id: str) -> dict:
         candidate = self.storage.get_release_candidate(candidate_id)
@@ -1461,8 +1745,9 @@ class V2Orchestrator:
                 rolled_back = self.rollback_release_candidate(candidate_id, reason="smoke_check_failed")
                 return {"ok": False, "candidate": applied["candidate"], "rollback": rolled_back["rollback"], "smoke": smoke_results}
             self.storage.update_release_rollback(rollback["id"], status="not_needed")
+            delivery_pack = self._write_delivery_pack(self.storage.get_release_candidate(candidate_id), project, rollback, smoke_results)
             self.storage.add_event(candidate["run_id"], "info", "release", "Auto apply smoke check passed.", {"candidate_id": candidate_id})
-            return {"ok": True, "candidate": applied["candidate"], "rollback": rollback, "smoke": smoke_results}
+            return {"ok": True, "candidate": self.storage.get_release_candidate(candidate_id), "rollback": rollback, "smoke": smoke_results, "delivery_pack": delivery_pack}
         except Exception:
             self.rollback_release_candidate(candidate_id, reason="auto_apply_exception")
             raise
@@ -1475,6 +1760,20 @@ class V2Orchestrator:
         project = self.storage.get_project(candidate["project_id"])
         patch_path = Path(rollback.get("reverse_patch_path", ""))
         if not patch_path.exists():
+            self.storage.update_release_rollback(rollback["id"], status="failed", reason=reason, applied_at=utc_now())
+            self.storage.update_release_candidate(candidate_id, status="rollback_failed")
+            self.storage.update_run(
+                candidate["run_id"],
+                status="blocked",
+                continuation_state={
+                    **self.storage.get_run(candidate["run_id"]).get("continuation_state", {}),
+                    "schema_version": "2.2.0",
+                    "checkpoint": "rollback_failed",
+                    "state": "rollback_failed",
+                    "next_action": "manual_recovery",
+                    "failure_reason": "Reverse patch file is missing.",
+                },
+            )
             raise ValueError("Reverse patch file is missing.")
         git = GitRuntime(
             project_root=Path(project["project_path"]),
@@ -1485,17 +1784,63 @@ class V2Orchestrator:
             result = git.apply_patch(Path(project["project_path"]), patch_path, reverse=True)
             if not result["ok"]:
                 self.storage.update_release_rollback(rollback["id"], status="failed", reason=reason, applied_at=utc_now())
+                self.storage.update_release_candidate(candidate_id, status="rollback_failed")
+                self.storage.update_run(
+                    candidate["run_id"],
+                    status="blocked",
+                    continuation_state={
+                        **self.storage.get_run(candidate["run_id"]).get("continuation_state", {}),
+                        "schema_version": "2.2.0",
+                        "checkpoint": "rollback_failed",
+                        "state": "rollback_failed",
+                        "next_action": "manual_recovery",
+                        "failure_reason": result.get("stderr") or "Rollback patch failed to apply.",
+                    },
+                )
                 raise ValueError(result.get("stderr") or "Rollback patch failed to apply.")
         else:
             result = {"ok": True, "status": "noop", "stdout": "", "stderr": ""}
+        verification = self._verify_release_files_reverted(project, candidate, rollback)
+        if not verification["ok"]:
+            failed = self.storage.update_release_rollback(
+                rollback["id"],
+                status="failed",
+                reason="rollback_verification_failed",
+                applied_at=utc_now(),
+                payload={**rollback.get("payload", {}), "rollback_result": result, "verification": verification},
+            )
+            self.storage.update_release_candidate(candidate_id, status="rollback_failed")
+            self.storage.update_run(
+                candidate["run_id"],
+                status="blocked",
+                continuation_state={
+                    **self.storage.get_run(candidate["run_id"]).get("continuation_state", {}),
+                    "schema_version": "2.2.0",
+                    "checkpoint": "rollback_failed",
+                    "state": "rollback_failed",
+                    "next_action": "manual_recovery",
+                    "failure_reason": "Rollback verification failed.",
+                },
+            )
+            return {"ok": False, "candidate": self.storage.get_release_candidate(candidate_id), "rollback": failed}
         updated_rollback = self.storage.update_release_rollback(
             rollback["id"],
             status="applied",
             reason=reason,
             applied_at=utc_now(),
-            payload={**rollback.get("payload", {}), "rollback_result": result, "rollback_reason": reason},
+            payload={**rollback.get("payload", {}), "rollback_result": result, "rollback_reason": reason, "verification": verification},
         )
         updated_candidate = self.storage.update_release_candidate(candidate_id, status="rolled_back")
+        self.storage.update_run(
+            candidate["run_id"],
+            continuation_state={
+                **self.storage.get_run(candidate["run_id"]).get("continuation_state", {}),
+                "schema_version": "2.2.0",
+                "checkpoint": "rollback_complete",
+                "state": "rolled_back",
+                "next_action": "repair_or_reapply",
+            },
+        )
         self.storage.save_integration_step(
             {
                 "run_id": candidate["run_id"],
@@ -1574,8 +1919,49 @@ class V2Orchestrator:
         session = self.resolve_session(tenant_id, None)
         return self.storage.list_durable_jobs(tenant_id=session["tenant"]["id"], run_id=run_id)
 
+    def get_worker_status(self, tenant_id: str | None = None) -> dict:
+        from dev_orchestrator.v2.worker import DEFAULT_WORKER_ROLES, describe_worker_runtime
+
+        session = self.resolve_session(tenant_id, None)
+        tenant = session["tenant"]
+        durable_jobs = self.storage.list_durable_jobs(tenant_id=tenant["id"], limit=500)
+        worker_jobs = self.storage.list_worker_jobs(tenant["id"])[:500]
+        return {
+            **describe_worker_runtime(
+                self.config.root_dir,
+                durable_jobs=durable_jobs,
+                worker_jobs=worker_jobs,
+                roles=list(DEFAULT_WORKER_ROLES),
+            ),
+            "tenant_id": tenant["id"],
+        }
+
     def get_enterprise_saas_benchmark(self) -> dict:
+        recent = self.storage.list_benchmark_runs(benchmark_type="enterprise_saas")[:50]
+        ladder_ids = ["10k", "30k", "60k", "100k"]
+        trends = []
+        for ladder_id in ladder_ids:
+            values = [
+                {
+                    "run_id": item.get("run_id", ""),
+                    "score": item.get("score", 0),
+                    "effective_loc": item.get("effective_loc", 0),
+                    "ready": any(rung.get("id") == ladder_id and rung.get("ready") for rung in item.get("payload", {}).get("ladder", [])),
+                    "created_at": item.get("created_at", ""),
+                }
+                for item in recent
+                if any(rung.get("id") == ladder_id for rung in item.get("payload", {}).get("ladder", []))
+            ]
+            trends.append(
+                {
+                    "id": ladder_id,
+                    "run_count": len(values),
+                    "ready_count": sum(1 for item in values if item["ready"]),
+                    "latest": values[0] if values else {},
+                }
+            )
         return {
             "benchmark": ENTERPRISE_SAAS_BENCHMARK,
-            "recent_runs": self.storage.list_benchmark_runs(benchmark_type="enterprise_saas")[:50],
+            "ladder_trends": trends,
+            "recent_runs": recent,
         }

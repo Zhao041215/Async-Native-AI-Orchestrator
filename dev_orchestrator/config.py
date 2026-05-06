@@ -117,6 +117,39 @@ class AppConfig:
         }
 
 
+def _secret_store_path(root_dir: Path) -> Path:
+    return (root_dir / "workspace" / "secrets" / "local-llm.json").resolve()
+
+
+def _load_local_llm_secrets(root_dir: Path) -> dict[str, str]:
+    path = _secret_store_path(root_dir)
+    if not path.exists():
+        return {}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    if not isinstance(payload, dict):
+        return {}
+    return {
+        str(key): str(value)
+        for key, value in payload.items()
+        if key in {"api_key"} and str(value)
+    }
+
+
+def _save_local_llm_secrets(root_dir: Path, secrets: dict[str, str]) -> None:
+    path = _secret_store_path(root_dir)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    existing = _load_local_llm_secrets(root_dir)
+    existing.update({key: value for key, value in secrets.items() if value})
+    path.write_text(json.dumps(existing, indent=2, ensure_ascii=True), encoding="utf-8")
+    try:
+        os.chmod(path, 0o600)
+    except OSError:
+        pass
+
+
 def _deep_get(payload: dict, key: str, default: dict) -> dict:
     value = payload.get(key)
     return value if isinstance(value, dict) else default
@@ -133,6 +166,93 @@ def _normalize_llm_payload(payload: dict) -> dict:
             for key, value in normalized["extra_headers"].items()
             if str(key).strip()
         }
+    return normalized
+
+
+def _normalize_runtime_payload(payload: dict) -> dict:
+    allowed = set(RuntimeConfig.__dataclass_fields__)
+    normalized = {key: value for key, value in payload.items() if key in allowed}
+    deployment_aliases = {
+        "local-single-user": "hosted-multi-user-local",
+        "local": "hosted-multi-user-local",
+    }
+    queue_aliases = {
+        "in_process": "external-worker",
+        "in-process": "external-worker",
+        "same-process-thread": "external-worker",
+        "thread": "external-worker",
+    }
+    sandbox_aliases = {
+        "role-governed-local": "tenant-governed-worktree",
+        "local": "tenant-governed-worktree",
+    }
+    normalized["deployment_mode"] = deployment_aliases.get(
+        str(normalized.get("deployment_mode", "")).strip().lower(),
+        normalized.get("deployment_mode", RuntimeConfig.deployment_mode),
+    )
+    normalized["queue_mode"] = queue_aliases.get(
+        str(normalized.get("queue_mode", "")).strip().lower(),
+        normalized.get("queue_mode", RuntimeConfig.queue_mode),
+    )
+    normalized["sandbox_mode"] = sandbox_aliases.get(
+        str(normalized.get("sandbox_mode", "")).strip().lower(),
+        normalized.get("sandbox_mode", RuntimeConfig.sandbox_mode),
+    )
+    return normalized
+
+
+def _normalize_identity_payload(payload: dict) -> dict:
+    allowed = set(IdentityConfig.__dataclass_fields__)
+    normalized = {key: value for key, value in payload.items() if key in allowed}
+    mode_aliases = {
+        "single-local-operator": "hosted-dev-session",
+        "single-user": "hosted-dev-session",
+    }
+    tenant_aliases = {
+        "single-tenant": "required-tenant",
+        "local": "required-tenant",
+    }
+    normalized["mode"] = mode_aliases.get(
+        str(normalized.get("mode", "")).strip().lower(),
+        normalized.get("mode", IdentityConfig.mode),
+    )
+    normalized["tenant_mode"] = tenant_aliases.get(
+        str(normalized.get("tenant_mode", "")).strip().lower(),
+        normalized.get("tenant_mode", IdentityConfig.tenant_mode),
+    )
+    normalized.setdefault("require_identity", True)
+    normalized.setdefault("require_tenant", True)
+    return normalized
+
+
+def _normalize_production_payload(payload: dict) -> dict:
+    allowed = set(ProductionScaffoldConfig.__dataclass_fields__)
+    normalized = {key: value for key, value in payload.items() if key in allowed}
+    queue_aliases = {
+        "in-process": "sqlite-durable",
+        "in_process": "sqlite-durable",
+    }
+    worker_aliases = {
+        "same-process-thread": "hosted-worker",
+        "local-thread": "local-thread",
+    }
+    deployment_aliases = {
+        "local-dev": "hosted-local",
+        "local": "hosted-local",
+    }
+    normalized["queue_backend"] = queue_aliases.get(
+        str(normalized.get("queue_backend", "")).strip().lower(),
+        normalized.get("queue_backend", ProductionScaffoldConfig.queue_backend),
+    )
+    normalized["worker_model"] = worker_aliases.get(
+        str(normalized.get("worker_model", "")).strip().lower(),
+        normalized.get("worker_model", ProductionScaffoldConfig.worker_model),
+    )
+    normalized["deployment_target"] = deployment_aliases.get(
+        str(normalized.get("deployment_target", "")).strip().lower(),
+        normalized.get("deployment_target", ProductionScaffoldConfig.deployment_target),
+    )
+    normalized.setdefault("future_auth_enabled", True)
     return normalized
 
 
@@ -227,7 +347,10 @@ def load_config(root_dir: Path) -> AppConfig:
     env_temperature = _env_float(os.environ.get("DEV_ORCHESTRATOR_TEMPERATURE"))
     env_supports_responses = _env_bool(os.environ.get("DEV_ORCHESTRATOR_SUPPORTS_RESPONSES"))
     env_supports_chat = _env_bool(os.environ.get("DEV_ORCHESTRATOR_SUPPORTS_CHAT_COMPLETIONS"))
-    if env_api_key:
+    local_secrets = _load_local_llm_secrets(root_dir)
+    if local_secrets.get("api_key"):
+        llm.api_key = local_secrets["api_key"]
+    elif env_api_key:
         llm.api_key = env_api_key
     if env_api_base:
         llm.api_base = env_api_base
@@ -257,9 +380,9 @@ def load_config(root_dir: Path) -> AppConfig:
         llm.supports_responses = env_supports_responses
     if env_supports_chat is not None:
         llm.supports_chat_completions = env_supports_chat
-    runtime = RuntimeConfig(**_deep_get(payload, "runtime", {}))
-    identity = IdentityConfig(**_deep_get(payload, "identity", {}))
-    production = ProductionScaffoldConfig(**_deep_get(payload, "production", {}))
+    runtime = RuntimeConfig(**_normalize_runtime_payload(_deep_get(payload, "runtime", {})))
+    identity = IdentityConfig(**_normalize_identity_payload(_deep_get(payload, "identity", {})))
+    production = ProductionScaffoldConfig(**_normalize_production_payload(_deep_get(payload, "production", {})))
     config = AppConfig(
         root_dir=root_dir.resolve(),
         config_path=config_path,
@@ -291,7 +414,11 @@ def update_config(config: AppConfig, payload: dict) -> AppConfig:
     for key, value in server_payload.items():
         if hasattr(config.server, key):
             setattr(config.server, key, value)
-    for key, value in _normalize_llm_payload(llm_payload).items():
+    normalized_llm = _normalize_llm_payload(llm_payload)
+    incoming_api_key = normalized_llm.get("api_key")
+    if incoming_api_key not in {"", "***", None}:
+        _save_local_llm_secrets(config.root_dir, {"api_key": str(incoming_api_key)})
+    for key, value in normalized_llm.items():
         if key == "api_key" and value in {"", "***", None}:
             continue
         if hasattr(config.llm, key):

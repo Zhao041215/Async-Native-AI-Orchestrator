@@ -126,6 +126,7 @@ def _line_repetition_findings(files: list[tuple[str, str]]) -> list[Finding]:
     findings: list[Finding] = []
     repeated_classes: dict[str, list[str]] = {}
     repeated_titles: dict[str, list[str]] = {}
+    content_families: dict[str, list[str]] = {}
     for relative, text in files:
         for class_name in re.findall(r"^class\s+([A-Za-z0-9_]+)", text, flags=re.MULTILINE):
             stem = re.sub(r"\d+", "", class_name)
@@ -135,8 +136,12 @@ def _line_repetition_findings(files: list[tuple[str, str]]) -> list[Finding]:
             stem = re.sub(r"\d+", "", title).strip().lower()
             if stem:
                 repeated_titles.setdefault(stem, []).append(relative)
+        normalized = re.sub(r"\s+", "", text.lower())
+        if len(normalized) > 500 and relative.startswith("apps/"):
+            content_families.setdefault(normalized[:500], []).append(relative)
     class_offenders = {key: value for key, value in repeated_classes.items() if len(value) >= 8}
     title_offenders = {key: value for key, value in repeated_titles.items() if len(value) >= 8}
+    content_offenders = {key: value for key, value in content_families.items() if len(value) >= 5}
     if class_offenders:
         findings.append(
             Finding(
@@ -159,6 +164,18 @@ def _line_repetition_findings(files: list[tuple[str, str]]) -> list[Finding]:
                 evidence=list(title_offenders.keys())[:8],
                 owner="refactor-sheriff",
                 repair_role="frontend-lead",
+            )
+        )
+    if content_offenders:
+        findings.append(
+            Finding(
+                code="duplicate_code_family",
+                severity="critical",
+                category="effective-loc",
+                message="Source contains repeated content families that cannot count as effective production LOC.",
+                evidence=[path for paths in content_offenders.values() for path in paths[:3]][:12],
+                owner="refactor-sheriff",
+                repair_role="refactor-sheriff",
             )
         )
     return findings
@@ -391,6 +408,18 @@ def evaluate_project_quality(project_root: Path, requirement_bundle: dict) -> di
                 repair_role="chief",
             )
         )
+    if requirement_bundle.get("contracts") and "traceability" not in all_lower and "contract" not in all_lower:
+        findings.append(
+            Finding(
+                code="interface_contract_evidence_missing",
+                severity="critical",
+                category="contract",
+                message="Interface contracts exist but no implementation or test evidence references contract traceability.",
+                evidence=["contracts"],
+                owner="chief",
+                repair_role="system-architect",
+            )
+        )
 
     severity_penalty = {
         "critical": 35,
@@ -417,11 +446,21 @@ def evaluate_project_quality(project_root: Path, requirement_bundle: dict) -> di
             f"source_file_count={metrics.get('source_file_count', 0)}",
             f"must_coverage={coverage.get('must_coverage_percent', 0)}",
             f"anti_shit_score={anti_shit_score}",
+            "layers=contract,unit,integration,smoke,security,anti-template,effective-loc",
         ],
     )
     return {
         **validation.to_dict(),
         "metrics": metrics,
+        "subsystem_gates": [
+            {
+                "name": name,
+                "status": "passed" if data.get("source_file_count", 0) else "not_present",
+                "source_file_count": data.get("source_file_count", 0),
+                "source_lines": data.get("source_lines", 0),
+            }
+            for name, data in sorted(by_area.items())
+        ],
         "anti_shit_score": anti_shit_score,
         "release_candidate_allowed": validation.status == "passed",
         "summary": "Quality gates passed." if validation.status == "passed" else "Quality gates failed; repair tasks required.",

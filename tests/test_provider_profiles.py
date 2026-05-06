@@ -21,6 +21,7 @@ from dev_orchestrator.config import (
     ServerConfig,
     ensure_paths,
     load_config,
+    update_config,
 )
 from dev_orchestrator.llm_client import OpenAICompatibleClient
 from dev_orchestrator.server import Application, build_handler
@@ -207,6 +208,88 @@ class ProviderProfileTests(unittest.TestCase):
             self.assertEqual(public["api_key"], "***")
             self.assertEqual(on_disk["api_key"], "")
             self.assertNotIn("X-API-Key", on_disk["extra_headers"])
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+    def test_saved_api_key_uses_local_secret_store_and_survives_reload(self) -> None:
+        root = (Path(__file__).resolve().parent.parent / "workspace" / "provider-tests" / uuid.uuid4().hex).resolve()
+        root.mkdir(parents=True, exist_ok=True)
+        try:
+            config = build_config(root, LLMConfig(use_mock=False, api_base="https://persisted.example/v1", api_key=""))
+            config.config_path.write_text(json.dumps(config.to_persisted_dict(), indent=2), encoding="utf-8")
+
+            update_config(
+                config,
+                {
+                    "llm": {
+                        "api_base": "https://deepkey.top/v1",
+                        "api_key": "new-secret",
+                        "model": "gpt-5.4",
+                        "wire_api": "chat_completions",
+                        "provider_profile": "custom-chat-compatible",
+                    }
+                },
+            )
+            loaded = load_config(root)
+            on_disk = json.loads(config.config_path.read_text(encoding="utf-8"))["llm"]
+            secret_file = root / "workspace" / "secrets" / "local-llm.json"
+
+            self.assertEqual(loaded.llm.api_key, "new-secret")
+            self.assertEqual(loaded.to_dict()["llm"]["api_key"], "***")
+            self.assertEqual(on_disk["api_key"], "")
+            self.assertTrue(secret_file.exists())
+            self.assertEqual(json.loads(secret_file.read_text(encoding="utf-8"))["api_key"], "new-secret")
+
+            update_config(config, {"llm": {"api_key": "***", "model": "gpt-5.4"}})
+            self.assertEqual(load_config(root).llm.api_key, "new-secret")
+            with mock.patch.dict(os.environ, {"DEV_ORCHESTRATOR_API_KEY": "stale-env-secret"}, clear=False):
+                self.assertEqual(load_config(root).llm.api_key, "new-secret")
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+    def test_test_connection_reuses_saved_key_when_payload_is_masked(self) -> None:
+        root = (Path(__file__).resolve().parent.parent / "workspace" / "provider-tests" / uuid.uuid4().hex).resolve()
+        root.mkdir(parents=True, exist_ok=True)
+        try:
+            with LocalModelServer() as base_url:
+                config = build_config(root, LLMConfig(use_mock=False, api_base=base_url, api_key=""))
+                config.config_path.write_text(json.dumps(config.to_persisted_dict(), indent=2), encoding="utf-8")
+                secret_file = root / "workspace" / "secrets" / "local-llm.json"
+                secret_file.parent.mkdir(parents=True, exist_ok=True)
+                secret_file.write_text(json.dumps({"api_key": "stored-secret"}), encoding="utf-8")
+                app = Application(root)
+                handler = build_handler(app)
+
+                class Dummy(handler):
+                    def __init__(self) -> None:
+                        pass
+
+                captured = {}
+
+                def write_json(payload, code=200):
+                    captured["payload"] = payload
+                    captured["code"] = int(code)
+
+                test_dummy = Dummy()
+                test_dummy.path = "/api/v2/model/test-connection"
+                test_dummy.headers = {}
+                test_dummy._read_json = lambda: {
+                    "llm": {
+                        "api_base": base_url,
+                        "api_key": "***",
+                        "model": "third-party-chat",
+                        "wire_api": "chat_completions",
+                        "provider_profile": "custom-chat-compatible",
+                    }
+                }
+                test_dummy._write_json = write_json
+
+                test_dummy.do_POST()
+
+                self.assertEqual(captured["code"], 200)
+                self.assertTrue(captured["payload"]["ok"])
+                headers = {key.lower(): value for key, value in CaptureHandler.captures[-1]["headers"].items()}
+                self.assertEqual(headers["authorization"], "Bearer stored-secret")
         finally:
             shutil.rmtree(root, ignore_errors=True)
 

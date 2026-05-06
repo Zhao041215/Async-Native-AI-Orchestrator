@@ -1,0 +1,71 @@
+{
+  "schema_version": "2.2.0",
+  "kind": "v2-artifact-manifest",
+  "generated_at": "2026-05-06T23:21:34.025509+00:00",
+  "items": [
+    {
+      "id": "8a938add-7560-4eac-852e-71905b351a3a",
+      "kind": "continuation",
+      "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\artifacts\\local-workspace\\c8f25902-86e\\a83334a7-5bb\\continuation\\continuation-state.json",
+      "sha256": "b086056757dfcf52ed882ce192315b8cd8ccd920bc7e310f3fcf895b6e4da121",
+      "size_bytes": 2264,
+      "created_at": "2026-05-06T23:21:33.995074+00:00"
+    },
+    {
+      "id": "b96b592d-77d4-49e1-a41d-26a2010107f8",
+      "kind": "metrics",
+      "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\artifacts\\local-workspace\\c8f25902-86e\\a83334a7-5bb\\metrics\\effective-loc.json",
+      "sha256": "ecc8fb09db5ba52695b1e00477d4723f2b1954d1d39dabc2eab7beb8e70b64c5",
+      "size_bytes": 351,
+      "created_at": "2026-05-06T23:21:34.002231+00:00"
+    },
+    {
+      "id": "fe188eb4-0740-4dac-84e5-6feccaccb930",
+      "kind": "context",
+      "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\artifacts\\local-workspace\\c8f25902-86e\\a83334a7-5bb\\context\\context-snapshot.json",
+      "sha256": "2c6150abed0bd8ecdee640c6f8661cf58e9235fefc118a2e0f0d4553f46a7d12",
+      "size_bytes": 17617,
+      "created_at": "2026-05-06T23:21:34.007917+00:00"
+    },
+    {
+      "id": "15c07764-079f-416f-bc77-5cf12f3a1599",
+      "kind": "benchmark",
+      "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\artifacts\\local-workspace\\c8f25902-86e\\a83334a7-5bb\\benchmark\\enterprise-saas-score.json",
+      "sha256": "f17edc77083a67c32ed6f230cb495d1bdb97060c70b9e48de3bf6b725d3e41e9",
+      "size_bytes": 1728,
+      "created_at": "2026-05-06T23:21:34.020486+00:00"
+    },
+    {
+      "id": "8a938add-7560-4eac-852e-71905b351a3a",
+      "kind": "continuation",
+      "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\artifacts\\local-workspace\\c8f25902-86e\\a83334a7-5bb\\continuation\\continuation-state.json",
+      "sha256": "b086056757dfcf52ed882ce192315b8cd8ccd920bc7e310f3fcf895b6e4da121",
+      "size_bytes": 2264,
+      "created_at": "2026-05-06T23:21:33.995074+00:00"
+    },
+    {
+      "id": "b96b592d-77d4-49e1-a41d-26a2010107f8",
+      "kind": "metrics",
+      "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\artifacts\\local-workspace\\c8f25902-86e\\a83334a7-5bb\\metrics\\effective-loc.json",
+      "sha256": "ecc8fb09db5ba52695b1e00477d4723f2b1954d1d39dabc2eab7beb8e70b64c5",
+      "size_bytes": 351,
+      "created_at": "2026-05-06T23:21:34.002231+00:00"
+    },
+    {
+      "id": "fe188eb4-0740-4dac-84e5-6feccaccb930",
+      "kind": "context",
+      "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\artifacts\\local-workspace\\c8f25902-86e\\a83334a7-5bb\\context\\context-snapshot.json",
+      "sha256": "2c6150abed0bd8ecdee640c6f8661cf58e9235fefc118a2e0f0d4553f46a7d12",
+      "size_bytes": 17617,
+      "created_at": "2026-05-06T23:21:34.007917+00:00"
+    },
+    {
+      "id": "15c07764-079f-416f-bc77-5cf12f3a1599",
+      "kind": "benchmark",
+      "path": "E:\\ProgramProjects\\AI_Agent\\workspace\\artifacts\\local-workspace\\c8f25902-86e\\a83334a7-5bb\\benchmark\\enterprise-saas-score.json",
+      "sha256": "f17edc77083a67c32ed6f230cb495d1bdb97060c70b9e48de3bf6b725d3e41e9",
+      "size_bytes": 1728,
+      "created_at": "2026-05-06T23:21:34.020486+00:00"
+    }
+  ]
+}
