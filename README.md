@@ -147,6 +147,8 @@ python run_server.py --worker-supervisor --tenant local-workspace
 
 The worker path claims jobs with a lease, refreshes heartbeat/lease while executing, requeues expired leases, and moves exhausted retries to `dead_letter`. The local adapter still supports synchronous tests and quick demos, but it also executes through durable job claim/finish state.
 
+Continuation state is now a recovery contract. Resume first validates the recorded artifact manifest, patch files, release manifest, release patch, and rollback manifest references. Missing files block the run and create a repair task instead of replaying from an unsafe or incomplete checkpoint.
+
 ## Hosted Defaults
 
 `orchestrator_config.json` uses hosted-local defaults:

@@ -127,6 +127,68 @@ class DurableWorkerRuntimeTests(unittest.TestCase):
             self.assertEqual(resumed["status"], "running")
             self.assertEqual(resumed_job["status"], "queued")
 
+    def test_resume_blocks_when_recorded_patch_file_is_missing(self) -> None:
+        with WorkspaceSandbox() as root:
+            config = build_config(root)
+            storage = V2Storage(config.db_path)
+            service = V2Orchestrator(config=config, storage=storage)
+            project = service.create_project(
+                name="missing-patch-resume",
+                title="Missing Patch Resume",
+                description=(
+                    "Must support tenant scoped API workflow, RBAC SSO auth, audit logs, "
+                    "frontend console dashboard, contract tests, Docker deployment, and release approvals."
+                ),
+            )
+            run = service.start_project_run(project["id"])
+            service.run_worker_once(tenant_id=project["tenant_id"], role="planner", worker_id="test-worker")
+            finished = service.get_run(run["id"])
+            patch_sets = storage.list_patch_sets(run["id"])
+            self.assertTrue(patch_sets)
+            patch_path = Path(patch_sets[0]["patch_path"])
+            self.assertTrue(patch_path.exists())
+            patch_path.unlink()
+            storage.update_run(
+                run["id"],
+                status="paused",
+                continuation_state={
+                    **finished["continuation_state"],
+                    "state": "paused",
+                    "next_action": "resume",
+                },
+            )
+
+            resumed = service.resume_run(run["id"])
+            jobs = storage.list_durable_jobs(run_id=run["id"])
+            repairs = storage.list_project_repairs(project["id"])
+
+            self.assertEqual(resumed["status"], "blocked")
+            self.assertEqual(resumed["continuation_state"]["next_action"], "repair_missing_artifacts")
+            self.assertTrue(any(item["finding_code"] == "resume_missing_artifact" for item in repairs))
+            self.assertFalse(any(item["status"] == "queued" for item in jobs))
+
+    def test_continuation_exposes_recovery_contract(self) -> None:
+        with WorkspaceSandbox() as root:
+            config = build_config(root)
+            storage = V2Storage(config.db_path)
+            service = V2Orchestrator(config=config, storage=storage)
+            project = service.create_project(
+                name="recovery-contract",
+                title="Recovery Contract",
+                description=(
+                    "Must support tenant scoped API workflow, RBAC SSO auth, audit logs, "
+                    "frontend console dashboard, contract tests, Docker deployment, and release approvals."
+                ),
+            )
+            run = service.start_project_run(project["id"])
+            service.run_worker_once(tenant_id=project["tenant_id"], role="planner", worker_id="test-worker")
+
+            continuation = service.get_run_continuation(run["id"])
+
+            self.assertEqual(continuation["continuation_state"]["schema_version"], "2.2.0")
+            self.assertTrue(continuation["recovery_contract"]["ok"])
+            self.assertTrue(continuation["recovery_contract"]["checked"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -643,6 +643,88 @@ class V2Orchestrator:
                 return Path(item["path"])
         return project_root
 
+    def _validate_run_recovery_contract(self, run_id: str) -> dict:
+        run = self.storage.get_run(run_id)
+        candidate = self.storage.latest_release_candidate_for_project(run["project_id"])
+        continuation = run.get("continuation_state", {})
+        required: list[dict] = []
+
+        def add_required(kind: str, path: object, source: str) -> None:
+            if path is None:
+                return
+            text = str(path).strip()
+            if text:
+                required.append({"kind": kind, "path": text, "source": source})
+
+        add_required("artifact_manifest", run.get("artifact_manifest_path", ""), "run.artifact_manifest_path")
+        add_required("rollback_manifest", run.get("rollback_manifest_path", ""), "run.rollback_manifest_path")
+        add_required("release_manifest", continuation.get("release_manifest_path", ""), "continuation.release_manifest_path")
+        add_required("release_patch", continuation.get("release_patch_path", ""), "continuation.release_patch_path")
+        for path in continuation.get("patch_paths", []) or []:
+            add_required("patch", path, "continuation.patch_paths")
+        for patch_set in self.storage.list_patch_sets(run_id):
+            if patch_set.get("status") in {"captured", "applied", "conflict"}:
+                add_required("patch", patch_set.get("patch_path", ""), f"patch_set:{patch_set.get('id', '')}")
+        if candidate:
+            add_required("release_manifest", candidate.get("manifest_path", ""), "release_candidate.manifest_path")
+            add_required("release_patch", candidate.get("release_patch_path", ""), "release_candidate.release_patch_path")
+
+        seen: set[tuple[str, str]] = set()
+        checked: list[dict] = []
+        missing: list[dict] = []
+        for item in required:
+            key = (item["kind"], item["path"])
+            if key in seen:
+                continue
+            seen.add(key)
+            path = Path(item["path"])
+            exists = path.exists()
+            row = {**item, "exists": exists}
+            checked.append(row)
+            if not exists:
+                missing.append(row)
+        return {"ok": not missing, "checked": checked, "missing": missing}
+
+    def _block_resume_missing_artifacts(self, run_id: str, validation: dict) -> dict:
+        run = self.storage.get_run(run_id)
+        reason = "Resume blocked because required artifacts or patch files are missing."
+        missing_paths = [item["path"] for item in validation.get("missing", [])]
+        self.storage.add_event(
+            run_id,
+            "error",
+            "recovery",
+            reason,
+            {"missing": validation.get("missing", [])},
+        )
+        repair = RepairTask(
+            id=str(uuid.uuid4()),
+            project_id=run["project_id"],
+            run_id=run_id,
+            finding_code="resume_missing_artifact",
+            assigned_role="integration",
+            status="ready",
+            reason=f"{reason} Missing: {', '.join(missing_paths)[:3500]}",
+        )
+        self.storage.save_repair_task(repair.to_dict())
+        updated = self.storage.update_run(
+            run_id,
+            status="blocked",
+            chief_summary=reason,
+            continuation_state={
+                **run.get("continuation_state", {}),
+                "schema_version": "2.2.0",
+                "checkpoint": "resume_preflight_failed",
+                "state": "blocked",
+                "next_action": "repair_missing_artifacts",
+                "failure_reason": reason,
+                "missing_artifacts": validation.get("missing", []),
+            },
+            durable_queue_state={**run.get("durable_queue_state", {}), "state": "blocked"},
+        )
+        self.storage.cancel_durable_jobs_for_run(run_id, status="cancelled", reason="resume_preflight_failed")
+        self.storage.update_project(run["project_id"], status="blocked")
+        return updated
+
     def _finalize_run_artifacts(self, project_id: str, run_id: str, quality: dict | None = None) -> dict:
         project = self.storage.get_project(project_id)
         run = self.storage.get_run(run_id)
@@ -1052,6 +1134,7 @@ class V2Orchestrator:
             "durable_queue_state": run.get("durable_queue_state", {}),
             "durable_jobs": jobs,
             "artifact_manifest_path": run.get("artifact_manifest_path", ""),
+            "recovery_contract": self._validate_run_recovery_contract(run_id),
             "context_snapshot_id": run.get("context_snapshot_id", ""),
             "effective_loc_metrics": run.get("effective_loc_metrics", {}),
             "rollback_manifest_path": run.get("rollback_manifest_path", ""),
@@ -1113,6 +1196,9 @@ class V2Orchestrator:
         if run["status"] in {"completed", "release_candidate_ready"}:
             return self.get_run(run_id)
         project = self.storage.get_project(run["project_id"])
+        recovery = self._validate_run_recovery_contract(run_id)
+        if not recovery["ok"]:
+            return self._block_resume_missing_artifacts(run_id, recovery)
         job = self.storage.enqueue_durable_job(
             {
                 "tenant_id": run.get("tenant_id") or project.get("tenant_id", self.default_tenant["id"]),

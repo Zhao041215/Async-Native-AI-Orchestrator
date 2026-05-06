@@ -80,10 +80,19 @@ class V2ChiefExecutor:
             run_id,
             continuation_state={
                 **self.storage.get_run(run_id).get("continuation_state", {}),
+                "schema_version": "2.2.0",
+                "checkpoint": "blueprint_complete",
                 "state": "running",
                 "next_action": "execute_waves",
                 "completed_waves": [],
                 "pending_waves": [wave.get("id") for wave in dag.get("waves", [])],
+                "completed_packages": [],
+                "pending_packages": list(package_map.keys()),
+                "applied_patch_ids": [],
+                "pending_patch_ids": [],
+                "patch_paths": [],
+                "release_manifest_path": "",
+                "failure_reason": "",
                 "summary": "DAG waves are ready for execution.",
             },
         )
@@ -109,9 +118,12 @@ class V2ChiefExecutor:
             continuation = run_state.get("continuation_state", {})
             continuation.update(
                 {
+                    "schema_version": "2.2.0",
+                    "checkpoint": "wave_started",
                     "state": "running",
                     "next_action": "execute_wave",
                     "current_wave": wave.get("id"),
+                    "current_packages": [item["id"] for item in work_packages],
                     "summary": f"Executing {wave.get('id')}.",
                 }
             )
@@ -158,12 +170,28 @@ class V2ChiefExecutor:
             if wave.get("id") not in completed:
                 completed.append(wave.get("id"))
             pending = [item for item in continuation.get("pending_waves", []) if item != wave.get("id")]
+            completed_packages = set(continuation.get("completed_packages", []))
+            for result in attempt_results:
+                if result.agent_run.get("status") == "completed":
+                    completed_packages.add(result.agent_run["work_package_id"])
+            completed_package_list = sorted(completed_packages)
+            pending_packages = [item for item in package_map if item not in completed_package_list]
+            patch_paths = [
+                item["patch_path"]
+                for item in self.storage.list_patch_sets(run_id)
+                if item.get("patch_path")
+            ]
             continuation.update(
                 {
+                    "schema_version": "2.2.0",
+                    "checkpoint": "wave_complete",
                     "state": "running",
                     "next_action": "execute_waves" if pending else "integrate_and_validate",
                     "completed_waves": completed,
                     "pending_waves": pending,
+                    "completed_packages": completed_package_list,
+                    "pending_packages": pending_packages,
+                    "patch_paths": patch_paths,
                     "summary": f"{wave.get('id')} completed.",
                 }
             )
@@ -448,10 +476,45 @@ class V2ChiefExecutor:
                 return self._block_run(project_id, run_id, f"Patch conflict while applying {patch_set['work_package_id']}.")
             applied_patch_sets.append(patch_set)
             self.storage.update_patch_set(patch_set["id"], status="applied")
+        current = self.storage.get_run(run_id)
+        self.storage.update_run(
+            run_id,
+            continuation_state={
+                **current.get("continuation_state", {}),
+                "schema_version": "2.2.0",
+                "checkpoint": "integration_complete",
+                "state": "integration",
+                "next_action": "test_gate",
+                "applied_patch_ids": [item["id"] for item in applied_patch_sets],
+                "pending_patch_ids": [
+                    item["id"]
+                    for item in patch_sets
+                    if item.get("status") == "captured" and item["id"] not in {applied["id"] for applied in applied_patch_sets}
+                ],
+                "patch_paths": [
+                    item["patch_path"]
+                    for item in self.storage.list_patch_sets(run_id)
+                    if item.get("patch_path")
+                ],
+                "summary": "Patch integration completed.",
+            },
+        )
 
         test_results = self.test_runner.run(integration_path, repair_round=0)
         for result in test_results:
             self.storage.save_test_run(run_id, result)
+        current = self.storage.get_run(run_id)
+        self.storage.update_run(
+            run_id,
+            continuation_state={
+                **current.get("continuation_state", {}),
+                "schema_version": "2.2.0",
+                "checkpoint": "test_gate_complete",
+                "state": "test_gate",
+                "next_action": "quality_gate",
+                "summary": "Executable test gate completed.",
+            },
+        )
         if not test_results or any(item["status"] != "passed" for item in test_results):
             failure_context = "\n".join(
                 f"{item.get('command')}: {item.get('stderr') or item.get('stdout')}" for item in test_results
@@ -492,6 +555,8 @@ class V2ChiefExecutor:
             quality_gate_history=history,
             continuation_state={
                 **self.storage.get_run(run_id).get("continuation_state", {}),
+                "schema_version": "2.2.0",
+                "checkpoint": "quality_gate_complete",
                 "state": "quality_gate",
                 "next_action": "release_candidate" if quality["status"] == "passed" else "repair_quality",
                 "summary": quality.get("summary", ""),
@@ -528,12 +593,16 @@ class V2ChiefExecutor:
                 run_id,
                 status="blocked",
                 chief_summary=summary,
-                continuation_state={
-                    **self.storage.get_run(run_id).get("continuation_state", {}),
-                    "state": "blocked",
-                    "next_action": "repair_release_safeguards",
-                    "summary": summary,
-                },
+            continuation_state={
+                **self.storage.get_run(run_id).get("continuation_state", {}),
+                "schema_version": "2.2.0",
+                "checkpoint": "release_candidate_complete",
+                "state": "blocked",
+                "next_action": "repair_release_safeguards",
+                "release_manifest_path": str(run_root / "release-manifest.json"),
+                "release_patch_path": str(release_patch_path),
+                "summary": summary,
+            },
             )
             self.storage.update_project(project_id, status="blocked")
             self.storage.add_event(
@@ -555,8 +624,12 @@ class V2ChiefExecutor:
             chief_summary="Chief produced a tested release candidate.",
             continuation_state={
                 **self.storage.get_run(run_id).get("continuation_state", {}),
+                "schema_version": "2.2.0",
+                "checkpoint": "release_candidate_complete",
                 "state": "release_candidate_ready",
                 "next_action": "approval",
+                "release_manifest_path": str(run_root / "release-manifest.json"),
+                "release_patch_path": str(release_patch_path),
                 "summary": "Release candidate is ready for approval.",
             },
         )
@@ -605,6 +678,8 @@ class V2ChiefExecutor:
                 repair_round_count=max(int(current.get("repair_round_count", 0) or 0), repair_round),
                 continuation_state={
                     **current.get("continuation_state", {}),
+                    "schema_version": "2.2.0",
+                    "checkpoint": "test_repair_started",
                     "state": "repairing",
                     "next_action": "repair_tests",
                     "summary": f"Running test repair round {repair_round}.",
@@ -640,6 +715,20 @@ class V2ChiefExecutor:
                 continue
             patch_sets.append(attempt.patch_set)
             self.storage.update_patch_set(attempt.patch_set["id"], status="applied")
+            current = self.storage.get_run(run_id)
+            self.storage.update_run(
+                run_id,
+                continuation_state={
+                    **current.get("continuation_state", {}),
+                    "schema_version": "2.2.0",
+                    "checkpoint": "patch_capture_complete",
+                    "patch_paths": [
+                        item["patch_path"]
+                        for item in self.storage.list_patch_sets(run_id)
+                        if item.get("patch_path")
+                    ],
+                },
+            )
             results = self.test_runner.run(integration_path, repair_round=repair_round)
             for result in results:
                 self.storage.save_test_run(run_id, result)
