@@ -1,1 +1,1 @@
-"""Hosted V2 multi-agent development control plane."""
+"""V4 multi-process autonomous delivery control plane."""

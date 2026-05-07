@@ -38,6 +38,7 @@ class LLMConfig:
 class RuntimeConfig:
     workspace_root: str = "workspace/projects"
     db_path: str = "workspace/orchestrator.db"
+    database_url: str = "postgresql+psycopg://orchestrator:orchestrator@localhost:5432/orchestrator"
     logs_path: str = "logs"
     python_cmd: str = "python"
     max_shell_seconds: int = 120
@@ -46,8 +47,8 @@ class RuntimeConfig:
     max_conflicts_per_task: int = 8
     max_resume_attempts_per_task: int = 6
     max_failures_per_task: int = 8
-    deployment_mode: str = "hosted-multi-user-local"
-    queue_mode: str = "local-adapter"
+    deployment_mode: str = "docker-compose-v4"
+    queue_mode: str = "postgres-durable"
     sandbox_mode: str = "tenant-governed-worktree"
 
 
@@ -65,9 +66,9 @@ class IdentityConfig:
 
 @dataclass
 class ProductionScaffoldConfig:
-    queue_backend: str = "redis-compatible"
-    worker_model: str = "hosted-worker"
-    deployment_target: str = "hosted-local"
+    queue_backend: str = "postgres-durable"
+    worker_model: str = "multi-process-worker"
+    deployment_target: str = "docker-compose-v4"
     diagnostics_enabled: bool = True
     future_auth_enabled: bool = True
 
@@ -89,6 +90,10 @@ class AppConfig:
     @property
     def db_path(self) -> Path:
         return (self.root_dir / self.runtime.db_path).resolve()
+
+    @property
+    def database_url(self) -> str:
+        return self.runtime.database_url
 
     @property
     def logs_path(self) -> Path:
@@ -229,16 +234,18 @@ def _normalize_production_payload(payload: dict) -> dict:
     allowed = set(ProductionScaffoldConfig.__dataclass_fields__)
     normalized = {key: value for key, value in payload.items() if key in allowed}
     queue_aliases = {
-        "in-process": "sqlite-durable",
-        "in_process": "sqlite-durable",
+        "in-process": "postgres-durable",
+        "in_process": "postgres-durable",
+        "sqlite-durable": "postgres-durable",
     }
     worker_aliases = {
-        "same-process-thread": "hosted-worker",
-        "local-thread": "local-thread",
+        "same-process-thread": "multi-process-worker",
+        "local-thread": "multi-process-worker",
+        "hosted-worker": "multi-process-worker",
     }
     deployment_aliases = {
-        "local-dev": "hosted-local",
-        "local": "hosted-local",
+        "local-dev": "docker-compose-v4",
+        "local": "docker-compose-v4",
     }
     normalized["queue_backend"] = queue_aliases.get(
         str(normalized.get("queue_backend", "")).strip().lower(),
@@ -381,6 +388,9 @@ def load_config(root_dir: Path) -> AppConfig:
     if env_supports_chat is not None:
         llm.supports_chat_completions = env_supports_chat
     runtime = RuntimeConfig(**_normalize_runtime_payload(_deep_get(payload, "runtime", {})))
+    env_database_url = os.environ.get("V4_DATABASE_URL") or os.environ.get("DATABASE_URL")
+    if env_database_url:
+        runtime.database_url = env_database_url
     identity = IdentityConfig(**_normalize_identity_payload(_deep_get(payload, "identity", {})))
     production = ProductionScaffoldConfig(**_normalize_production_payload(_deep_get(payload, "production", {})))
     config = AppConfig(

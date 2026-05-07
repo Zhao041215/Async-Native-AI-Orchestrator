@@ -1,0 +1,934 @@
+from __future__ import annotations
+
+import copy
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from typing import Any
+
+from dev_orchestrator.v4.models import DEFAULT_TENANT, new_id, normalize_database_url, utc_now
+
+try:
+    from sqlalchemy import (
+        Boolean,
+        Column,
+        DateTime,
+        Integer,
+        MetaData,
+        String,
+        Table,
+        Text,
+        and_,
+        create_engine,
+        insert,
+        select,
+        text,
+        update,
+    )
+    from sqlalchemy.dialects.postgresql import JSONB
+    from sqlalchemy.engine import Engine
+except Exception:  # pragma: no cover - lets pure unit tests run without optional deps.
+    Boolean = Column = DateTime = Integer = MetaData = String = Table = Text = None  # type: ignore[assignment]
+    and_ = create_engine = insert = select = text = update = None  # type: ignore[assignment]
+    JSONB = None  # type: ignore[assignment]
+    Engine = object  # type: ignore[assignment,misc]
+
+
+def _json_type() -> Any:
+    if JSONB is None:
+        raise RuntimeError("SQLAlchemy/psycopg dependencies are not installed")
+    return JSONB
+
+
+def _metadata() -> Any:
+    if MetaData is None:
+        raise RuntimeError("SQLAlchemy dependencies are not installed")
+    metadata = MetaData()
+    Table(
+        "tenants",
+        metadata,
+        Column("id", String(120), primary_key=True),
+        Column("name", String(255), nullable=False),
+        Column("created_at", DateTime(timezone=True), nullable=False),
+    )
+    Table(
+        "users",
+        metadata,
+        Column("id", String(120), primary_key=True),
+        Column("tenant_id", String(120), nullable=False),
+        Column("username", String(255), nullable=False),
+        Column("created_at", DateTime(timezone=True), nullable=False),
+    )
+    Table(
+        "projects",
+        metadata,
+        Column("id", String(36), primary_key=True),
+        Column("tenant_id", String(120), nullable=False),
+        Column("name", String(255), nullable=False),
+        Column("title", String(500), nullable=False),
+        Column("description", Text, nullable=False),
+        Column("project_path", Text, nullable=False),
+        Column("config", _json_type(), nullable=False),
+        Column("status", String(60), nullable=False),
+        Column("created_at", DateTime(timezone=True), nullable=False),
+        Column("updated_at", DateTime(timezone=True), nullable=False),
+    )
+    Table(
+        "runs",
+        metadata,
+        Column("id", String(36), primary_key=True),
+        Column("tenant_id", String(120), nullable=False),
+        Column("project_id", String(36), nullable=False),
+        Column("status", String(80), nullable=False),
+        Column("checkpoint", String(120), nullable=False),
+        Column("continuation", _json_type(), nullable=False),
+        Column("metadata", _json_type(), nullable=False),
+        Column("created_at", DateTime(timezone=True), nullable=False),
+        Column("updated_at", DateTime(timezone=True), nullable=False),
+    )
+    Table(
+        "work_packages",
+        metadata,
+        Column("id", String(36), primary_key=True),
+        Column("run_id", String(36), nullable=False),
+        Column("wave_id", String(36), nullable=False),
+        Column("wave_key", String(60), nullable=False),
+        Column("package_key", String(120), nullable=False),
+        Column("role", String(60), nullable=False),
+        Column("domain", String(120), nullable=False),
+        Column("status", String(80), nullable=False),
+        Column("payload", _json_type(), nullable=False),
+        Column("result", _json_type(), nullable=False),
+        Column("created_at", DateTime(timezone=True), nullable=False),
+        Column("updated_at", DateTime(timezone=True), nullable=False),
+    )
+    Table(
+        "run_waves",
+        metadata,
+        Column("id", String(36), primary_key=True),
+        Column("run_id", String(36), nullable=False),
+        Column("wave_key", String(60), nullable=False),
+        Column("sequence", Integer, nullable=False),
+        Column("status", String(80), nullable=False),
+        Column("payload", _json_type(), nullable=False),
+        Column("created_at", DateTime(timezone=True), nullable=False),
+        Column("updated_at", DateTime(timezone=True), nullable=False),
+    )
+    Table(
+        "durable_jobs",
+        metadata,
+        Column("id", String(36), primary_key=True),
+        Column("tenant_id", String(120), nullable=False),
+        Column("run_id", String(36), nullable=True),
+        Column("job_type", String(80), nullable=False),
+        Column("role", String(60), nullable=False),
+        Column("status", String(80), nullable=False),
+        Column("resume_key", String(500), nullable=False, unique=True),
+        Column("work_package_id", String(36), nullable=True),
+        Column("wave_id", String(36), nullable=True),
+        Column("payload", _json_type(), nullable=False),
+        Column("result", _json_type(), nullable=False),
+        Column("attempts", Integer, nullable=False),
+        Column("max_attempts", Integer, nullable=False),
+        Column("worker_id", String(255), nullable=False),
+        Column("lease_until", DateTime(timezone=True), nullable=True),
+        Column("heartbeat_at", DateTime(timezone=True), nullable=True),
+        Column("last_error", Text, nullable=False),
+        Column("created_at", DateTime(timezone=True), nullable=False),
+        Column("updated_at", DateTime(timezone=True), nullable=False),
+    )
+    for table_name in (
+        "agent_runs",
+        "patch_sets",
+        "integration_steps",
+        "test_runs",
+        "quality_reports",
+        "artifacts",
+        "release_candidates",
+        "rollbacks",
+        "events",
+        "context_snapshots",
+        "code_index",
+    ):
+        Table(
+            table_name,
+            metadata,
+            Column("id", String(36), primary_key=True),
+            Column("tenant_id", String(120), nullable=False),
+            Column("project_id", String(36), nullable=True),
+            Column("run_id", String(36), nullable=True),
+            Column("kind", String(120), nullable=False),
+            Column("path", Text, nullable=False),
+            Column("sha256", String(64), nullable=False),
+            Column("size", Integer, nullable=False),
+            Column("payload", _json_type(), nullable=False),
+            Column("metadata", _json_type(), nullable=False),
+            Column("created_at", DateTime(timezone=True), nullable=False),
+        )
+    return metadata
+
+
+class StoreError(RuntimeError):
+    pass
+
+
+class V4Store:
+    def bootstrap(self) -> None:
+        raise NotImplementedError
+
+    def get_or_create_tenant(self, tenant_id: str = DEFAULT_TENANT) -> dict[str, Any]:
+        raise NotImplementedError
+
+    def create_project(self, tenant_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        raise NotImplementedError
+
+    def list_projects(self, tenant_id: str) -> list[dict[str, Any]]:
+        raise NotImplementedError
+
+    def get_project(self, project_id: str) -> dict[str, Any] | None:
+        raise NotImplementedError
+
+    def create_run(self, tenant_id: str, project_id: str, metadata: dict[str, Any]) -> dict[str, Any]:
+        raise NotImplementedError
+
+    def get_run(self, run_id: str) -> dict[str, Any] | None:
+        raise NotImplementedError
+
+    def update_run(self, run_id: str, **fields: Any) -> dict[str, Any]:
+        raise NotImplementedError
+
+    def upsert_wave(self, run_id: str, wave: dict[str, Any]) -> dict[str, Any]:
+        raise NotImplementedError
+
+    def list_waves(self, run_id: str) -> list[dict[str, Any]]:
+        raise NotImplementedError
+
+    def upsert_work_package(self, run_id: str, wave_id: str, package: dict[str, Any]) -> dict[str, Any]:
+        raise NotImplementedError
+
+    def get_work_package(self, package_id: str) -> dict[str, Any] | None:
+        raise NotImplementedError
+
+    def list_work_packages(self, run_id: str) -> list[dict[str, Any]]:
+        raise NotImplementedError
+
+    def update_work_package(self, package_id: str, **fields: Any) -> dict[str, Any]:
+        raise NotImplementedError
+
+    def enqueue_job(self, tenant_id: str, job: dict[str, Any]) -> dict[str, Any]:
+        raise NotImplementedError
+
+    def claim_job(self, tenant_id: str, role: str, worker_id: str, lease_seconds: int) -> dict[str, Any] | None:
+        raise NotImplementedError
+
+    def heartbeat_job(self, job_id: str, worker_id: str, lease_seconds: int) -> dict[str, Any] | None:
+        raise NotImplementedError
+
+    def start_job(self, job_id: str, worker_id: str, lease_seconds: int) -> dict[str, Any] | None:
+        raise NotImplementedError
+
+    def finish_job(self, job_id: str, worker_id: str, result: dict[str, Any]) -> dict[str, Any]:
+        raise NotImplementedError
+
+    def fail_job(self, job_id: str, worker_id: str, error: str, retryable: bool = True) -> dict[str, Any]:
+        raise NotImplementedError
+
+    def requeue_expired_jobs(self, tenant_id: str) -> int:
+        raise NotImplementedError
+
+    def list_jobs(self, run_id: str | None = None, status: str | None = None) -> list[dict[str, Any]]:
+        raise NotImplementedError
+
+    def add_artifact(self, tenant_id: str, project_id: str | None, artifact: dict[str, Any]) -> dict[str, Any]:
+        raise NotImplementedError
+
+    def list_artifacts(self, run_id: str) -> list[dict[str, Any]]:
+        raise NotImplementedError
+
+    def add_event(self, tenant_id: str, project_id: str | None, run_id: str | None, event_type: str, payload: dict[str, Any]) -> dict[str, Any]:
+        raise NotImplementedError
+
+
+class PostgresV4Store(V4Store):
+    def __init__(self, database_url: str):
+        if not database_url:
+            raise StoreError("V4_DATABASE_URL is required")
+        if not database_url.startswith(("postgresql://", "postgresql+psycopg://")):
+            raise StoreError("V4 requires a Postgres database URL")
+        self.database_url = normalize_database_url(database_url)
+        if create_engine is None:
+            raise StoreError("SQLAlchemy/psycopg dependencies are not installed")
+        self.engine: Engine = create_engine(self.database_url, pool_pre_ping=True)
+        self.metadata = _metadata()
+        self.tables = self.metadata.tables
+
+    def bootstrap(self) -> None:
+        self.metadata.create_all(self.engine)
+        self.get_or_create_tenant(DEFAULT_TENANT)
+
+    def _row(self, row: Any) -> dict[str, Any] | None:
+        if row is None:
+            return None
+        return self._clean(dict(row._mapping))
+
+    def _clean(self, value: Any) -> Any:
+        if isinstance(value, datetime):
+            return value.isoformat()
+        if isinstance(value, dict):
+            return {key: self._clean(item) for key, item in value.items()}
+        if isinstance(value, list):
+            return [self._clean(item) for item in value]
+        return value
+
+    def get_or_create_tenant(self, tenant_id: str = DEFAULT_TENANT) -> dict[str, Any]:
+        tenant_id = tenant_id or DEFAULT_TENANT
+        table = self.tables["tenants"]
+        with self.engine.begin() as conn:
+            existing = conn.execute(select(table).where(table.c.id == tenant_id)).first()
+            if existing:
+                return self._row(existing) or {}
+            now = utc_now()
+            payload = {"id": tenant_id, "name": tenant_id, "created_at": now}
+            conn.execute(insert(table).values(**payload))
+            return self._clean(payload)
+
+    def create_project(self, tenant_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        table = self.tables["projects"]
+        now = utc_now()
+        row = {
+            "id": new_id(),
+            "tenant_id": tenant_id or DEFAULT_TENANT,
+            "name": payload["name"],
+            "title": payload.get("title") or payload["name"],
+            "description": payload.get("description") or "",
+            "project_path": payload.get("project_path") or "",
+            "config": payload.get("config") or {},
+            "status": "created",
+            "created_at": now,
+            "updated_at": now,
+        }
+        with self.engine.begin() as conn:
+            conn.execute(insert(table).values(**row))
+        return self._clean(row)
+
+    def list_projects(self, tenant_id: str) -> list[dict[str, Any]]:
+        table = self.tables["projects"]
+        with self.engine.begin() as conn:
+            rows = conn.execute(select(table).where(table.c.tenant_id == tenant_id).order_by(table.c.created_at.desc())).all()
+        return [self._row(row) or {} for row in rows]
+
+    def get_project(self, project_id: str) -> dict[str, Any] | None:
+        table = self.tables["projects"]
+        with self.engine.begin() as conn:
+            return self._row(conn.execute(select(table).where(table.c.id == project_id)).first())
+
+    def create_run(self, tenant_id: str, project_id: str, metadata: dict[str, Any]) -> dict[str, Any]:
+        table = self.tables["runs"]
+        now = utc_now()
+        run_id = new_id()
+        continuation = {
+            "schema_version": "4.0",
+            "run_id": run_id,
+            "checkpoint": "run_created",
+            "current_wave": None,
+            "completed_waves": [],
+            "completed_packages": [],
+            "pending_packages": [],
+            "leased_jobs": [],
+            "patch_sets": [],
+            "integration_status": "pending",
+            "test_status": "pending",
+            "quality_status": "pending",
+            "release_status": "pending",
+            "failure_reason": "",
+            "next_action": "chief_plan",
+        }
+        row = {
+            "id": run_id,
+            "tenant_id": tenant_id or DEFAULT_TENANT,
+            "project_id": project_id,
+            "status": "queued",
+            "checkpoint": "run_created",
+            "continuation": continuation,
+            "metadata": metadata,
+            "created_at": now,
+            "updated_at": now,
+        }
+        with self.engine.begin() as conn:
+            conn.execute(insert(table).values(**row))
+        return self._clean(row)
+
+    def get_run(self, run_id: str) -> dict[str, Any] | None:
+        table = self.tables["runs"]
+        with self.engine.begin() as conn:
+            return self._row(conn.execute(select(table).where(table.c.id == run_id)).first())
+
+    def update_run(self, run_id: str, **fields: Any) -> dict[str, Any]:
+        table = self.tables["runs"]
+        fields["updated_at"] = utc_now()
+        with self.engine.begin() as conn:
+            conn.execute(update(table).where(table.c.id == run_id).values(**fields))
+            row = conn.execute(select(table).where(table.c.id == run_id)).first()
+        if not row:
+            raise StoreError(f"run not found: {run_id}")
+        return self._row(row) or {}
+
+    def upsert_wave(self, run_id: str, wave: dict[str, Any]) -> dict[str, Any]:
+        table = self.tables["run_waves"]
+        now = utc_now()
+        row = {
+            "id": wave["id"],
+            "run_id": run_id,
+            "wave_key": wave["wave_key"],
+            "sequence": wave["sequence"],
+            "status": wave.get("status", "queued"),
+            "payload": wave,
+            "created_at": now,
+            "updated_at": now,
+        }
+        with self.engine.begin() as conn:
+            existing = conn.execute(select(table).where(table.c.id == wave["id"])).first()
+            if existing:
+                conn.execute(update(table).where(table.c.id == wave["id"]).values(status=row["status"], payload=row["payload"], updated_at=now))
+            else:
+                conn.execute(insert(table).values(**row))
+        return self._clean(row)
+
+    def list_waves(self, run_id: str) -> list[dict[str, Any]]:
+        table = self.tables["run_waves"]
+        with self.engine.begin() as conn:
+            rows = conn.execute(select(table).where(table.c.run_id == run_id).order_by(table.c.sequence.asc())).all()
+        return [self._row(row) or {} for row in rows]
+
+    def upsert_work_package(self, run_id: str, wave_id: str, package: dict[str, Any]) -> dict[str, Any]:
+        table = self.tables["work_packages"]
+        now = utc_now()
+        row = {
+            "id": package["id"],
+            "run_id": run_id,
+            "wave_id": wave_id,
+            "wave_key": package["wave_key"],
+            "package_key": package["package_key"],
+            "role": package["role"],
+            "domain": package["domain"],
+            "status": package.get("status", "queued"),
+            "payload": package,
+            "result": package.get("result", {}),
+            "created_at": now,
+            "updated_at": now,
+        }
+        with self.engine.begin() as conn:
+            existing = conn.execute(select(table).where(table.c.id == package["id"])).first()
+            if existing:
+                conn.execute(update(table).where(table.c.id == package["id"]).values(status=row["status"], payload=row["payload"], result=row["result"], updated_at=now))
+            else:
+                conn.execute(insert(table).values(**row))
+        return self._clean(row)
+
+    def get_work_package(self, package_id: str) -> dict[str, Any] | None:
+        table = self.tables["work_packages"]
+        with self.engine.begin() as conn:
+            return self._row(conn.execute(select(table).where(table.c.id == package_id)).first())
+
+    def list_work_packages(self, run_id: str) -> list[dict[str, Any]]:
+        table = self.tables["work_packages"]
+        with self.engine.begin() as conn:
+            rows = conn.execute(select(table).where(table.c.run_id == run_id).order_by(table.c.created_at.asc())).all()
+        return [self._row(row) or {} for row in rows]
+
+    def update_work_package(self, package_id: str, **fields: Any) -> dict[str, Any]:
+        table = self.tables["work_packages"]
+        fields["updated_at"] = utc_now()
+        with self.engine.begin() as conn:
+            conn.execute(update(table).where(table.c.id == package_id).values(**fields))
+            row = conn.execute(select(table).where(table.c.id == package_id)).first()
+        if not row:
+            raise StoreError(f"work package not found: {package_id}")
+        return self._row(row) or {}
+
+    def enqueue_job(self, tenant_id: str, job: dict[str, Any]) -> dict[str, Any]:
+        table = self.tables["durable_jobs"]
+        now = utc_now()
+        row = {
+            "id": job.get("id") or new_id(),
+            "tenant_id": tenant_id or DEFAULT_TENANT,
+            "run_id": job.get("run_id"),
+            "job_type": job["job_type"],
+            "role": job["role"],
+            "status": job.get("status", "queued"),
+            "resume_key": job["resume_key"],
+            "work_package_id": job.get("work_package_id"),
+            "wave_id": job.get("wave_id"),
+            "payload": job.get("payload") or {},
+            "result": job.get("result") or {},
+            "attempts": int(job.get("attempts") or 0),
+            "max_attempts": int(job.get("max_attempts") or 3),
+            "worker_id": "",
+            "lease_until": None,
+            "heartbeat_at": None,
+            "last_error": "",
+            "created_at": now,
+            "updated_at": now,
+        }
+        with self.engine.begin() as conn:
+            existing = conn.execute(select(table).where(table.c.resume_key == row["resume_key"])).first()
+            if existing:
+                return self._row(existing) or {}
+            conn.execute(insert(table).values(**row))
+        return self._clean(row)
+
+    def claim_job(self, tenant_id: str, role: str, worker_id: str, lease_seconds: int) -> dict[str, Any] | None:
+        if text is None:
+            raise StoreError("SQLAlchemy dependencies are not installed")
+        now = utc_now()
+        lease_until = now + timedelta(seconds=lease_seconds)
+        sql = text(
+            """
+            WITH candidate AS (
+              SELECT id
+              FROM durable_jobs
+              WHERE tenant_id = :tenant_id
+                AND role = :role
+                AND status IN ('queued', 'retry')
+              ORDER BY created_at
+              FOR UPDATE SKIP LOCKED
+              LIMIT 1
+            )
+            UPDATE durable_jobs
+            SET status = 'leased',
+                attempts = attempts + 1,
+                worker_id = :worker_id,
+                lease_until = :lease_until,
+                heartbeat_at = :now,
+                updated_at = :now
+            WHERE id = (SELECT id FROM candidate)
+            RETURNING *
+            """
+        )
+        with self.engine.begin() as conn:
+            row = conn.execute(sql, {"tenant_id": tenant_id, "role": role, "worker_id": worker_id, "lease_until": lease_until, "now": now}).first()
+        return self._row(row)
+
+    def heartbeat_job(self, job_id: str, worker_id: str, lease_seconds: int) -> dict[str, Any] | None:
+        table = self.tables["durable_jobs"]
+        now = utc_now()
+        with self.engine.begin() as conn:
+            conn.execute(
+                update(table)
+                .where(and_(table.c.id == job_id, table.c.worker_id == worker_id, table.c.status.in_(("leased", "running"))))
+                .values(heartbeat_at=now, lease_until=now + timedelta(seconds=lease_seconds), updated_at=now)
+            )
+            row = conn.execute(select(table).where(table.c.id == job_id)).first()
+        return self._row(row)
+
+    def start_job(self, job_id: str, worker_id: str, lease_seconds: int) -> dict[str, Any] | None:
+        table = self.tables["durable_jobs"]
+        now = utc_now()
+        with self.engine.begin() as conn:
+            conn.execute(
+                update(table)
+                .where(and_(table.c.id == job_id, table.c.worker_id == worker_id, table.c.status == "leased"))
+                .values(status="running", heartbeat_at=now, lease_until=now + timedelta(seconds=lease_seconds), updated_at=now)
+            )
+            row = conn.execute(select(table).where(table.c.id == job_id)).first()
+        return self._row(row)
+
+    def finish_job(self, job_id: str, worker_id: str, result: dict[str, Any]) -> dict[str, Any]:
+        table = self.tables["durable_jobs"]
+        now = utc_now()
+        with self.engine.begin() as conn:
+            conn.execute(
+                update(table)
+                .where(and_(table.c.id == job_id, table.c.worker_id == worker_id))
+                .values(status="completed", result=result, lease_until=None, heartbeat_at=now, updated_at=now)
+            )
+            row = conn.execute(select(table).where(table.c.id == job_id)).first()
+        if not row:
+            raise StoreError(f"job not found: {job_id}")
+        return self._row(row) or {}
+
+    def fail_job(self, job_id: str, worker_id: str, error: str, retryable: bool = True) -> dict[str, Any]:
+        table = self.tables["durable_jobs"]
+        now = utc_now()
+        with self.engine.begin() as conn:
+            row = conn.execute(select(table).where(table.c.id == job_id)).first()
+            if not row:
+                raise StoreError(f"job not found: {job_id}")
+            current = self._row(row) or {}
+            status = "retry" if retryable and current["attempts"] < current["max_attempts"] else "dead_letter"
+            conn.execute(
+                update(table)
+                .where(and_(table.c.id == job_id, table.c.worker_id == worker_id))
+                .values(status=status, last_error=error[:2000], worker_id="", lease_until=None, heartbeat_at=now, updated_at=now)
+            )
+            updated_row = conn.execute(select(table).where(table.c.id == job_id)).first()
+        return self._row(updated_row) or {}
+
+    def requeue_expired_jobs(self, tenant_id: str) -> int:
+        table = self.tables["durable_jobs"]
+        now = utc_now()
+        with self.engine.begin() as conn:
+            rows = conn.execute(select(table).where(and_(table.c.tenant_id == tenant_id, table.c.status.in_(("leased", "running")), table.c.lease_until < now))).all()
+            count = 0
+            for row in rows:
+                item = self._row(row) or {}
+                status = "retry" if item["attempts"] < item["max_attempts"] else "dead_letter"
+                conn.execute(update(table).where(table.c.id == item["id"]).values(status=status, worker_id="", lease_until=None, updated_at=now))
+                count += 1
+        return count
+
+    def list_jobs(self, run_id: str | None = None, status: str | None = None) -> list[dict[str, Any]]:
+        table = self.tables["durable_jobs"]
+        statement = select(table).order_by(table.c.created_at.asc())
+        if run_id:
+            statement = statement.where(table.c.run_id == run_id)
+        if status:
+            statement = statement.where(table.c.status == status)
+        with self.engine.begin() as conn:
+            rows = conn.execute(statement).all()
+        return [self._row(row) or {} for row in rows]
+
+    def add_artifact(self, tenant_id: str, project_id: str | None, artifact: dict[str, Any]) -> dict[str, Any]:
+        table = self.tables["artifacts"]
+        now = utc_now()
+        row = {
+            "id": artifact.get("id") or new_id(),
+            "tenant_id": tenant_id or DEFAULT_TENANT,
+            "project_id": project_id,
+            "run_id": artifact.get("run_id"),
+            "kind": artifact["kind"],
+            "path": artifact["path"],
+            "sha256": artifact.get("sha256", ""),
+            "size": int(artifact.get("size") or 0),
+            "payload": artifact.get("payload") or {},
+            "metadata": artifact.get("metadata") or {},
+            "created_at": now,
+        }
+        with self.engine.begin() as conn:
+            conn.execute(insert(table).values(**row))
+        return self._clean(row)
+
+    def list_artifacts(self, run_id: str) -> list[dict[str, Any]]:
+        table = self.tables["artifacts"]
+        with self.engine.begin() as conn:
+            rows = conn.execute(select(table).where(table.c.run_id == run_id).order_by(table.c.created_at.asc())).all()
+        return [self._row(row) or {} for row in rows]
+
+    def add_event(self, tenant_id: str, project_id: str | None, run_id: str | None, event_type: str, payload: dict[str, Any]) -> dict[str, Any]:
+        artifact = {
+            "id": new_id(),
+            "run_id": run_id,
+            "kind": event_type,
+            "path": "",
+            "sha256": "",
+            "size": 0,
+            "payload": payload,
+            "metadata": {"event_type": event_type},
+        }
+        table = self.tables["events"]
+        now = utc_now()
+        row = {
+            "id": artifact["id"],
+            "tenant_id": tenant_id or DEFAULT_TENANT,
+            "project_id": project_id,
+            "run_id": run_id,
+            "kind": event_type,
+            "path": "",
+            "sha256": "",
+            "size": 0,
+            "payload": payload,
+            "metadata": artifact["metadata"],
+            "created_at": now,
+        }
+        with self.engine.begin() as conn:
+            conn.execute(insert(table).values(**row))
+        return self._clean(row)
+
+
+class InMemoryV4Store(V4Store):
+    def __init__(self):
+        self.tenants: dict[str, dict[str, Any]] = {}
+        self.projects: dict[str, dict[str, Any]] = {}
+        self.runs: dict[str, dict[str, Any]] = {}
+        self.waves: dict[str, dict[str, Any]] = {}
+        self.packages: dict[str, dict[str, Any]] = {}
+        self.jobs: dict[str, dict[str, Any]] = {}
+        self.artifacts: dict[str, dict[str, Any]] = {}
+        self.events: dict[str, dict[str, Any]] = {}
+
+    def bootstrap(self) -> None:
+        self.get_or_create_tenant(DEFAULT_TENANT)
+
+    def _copy(self, value: Any) -> Any:
+        return copy.deepcopy(value)
+
+    def get_or_create_tenant(self, tenant_id: str = DEFAULT_TENANT) -> dict[str, Any]:
+        tenant_id = tenant_id or DEFAULT_TENANT
+        if tenant_id not in self.tenants:
+            self.tenants[tenant_id] = {"id": tenant_id, "name": tenant_id, "created_at": utc_now().isoformat()}
+        return self._copy(self.tenants[tenant_id])
+
+    def create_project(self, tenant_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        now = utc_now().isoformat()
+        row = {
+            "id": new_id(),
+            "tenant_id": tenant_id or DEFAULT_TENANT,
+            "name": payload["name"],
+            "title": payload.get("title") or payload["name"],
+            "description": payload.get("description") or "",
+            "project_path": payload.get("project_path") or "",
+            "config": payload.get("config") or {},
+            "status": "created",
+            "created_at": now,
+            "updated_at": now,
+        }
+        self.projects[row["id"]] = row
+        return self._copy(row)
+
+    def list_projects(self, tenant_id: str) -> list[dict[str, Any]]:
+        return [self._copy(project) for project in self.projects.values() if project["tenant_id"] == tenant_id]
+
+    def get_project(self, project_id: str) -> dict[str, Any] | None:
+        project = self.projects.get(project_id)
+        return self._copy(project) if project else None
+
+    def create_run(self, tenant_id: str, project_id: str, metadata: dict[str, Any]) -> dict[str, Any]:
+        now = utc_now().isoformat()
+        run_id = new_id()
+        continuation = {
+            "schema_version": "4.0",
+            "run_id": run_id,
+            "checkpoint": "run_created",
+            "current_wave": None,
+            "completed_waves": [],
+            "completed_packages": [],
+            "pending_packages": [],
+            "leased_jobs": [],
+            "patch_sets": [],
+            "integration_status": "pending",
+            "test_status": "pending",
+            "quality_status": "pending",
+            "release_status": "pending",
+            "failure_reason": "",
+            "next_action": "chief_plan",
+        }
+        row = {
+            "id": run_id,
+            "tenant_id": tenant_id or DEFAULT_TENANT,
+            "project_id": project_id,
+            "status": "queued",
+            "checkpoint": "run_created",
+            "continuation": continuation,
+            "metadata": metadata,
+            "created_at": now,
+            "updated_at": now,
+        }
+        self.runs[run_id] = row
+        return self._copy(row)
+
+    def get_run(self, run_id: str) -> dict[str, Any] | None:
+        run = self.runs.get(run_id)
+        return self._copy(run) if run else None
+
+    def update_run(self, run_id: str, **fields: Any) -> dict[str, Any]:
+        if run_id not in self.runs:
+            raise StoreError(f"run not found: {run_id}")
+        self.runs[run_id].update(fields)
+        self.runs[run_id]["updated_at"] = utc_now().isoformat()
+        return self._copy(self.runs[run_id])
+
+    def upsert_wave(self, run_id: str, wave: dict[str, Any]) -> dict[str, Any]:
+        now = utc_now().isoformat()
+        row = {
+            "id": wave["id"],
+            "run_id": run_id,
+            "wave_key": wave["wave_key"],
+            "sequence": wave["sequence"],
+            "status": wave.get("status", "queued"),
+            "payload": wave,
+            "created_at": self.waves.get(wave["id"], {}).get("created_at", now),
+            "updated_at": now,
+        }
+        self.waves[row["id"]] = row
+        return self._copy(row)
+
+    def list_waves(self, run_id: str) -> list[dict[str, Any]]:
+        return [self._copy(wave) for wave in sorted(self.waves.values(), key=lambda item: item["sequence"]) if wave["run_id"] == run_id]
+
+    def upsert_work_package(self, run_id: str, wave_id: str, package: dict[str, Any]) -> dict[str, Any]:
+        now = utc_now().isoformat()
+        row = {
+            "id": package["id"],
+            "run_id": run_id,
+            "wave_id": wave_id,
+            "wave_key": package["wave_key"],
+            "package_key": package["package_key"],
+            "role": package["role"],
+            "domain": package["domain"],
+            "status": package.get("status", "queued"),
+            "payload": package,
+            "result": package.get("result", {}),
+            "created_at": self.packages.get(package["id"], {}).get("created_at", now),
+            "updated_at": now,
+        }
+        self.packages[row["id"]] = row
+        return self._copy(row)
+
+    def get_work_package(self, package_id: str) -> dict[str, Any] | None:
+        package = self.packages.get(package_id)
+        return self._copy(package) if package else None
+
+    def list_work_packages(self, run_id: str) -> list[dict[str, Any]]:
+        return [self._copy(package) for package in self.packages.values() if package["run_id"] == run_id]
+
+    def update_work_package(self, package_id: str, **fields: Any) -> dict[str, Any]:
+        if package_id not in self.packages:
+            raise StoreError(f"work package not found: {package_id}")
+        self.packages[package_id].update(fields)
+        self.packages[package_id]["updated_at"] = utc_now().isoformat()
+        return self._copy(self.packages[package_id])
+
+    def enqueue_job(self, tenant_id: str, job: dict[str, Any]) -> dict[str, Any]:
+        for existing in self.jobs.values():
+            if existing["resume_key"] == job["resume_key"]:
+                return self._copy(existing)
+        now = utc_now().isoformat()
+        row = {
+            "id": job.get("id") or new_id(),
+            "tenant_id": tenant_id or DEFAULT_TENANT,
+            "run_id": job.get("run_id"),
+            "job_type": job["job_type"],
+            "role": job["role"],
+            "status": job.get("status", "queued"),
+            "resume_key": job["resume_key"],
+            "work_package_id": job.get("work_package_id"),
+            "wave_id": job.get("wave_id"),
+            "payload": job.get("payload") or {},
+            "result": job.get("result") or {},
+            "attempts": int(job.get("attempts") or 0),
+            "max_attempts": int(job.get("max_attempts") or 3),
+            "worker_id": "",
+            "lease_until": None,
+            "heartbeat_at": None,
+            "last_error": "",
+            "created_at": now,
+            "updated_at": now,
+        }
+        self.jobs[row["id"]] = row
+        return self._copy(row)
+
+    def claim_job(self, tenant_id: str, role: str, worker_id: str, lease_seconds: int) -> dict[str, Any] | None:
+        for job in sorted(self.jobs.values(), key=lambda item: item["created_at"]):
+            if job["tenant_id"] == tenant_id and job["role"] == role and job["status"] in {"queued", "retry"}:
+                job["status"] = "leased"
+                job["attempts"] += 1
+                job["worker_id"] = worker_id
+                lease_until = datetime.now(timezone.utc) + timedelta(seconds=lease_seconds)
+                job["lease_until"] = lease_until.isoformat()
+                job["heartbeat_at"] = utc_now().isoformat()
+                job["updated_at"] = utc_now().isoformat()
+                return self._copy(job)
+        return None
+
+    def heartbeat_job(self, job_id: str, worker_id: str, lease_seconds: int) -> dict[str, Any] | None:
+        job = self.jobs.get(job_id)
+        if not job or job["worker_id"] != worker_id:
+            return None
+        job["heartbeat_at"] = utc_now().isoformat()
+        job["lease_until"] = (datetime.now(timezone.utc) + timedelta(seconds=lease_seconds)).isoformat()
+        job["updated_at"] = utc_now().isoformat()
+        return self._copy(job)
+
+    def start_job(self, job_id: str, worker_id: str, lease_seconds: int) -> dict[str, Any] | None:
+        job = self.jobs.get(job_id)
+        if not job or job["worker_id"] != worker_id or job["status"] != "leased":
+            return None
+        job["status"] = "running"
+        job["heartbeat_at"] = utc_now().isoformat()
+        job["lease_until"] = (datetime.now(timezone.utc) + timedelta(seconds=lease_seconds)).isoformat()
+        job["updated_at"] = utc_now().isoformat()
+        return self._copy(job)
+
+    def finish_job(self, job_id: str, worker_id: str, result: dict[str, Any]) -> dict[str, Any]:
+        job = self.jobs[job_id]
+        if job["worker_id"] != worker_id:
+            raise StoreError("worker does not own job")
+        job["status"] = "completed"
+        job["result"] = result
+        job["lease_until"] = None
+        job["updated_at"] = utc_now().isoformat()
+        return self._copy(job)
+
+    def fail_job(self, job_id: str, worker_id: str, error: str, retryable: bool = True) -> dict[str, Any]:
+        job = self.jobs[job_id]
+        if job["worker_id"] != worker_id:
+            raise StoreError("worker does not own job")
+        job["status"] = "retry" if retryable and job["attempts"] < job["max_attempts"] else "dead_letter"
+        job["worker_id"] = ""
+        job["lease_until"] = None
+        job["last_error"] = error[:2000]
+        job["updated_at"] = utc_now().isoformat()
+        return self._copy(job)
+
+    def requeue_expired_jobs(self, tenant_id: str) -> int:
+        now = datetime.now(timezone.utc)
+        count = 0
+        for job in self.jobs.values():
+            lease_until = job.get("lease_until")
+            if not lease_until:
+                continue
+            if job["tenant_id"] == tenant_id and job["status"] in {"leased", "running"} and datetime.fromisoformat(lease_until) < now:
+                job["status"] = "retry" if job["attempts"] < job["max_attempts"] else "dead_letter"
+                job["worker_id"] = ""
+                job["lease_until"] = None
+                job["updated_at"] = utc_now().isoformat()
+                count += 1
+        return count
+
+    def list_jobs(self, run_id: str | None = None, status: str | None = None) -> list[dict[str, Any]]:
+        jobs = list(self.jobs.values())
+        if run_id:
+            jobs = [job for job in jobs if job["run_id"] == run_id]
+        if status:
+            jobs = [job for job in jobs if job["status"] == status]
+        return [self._copy(job) for job in sorted(jobs, key=lambda item: item["created_at"])]
+
+    def add_artifact(self, tenant_id: str, project_id: str | None, artifact: dict[str, Any]) -> dict[str, Any]:
+        row = {
+            "id": artifact.get("id") or new_id(),
+            "tenant_id": tenant_id or DEFAULT_TENANT,
+            "project_id": project_id,
+            "run_id": artifact.get("run_id"),
+            "kind": artifact["kind"],
+            "path": artifact["path"],
+            "sha256": artifact.get("sha256", ""),
+            "size": int(artifact.get("size") or 0),
+            "payload": artifact.get("payload") or {},
+            "metadata": artifact.get("metadata") or {},
+            "created_at": utc_now().isoformat(),
+        }
+        self.artifacts[row["id"]] = row
+        return self._copy(row)
+
+    def list_artifacts(self, run_id: str) -> list[dict[str, Any]]:
+        return [self._copy(artifact) for artifact in self.artifacts.values() if artifact["run_id"] == run_id]
+
+    def add_event(self, tenant_id: str, project_id: str | None, run_id: str | None, event_type: str, payload: dict[str, Any]) -> dict[str, Any]:
+        row = {
+            "id": new_id(),
+            "tenant_id": tenant_id or DEFAULT_TENANT,
+            "project_id": project_id,
+            "run_id": run_id,
+            "kind": event_type,
+            "path": "",
+            "sha256": "",
+            "size": 0,
+            "payload": payload,
+            "metadata": {"event_type": event_type},
+            "created_at": utc_now().isoformat(),
+        }
+        self.events[row["id"]] = row
+        return self._copy(row)
+
+
+def build_store(database_url: str) -> V4Store:
+    return PostgresV4Store(database_url)

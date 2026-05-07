@@ -24,7 +24,7 @@ SOURCE_EXTENSIONS = {
     ".sh",
 }
 
-CODE_AREAS = {"apps", "tests", "infra", "src", "public", "database", "config"}
+CODE_AREAS = {"app", "apps", "assets", "tests", "infra", "src", "public", "database", "config", "release"}
 
 CONFIG_ONLY_NAMES = {
     "package.json",
@@ -45,7 +45,17 @@ def is_source_file(path: Path) -> bool:
 
 
 def is_code_area(relative_parts: tuple[str, ...]) -> bool:
-    return bool(relative_parts) and relative_parts[0] in CODE_AREAS
+    if not relative_parts:
+        return False
+    if relative_parts[0] in CODE_AREAS:
+        return True
+    return len(relative_parts) > 1 and relative_parts[0] == "release" and relative_parts[1] in CODE_AREAS
+
+
+def code_area(relative_parts: tuple[str, ...]) -> str:
+    if len(relative_parts) > 1 and relative_parts[0] == "release" and relative_parts[1] in CODE_AREAS:
+        return relative_parts[1]
+    return relative_parts[0] if relative_parts else ""
 
 
 def measure_codebase(project_root: Path) -> dict:
@@ -90,7 +100,7 @@ def measure_codebase(project_root: Path) -> dict:
         if line_count >= 5:
             contentful_files.append(relative)
 
-        area = relative_parts[0]
+        area = code_area(relative_parts)
         by_area.setdefault(area, {"source_lines": 0, "source_file_count": 0})
         by_area[area]["source_lines"] += line_count
         by_area[area]["source_file_count"] += 1

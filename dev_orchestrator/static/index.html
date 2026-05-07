@@ -1,219 +1,89 @@
 <!doctype html>
 <html lang="zh-CN">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>托管 V2 控制台</title>
-    <link rel="stylesheet" href="/styles.css" />
-  </head>
-  <body>
-    <main class="v2-shell">
-      <section class="hero-panel">
-        <div class="hero-copy">
-          <p class="eyebrow" data-text="heroEyebrow"></p>
-          <h1 data-text="heroTitle"></h1>
-          <p data-text="heroBody"></p>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>V4 自治交付控制台</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <main class="v4-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Dev Orchestrator V4</p>
+        <h1>多进程自治交付控制台</h1>
+      </div>
+      <div class="status-strip">
+        <span id="health-pill" class="pill">checking</span>
+        <span id="worker-count" class="pill">workers 0</span>
+        <button id="refresh" type="button">刷新</button>
+      </div>
+    </header>
+
+    <section class="grid">
+      <form id="project-form" class="panel">
+        <div class="panel-title">
+          <p class="eyebrow">Create</p>
+          <h2>创建并派发项目</h2>
         </div>
-        <div class="hero-metrics" aria-label="系统状态">
-          <article>
-            <span data-text="metricSurface"></span>
-            <strong>V2 Only</strong>
-          </article>
-          <article>
-            <span data-text="metricTenant"></span>
-            <strong id="tenant-pill">加载中</strong>
-          </article>
-          <article>
-            <span data-text="metricWorkers"></span>
-            <strong id="worker-count">0</strong>
-          </article>
-          <article>
-            <span data-text="metricAudits"></span>
-            <strong id="audit-count">0</strong>
-          </article>
+        <label>项目名称<input name="name" placeholder="notification-admin"></label>
+        <label>项目标题<input name="title" placeholder="企业后台系统"></label>
+        <label>技术栈
+          <select name="stack_pack">
+            <option value="auto">auto</option>
+            <option value="php_mysql_single_dir">php_mysql_single_dir</option>
+            <option value="nextjs_prisma_postgres">nextjs_prisma_postgres</option>
+            <option value="python_fastapi_postgres">python_fastapi_postgres</option>
+            <option value="react_node_mysql">react_node_mysql</option>
+            <option value="node_express_mysql">node_express_mysql</option>
+            <option value="laravel_mysql">laravel_mysql</option>
+            <option value="static_spa_api">static_spa_api</option>
+          </select>
+        </label>
+        <label>目标规模
+          <select name="target_scale">
+            <option value="small">small</option>
+            <option value="medium">medium</option>
+            <option value="large">large</option>
+            <option value="xlarge_100k">xlarge_100k</option>
+          </select>
+        </label>
+        <label>有效 LOC 目标<input name="effective_loc_target" type="number" value="1000" min="100"></label>
+        <label>需求描述<textarea name="description" rows="8" placeholder="例如：宝塔部署，PHP + MySQL，包含管理员登录、审计、报表和健康检查。"></textarea></label>
+        <button id="create-run" type="submit">创建并运行</button>
+      </form>
+
+      <section class="panel">
+        <div class="panel-title">
+          <p class="eyebrow">Projects</p>
+          <h2>项目队列</h2>
         </div>
+        <div id="project-list" class="list"></div>
       </section>
 
-      <section class="control-grid">
-        <form id="project-form" class="glass-card launch-card">
-          <div class="card-head">
-            <div>
-              <p class="eyebrow" data-text="createEyebrow"></p>
-              <h2 data-text="createTitle"></h2>
-            </div>
-            <span class="status-chip" data-text="tenantScoped"></span>
-          </div>
-          <label>
-            <span data-text="projectName"></span>
-            <input name="name" placeholder="hr-ai-platform" required />
-          </label>
-          <label>
-            <span data-text="projectTitle"></span>
-            <input name="title" placeholder="企业 HR AI 平台" required />
-          </label>
-          <label>
-            <span data-text="projectPath"></span>
-            <input name="project_path" placeholder="E:\ProgramProjects\hr-ai-platform" />
-          </label>
-          <label>
-            <span data-text="automationMode"></span>
-            <select name="automation_mode">
-              <option value="supervised_auto" data-text="modeSupervised"></option>
-              <option value="guided" data-text="modeGuided"></option>
-              <option value="full_auto_candidate" data-text="modeFullAuto"></option>
-            </select>
-          </label>
-          <label>
-            <span data-text="requirements"></span>
-            <textarea
-              name="description"
-              rows="8"
-              placeholder="Must support resume parsing, tenant isolation, SSO, audit logs, quality gates, and release approvals."
-              required
-            ></textarea>
-          </label>
-          <button id="create-submit" type="submit" data-text="createSubmit"></button>
-        </form>
-
-        <section class="glass-card model-card">
-          <div class="card-head">
-            <div>
-              <p class="eyebrow" data-text="modelEyebrow"></p>
-              <h2 data-text="modelTitle"></h2>
-            </div>
-            <span id="model-chip" class="status-chip">未测试</span>
-          </div>
-          <form id="model-form" class="model-form">
-            <label class="toggle-line">
-              <input name="use_mock" type="checkbox" />
-              <span data-text="mockMode"></span>
-            </label>
-            <label>
-              <span data-text="providerProfile"></span>
-              <select name="provider_profile"></select>
-            </label>
-            <label>
-              <span data-text="apiBase"></span>
-              <input name="api_base" placeholder="https://api.example.com/v1" />
-            </label>
-            <label>
-              <span data-text="apiPath"></span>
-              <input name="api_path" placeholder="/chat/completions" />
-            </label>
-            <label>
-              <span data-text="modelName"></span>
-              <input name="model" placeholder="gpt-4.1" />
-            </label>
-            <label>
-              <span data-text="apiKey"></span>
-              <input name="api_key" type="password" placeholder="环境变量优先；保存后不回显" autocomplete="off" />
-            </label>
-            <div class="model-grid">
-              <label>
-                <span data-text="wireApi"></span>
-                <select name="wire_api">
-                  <option value="chat_completions">chat_completions</option>
-                  <option value="responses">responses</option>
-                </select>
-              </label>
-              <label>
-                <span data-text="timeout"></span>
-                <input name="timeout_seconds" type="number" min="1" step="1" />
-              </label>
-              <label>
-                <span data-text="retries"></span>
-                <input name="retry_attempts" type="number" min="1" step="1" />
-              </label>
-              <label>
-                <span data-text="maxTokens"></span>
-                <input name="max_tokens" type="number" min="1" step="1" />
-              </label>
-              <label>
-                <span data-text="temperature"></span>
-                <input name="temperature" type="number" min="0" max="2" step="0.1" />
-              </label>
-            </div>
-            <p class="warning-note" data-text="keyWarning"></p>
-            <div class="action-row">
-              <button id="save-model-button" type="submit" data-text="saveModel"></button>
-              <button id="test-model-button" type="button" class="ghost-button" data-text="testModel"></button>
-            </div>
-            <div id="model-result" class="inline-result"></div>
-          </form>
-        </section>
-
-        <section class="glass-card project-card">
-          <div class="card-head">
-            <div>
-              <p class="eyebrow" data-text="projectsEyebrow"></p>
-              <h2 data-text="projectsTitle"></h2>
-            </div>
-            <button id="refresh-button" type="button" class="ghost-button" data-text="refresh"></button>
-          </div>
-          <div id="project-list" class="project-list"></div>
-        </section>
-
-        <section class="glass-card detail-card">
-          <div class="card-head">
-            <div>
-              <p class="eyebrow" data-text="resultEyebrow"></p>
-              <h2 id="detail-title" data-text="selectProject"></h2>
-            </div>
-            <span id="decision-chip" class="status-chip">空闲</span>
-          </div>
-          <div id="summary-grid" class="summary-grid"></div>
-          <div class="action-row">
-            <button id="approve-button" type="button" disabled data-text="approveCandidate"></button>
-            <button id="apply-button" type="button" class="ghost-button" disabled data-text="applyPatch"></button>
-          </div>
-        </section>
+      <section class="panel detail">
+        <div class="panel-title">
+          <p class="eyebrow">Run</p>
+          <h2 id="run-title">选择一个项目</h2>
+        </div>
+        <div id="run-summary" class="summary"></div>
+        <h3>Jobs</h3>
+        <div id="job-list" class="list compact"></div>
+        <h3>Continuation</h3>
+        <pre id="continuation"></pre>
+        <h3>Artifacts</h3>
+        <div id="artifact-list" class="list compact"></div>
       </section>
 
-      <section class="evidence-grid">
-        <section class="glass-card">
-          <div class="card-head compact">
-            <h2 data-text="timeline"></h2>
-            <span data-text="chiefEvents"></span>
-          </div>
-          <div id="timeline-list" class="evidence-list"></div>
-        </section>
-        <section class="glass-card">
-          <div class="card-head compact">
-            <h2 data-text="agents"></h2>
-            <span data-text="attempts"></span>
-          </div>
-          <div id="agent-list" class="evidence-list"></div>
-        </section>
-        <section class="glass-card">
-          <div class="card-head compact">
-            <h2 data-text="patches"></h2>
-            <span data-text="gitDiff"></span>
-          </div>
-          <div id="patch-list" class="evidence-list"></div>
-        </section>
-        <section class="glass-card">
-          <div class="card-head compact">
-            <h2 data-text="tests"></h2>
-            <span data-text="runtimeProof"></span>
-          </div>
-          <div id="test-list" class="evidence-list"></div>
-        </section>
-        <section class="glass-card">
-          <div class="card-head compact">
-            <h2 data-text="workers"></h2>
-            <span data-text="hostedQueue"></span>
-          </div>
-          <div id="worker-list" class="evidence-list"></div>
-        </section>
-        <section class="glass-card">
-          <div class="card-head compact">
-            <h2 data-text="audit"></h2>
-            <span data-text="tenantTrail"></span>
-          </div>
-          <div id="audit-list" class="evidence-list"></div>
-        </section>
+      <section class="panel">
+        <div class="panel-title">
+          <p class="eyebrow">Workers</p>
+          <h2>进程状态</h2>
+        </div>
+        <div id="worker-list" class="list compact"></div>
       </section>
-    </main>
-    <script src="/app.js"></script>
-  </body>
+    </section>
+  </main>
+  <script src="/static/app.js"></script>
+</body>
 </html>
