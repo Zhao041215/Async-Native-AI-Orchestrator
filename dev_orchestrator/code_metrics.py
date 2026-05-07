@@ -18,11 +18,13 @@ SOURCE_EXTENSIONS = {
     ".go",
     ".rs",
     ".cs",
+    ".php",
+    ".sql",
     ".ps1",
     ".sh",
 }
 
-CODE_AREAS = {"apps", "tests", "infra"}
+CODE_AREAS = {"apps", "tests", "infra", "src", "public", "database", "config"}
 
 CONFIG_ONLY_NAMES = {
     "package.json",
@@ -137,4 +139,3 @@ def measure_role_surface(project_root: Path, role: str) -> dict:
         "source_file_count": source_file_count,
         "contentful_files": files,
     }
-

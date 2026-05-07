@@ -5,6 +5,7 @@ import shutil
 import uuid
 from pathlib import Path
 
+from dev_orchestrator.code_metrics import measure_codebase
 from dev_orchestrator.config import (
     AppConfig,
     IdentityConfig,
@@ -18,12 +19,15 @@ from dev_orchestrator.v2.agent_runtime import (
     AgentRuntimeResult,
     AgentContractError,
     AgentRunner,
+    LLMAgentRunner,
     ScriptedAgent,
+    WorktreeToolbox,
     blocked_validation_from_contract_error,
     parse_agent_response,
 )
 from dev_orchestrator.v2.executor import V2ChiefExecutor
 from dev_orchestrator.v2.git_runtime import GitRuntime
+from dev_orchestrator.v2.git_runtime import truncate_text
 from dev_orchestrator.v2.quality import evaluate_project_quality
 from dev_orchestrator.v2.requirements import parse_requirements
 from dev_orchestrator.v2.service import V2Orchestrator
@@ -64,6 +68,93 @@ class V2PlatformTests(unittest.TestCase):
         self.assertTrue(any(item["owner_role"] == "frontend-lead" for item in bundle["work_packages"]))
         self.assertTrue(any(item["owner_role"] == "security-reviewer" for item in bundle["work_packages"]))
 
+    def test_chinese_paragraph_is_split_into_actionable_requirements(self) -> None:
+        text = (
+            "必须使用 PHP 和 MySQL 实现通知签收系统。"
+            "管理员需要批量导入组织和用户，并发布通知公告。"
+            "用户需要登录后阅读通知、记录阅读时间并完成手写签名。"
+            "系统必须保存签收记录、审计日志和数据库表结构。"
+        )
+
+        bundle = parse_requirements(text)
+
+        self.assertGreaterEqual(len(bundle["atoms"]), 4)
+        self.assertTrue(all(item["priority"] == "must" for item in bundle["atoms"]))
+
+    def test_php_mysql_requirements_expand_to_real_implementation_packages(self) -> None:
+        text = """
+        Must use PHP and MySQL to implement a notification signing system.
+        Must provide administrator login, organization and user import, password reset, and notification publishing.
+        Must provide user login, notification reading, reading time tracking, and handwritten signature receipt.
+        Must provide MySQL schema.sql, seed data, audit logs, and receipt records.
+        Must provide frontend pages, CSS, JavaScript signature capture, backend controllers, services, repositories, and tests.
+        """
+
+        bundle = parse_requirements(text)
+        outputs = {output for package in bundle["work_packages"] for output in package.get("outputs", [])}
+        package_ids = {package["id"] for package in bundle["work_packages"]}
+
+        self.assertIn("WP-PHP-010-mysql-schema", package_ids)
+        self.assertIn("WP-PHP-030-php-http-controllers", package_ids)
+        self.assertIn("database/schema.sql", outputs)
+        self.assertIn("public/index.php", outputs)
+        self.assertIn("src/Controllers", outputs)
+        self.assertIn("tests/Feature/NotificationSigningContractTest.php", outputs)
+        self.assertEqual(bundle["coverage"]["must_coverage_percent"], 100)
+
+    def test_php_and_sql_count_as_source_and_quality_inputs(self) -> None:
+        root = (Path(__file__).resolve().parent.parent / "workspace" / "v2-test-scratch" / uuid.uuid4().hex).resolve()
+        try:
+            root.mkdir(parents=True, exist_ok=True)
+            (root / "src" / "Services").mkdir(parents=True)
+            (root / "public").mkdir()
+            (root / "database").mkdir()
+            (root / "tests").mkdir()
+            (root / "src" / "Services" / "NotificationSigningService.php").write_text(
+                """<?php
+class NotificationSigningService {
+    public function recordReceipt(array $notification, array $signature): array {
+        return ['notification' => $notification, 'signature' => $signature, 'receipt' => true, 'audit' => true];
+    }
+}
+""",
+                encoding="utf-8",
+            )
+            (root / "public" / "index.php").write_text(
+                "<?php echo 'notification signing admin user receipt signature mysql csrf password audit';\n",
+                encoding="utf-8",
+            )
+            (root / "database" / "schema.sql").write_text(
+                "CREATE TABLE notifications (id INT PRIMARY KEY); CREATE TABLE receipt_records (id INT PRIMARY KEY, signature TEXT);\n",
+                encoding="utf-8",
+            )
+            (root / "tests" / "test_php_mysql_contract.py").write_text(
+                """from pathlib import Path
+
+
+def test_php_mysql_contract_files_exist():
+    root = Path(__file__).resolve().parent.parent
+    traceability = 'contract notification signing admin user receipt signature mysql csrf password audit'
+    assert (root / 'public' / 'index.php').exists()
+    assert (root / 'database' / 'schema.sql').exists()
+""",
+                encoding="utf-8",
+            )
+            bundle = parse_requirements(
+                "Must use PHP and MySQL notification signing with admin user receipt signature audit password csrf schema tests."
+            )
+
+            metrics = measure_codebase(root)
+            quality = evaluate_project_quality(root, bundle)
+            codes = {finding["code"] for finding in quality["findings"]}
+
+            self.assertGreaterEqual(metrics["source_file_count"], 4)
+            self.assertIn(".php", metrics["by_extension"])
+            self.assertIn(".sql", metrics["by_extension"])
+            self.assertNotIn("no_source_code", codes)
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
     def test_invalid_agent_json_blocks_without_fallback(self) -> None:
         with self.assertRaises(AgentContractError) as raised:
             parse_agent_response("not json")
@@ -73,6 +164,87 @@ class V2PlatformTests(unittest.TestCase):
         self.assertEqual(blocked["status"], "blocked")
         self.assertEqual(blocked["artifacts"], [])
         self.assertIn("fallback artifacts were generated", blocked["summary"])
+
+    def test_llm_agent_tool_parser_accepts_wrapped_json_object(self) -> None:
+        root = (Path(__file__).resolve().parent.parent / "workspace" / "v2-test-scratch" / uuid.uuid4().hex).resolve()
+        try:
+            config = build_config(root)
+            runner = LLMAgentRunner(config)
+            payload = runner._parse_tool_response(
+                'Here is the next tool call:\n```json\n{"tool":"list","args":{"path":"."},"summary":"inspect"}\n```'
+            )
+
+            self.assertEqual(payload["tool"], "list")
+            self.assertEqual(payload["args"]["path"], ".")
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+    def test_llm_agent_tool_parser_rejects_unknown_wrapped_tool(self) -> None:
+        root = (Path(__file__).resolve().parent.parent / "workspace" / "v2-test-scratch" / uuid.uuid4().hex).resolve()
+        try:
+            config = build_config(root)
+            runner = LLMAgentRunner(config)
+
+            with self.assertRaises(AgentContractError):
+                runner._parse_tool_response('prefix {"tool":"delete","args":{},"summary":"bad"} suffix')
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+    def test_worktree_toolbox_decodes_utf8_process_output_on_windows(self) -> None:
+        root = (Path(__file__).resolve().parent.parent / "workspace" / "v2-test-scratch" / uuid.uuid4().hex).resolve()
+        try:
+            root.mkdir(parents=True, exist_ok=True)
+            toolbox = WorktreeToolbox(root)
+            result = toolbox.run_test("python -c \"print('签收')\"")
+
+            self.assertTrue(result["ok"])
+            self.assertIn("签收", result["stdout"])
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+    def test_php_controller_package_receives_larger_tool_budget(self) -> None:
+        root = (Path(__file__).resolve().parent.parent / "workspace" / "v2-test-scratch" / uuid.uuid4().hex).resolve()
+        try:
+            config = build_config(root)
+            runner = LLMAgentRunner(config)
+            package = {
+                "outputs": ["public/index.php", "src/Controllers", "src/Middleware", "src/Support"],
+            }
+
+            self.assertGreaterEqual(runner._max_tool_iterations(package), 28)
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+    def test_llm_runner_accepts_on_disk_declared_outputs_at_tool_budget(self) -> None:
+        class ExhaustingClient:
+            def chat(self, system_prompt, messages, **kwargs):
+                payload = {
+                    "tool": "write",
+                    "args": {
+                        "path": "public/index.php",
+                        "content": "<?php echo 'notification signing receipt controller';\n",
+                    },
+                    "summary": "write controller entrypoint",
+                }
+                return __import__("json").dumps(payload)
+
+        root = (Path(__file__).resolve().parent.parent / "workspace" / "v2-test-scratch" / uuid.uuid4().hex).resolve()
+        try:
+            config = build_config(root)
+            runner = LLMAgentRunner(config, client=ExhaustingClient())
+            package = {
+                "id": "WP-PHP-030-php-http-controllers",
+                "owner_role": "backend-lead",
+                "outputs": ["public/index.php", "src/Controllers"],
+            }
+
+            result = runner.run(root, package, {"atoms": [], "contracts": [], "coverage": {}}, attempt=1)
+
+            self.assertEqual(result.status, "completed")
+            self.assertIn("on-disk evidence", result.summary)
+            self.assertGreaterEqual(result.model_calls, 18)
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
 
     def test_git_sandbox_initializes_non_git_project_and_creates_worktree(self) -> None:
         root = (Path(__file__).resolve().parent.parent / "workspace" / "v2-test-scratch" / uuid.uuid4().hex).resolve()
@@ -115,6 +287,9 @@ class V2PlatformTests(unittest.TestCase):
             self.assertTrue((Path(integration["path"]) / "apps" / "api" / "demo.py").exists())
         finally:
             shutil.rmtree(root, ignore_errors=True)
+
+    def test_truncate_text_tolerates_none_from_subprocess_streams(self) -> None:
+        self.assertEqual(truncate_text(None), "")
 
     def test_v2_run_executes_real_worktree_patch_and_test_loop(self) -> None:
         root = (Path(__file__).resolve().parent.parent / "workspace" / "v2-test-scratch" / uuid.uuid4().hex).resolve()

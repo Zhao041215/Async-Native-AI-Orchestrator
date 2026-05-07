@@ -19,6 +19,11 @@ ROLE_KEYWORDS = {
         "dashboard",
         "web",
         "console",
+        "admin",
+        "page",
+        "html",
+        "css",
+        "javascript",
         "report",
         "notification",
         "mobile",
@@ -26,20 +31,41 @@ ROLE_KEYWORDS = {
         "chinese",
         "accessibility",
         "wcag",
+        "页面",
+        "前端",
+        "控制台",
+        "管理员",
+        "手写",
+        "签名",
     ],
     "backend-lead": [
+        "php",
         "api",
         "service",
+        "controller",
+        "route",
+        "endpoint",
+        "session",
         "oauth",
         "sso",
         "rbac",
         "abac",
         "permission",
         "auth",
+        "login",
         "tenant",
         "workflow",
         "notification",
+        "receipt",
+        "signing",
+        "signature",
         "ticket",
+        "登录",
+        "认证",
+        "签收",
+        "通知",
+        "批量导入",
+        "组织",
     ],
     "ai-ml-engineer": [
         "ai",
@@ -58,6 +84,12 @@ ROLE_KEYWORDS = {
         "data",
         "model",
         "database",
+        "mysql",
+        "sql",
+        "schema",
+        "migration",
+        "table",
+        "seed",
         "hris",
         "feature store",
         "warehouse",
@@ -65,6 +97,9 @@ ROLE_KEYWORDS = {
         "retention",
         "audit log",
         "encryption",
+        "数据库",
+        "数据表",
+        "签收记录",
     ],
     "sre-devops": [
         "kubernetes",
@@ -87,12 +122,50 @@ ROLE_KEYWORDS = {
         "pii",
         "compliance",
         "encryption",
+        "password",
+        "csrf",
+        "sql injection",
         "mfa",
         "audit",
         "ethics",
         "tenant isolation",
+        "密码",
+        "权限",
+        "审计",
+        "安全",
     ],
 }
+
+DOMAIN_TERMS = [
+    "php",
+    "mysql",
+    "sql",
+    "notification",
+    "notice",
+    "receipt",
+    "signing",
+    "signature",
+    "organization",
+    "import",
+    "audit",
+    "admin",
+    "user",
+    "通知",
+    "公告",
+    "签收",
+    "签名",
+    "手写",
+    "组织",
+    "部门",
+    "用户",
+    "管理员",
+    "批量导入",
+    "阅读时间",
+    "数据库",
+    "数据表",
+    "密码",
+    "权限",
+]
 
 
 CATEGORY_KEYWORDS = {
@@ -108,9 +181,13 @@ CATEGORY_KEYWORDS = {
 def _normalize_lines(text: str) -> list[str]:
     lines: list[str] = []
     for raw in text.replace("\r\n", "\n").split("\n"):
-        candidates = [raw.strip()]
-        if len(raw) > 240 and ". " in raw:
-            candidates = [item.strip() for item in re.split(r"(?<=[.!?])\s+(?=(?:Must|Should|Could|[A-Z]))", raw.strip()) if item.strip()]
+        raw = raw.strip()
+        if not raw:
+            continue
+        candidates = [raw]
+        if len(raw) > 180 or re.search(r"[。！？；;]", raw):
+            split_pattern = r"(?<=[.!?。！？；;])\s+(?=(?:Must|Should|Could|[A-Z]))|(?<=[。！？；;])\s*"
+            candidates = [item.strip() for item in re.split(split_pattern, raw) if item.strip()]
         for candidate in candidates:
             line = candidate.strip()
             line = re.sub(r"^[#*\-\d.\s]+", "", line).strip()
@@ -129,6 +206,12 @@ def _priority_for_line(line: str) -> str:
     if any(token in lowered for token in ("should", "p1", "recommended")):
         return "should"
     if any(token in lowered for token in ("could", "optional", "p2")):
+        return "could"
+    if any(token in line for token in ("必须", "不得", "需要", "要求", "支持")):
+        return "must"
+    if any(token in line for token in ("应该", "建议")):
+        return "should"
+    if any(token in line for token in ("可选", "可以")):
         return "could"
     return "must" if any(ch in line for ch in ("必须", "不得", "需要", "支持")) else "should"
 
@@ -164,11 +247,15 @@ def _keywords_for_line(line: str) -> list[str]:
         for keyword in keywords:
             if keyword in lowered and keyword not in tokens:
                 tokens.append(keyword)
+    for keyword in DOMAIN_TERMS:
+        normalized_keyword = keyword.lower()
+        if (normalized_keyword in lowered or keyword in line) and normalized_keyword not in tokens and len(tokens) < 16:
+            tokens.append(normalized_keyword)
     for candidate in re.findall(r"[A-Za-z][A-Za-z0-9+/#.-]{2,}", line):
         normalized = candidate.lower()
-        if normalized not in tokens and len(tokens) < 12:
+        if normalized not in tokens and len(tokens) < 16:
             tokens.append(normalized)
-    return tokens[:12]
+    return tokens[:16]
 
 
 def _line_limit_for_priority(priority: str) -> int:
@@ -223,7 +310,9 @@ def parse_requirements(raw_text: str) -> dict:
         contracts.append(contract)
 
     subsystems = _build_subsystems(atoms)
-    work_packages = _expand_enterprise_saas_packages(raw_text, atoms, _build_work_packages(subsystems))
+    work_packages = _build_work_packages(subsystems)
+    work_packages = _expand_php_mysql_packages(raw_text, atoms, work_packages)
+    work_packages = _expand_enterprise_saas_packages(raw_text, atoms, work_packages)
     decisions = _build_decisions(raw_text, subsystems)
     findings = _requirement_findings(raw_text, atoms)
     coverage = _coverage(atoms, work_packages)
@@ -363,6 +452,154 @@ def _build_work_packages(subsystems: list[Subsystem]) -> list[WorkPackage]:
         ]
     )
     return packages
+
+
+def _package_exists(packages: list[WorkPackage], package_id: str) -> bool:
+    return any(item.id == package_id for item in packages)
+
+
+def _insert_before_review_packages(packages: list[WorkPackage], additions: list[WorkPackage]) -> list[WorkPackage]:
+    if not additions:
+        return packages
+    first_review_index = next(
+        (
+            index
+            for index, package in enumerate(packages)
+            if package.id.startswith("WP-900-") or package.owner_role in {"qa-automation", "security-reviewer", "refactor-sheriff", "sre-devops"}
+        ),
+        len(packages),
+    )
+    return [*packages[:first_review_index], *additions, *packages[first_review_index:]]
+
+
+def _replace_review_dependencies(packages: list[WorkPackage], implementation_ids: list[str]) -> list[WorkPackage]:
+    if not implementation_ids:
+        return packages
+    implementation_set = set(implementation_ids)
+    updated: list[WorkPackage] = []
+    for package in packages:
+        if package.id == "WP-900-qa-contract-verification":
+            dependencies = sorted(set(package.dependencies) | implementation_set)
+            updated.append(WorkPackage(**{**package.to_dict(), "dependencies": dependencies}))
+        elif package.id == "WP-930-release-candidate":
+            dependencies = sorted(set(package.dependencies) | {"WP-900-qa-contract-verification"})
+            updated.append(WorkPackage(**{**package.to_dict(), "dependencies": dependencies}))
+        else:
+            updated.append(package)
+    return updated
+
+
+def _is_php_mysql_project(raw_text: str, atoms: list[RequirementAtom]) -> bool:
+    lowered = raw_text.lower()
+    keyword_text = " ".join(keyword for atom in atoms for keyword in atom.keywords).lower()
+    has_php = "php" in lowered or "php" in keyword_text
+    has_mysql = "mysql" in lowered or "mysql" in keyword_text or "数据库" in raw_text or "数据表" in raw_text
+    domain_hit = any(token in lowered or token in raw_text for token in ("notification", "notice", "signing", "signature", "通知", "公告", "签收", "签名"))
+    return has_php and has_mysql and domain_hit
+
+
+def _php_requirement_ids(atoms: list[RequirementAtom], tokens: tuple[str, ...]) -> list[str]:
+    matched: list[str] = []
+    for atom in atoms:
+        text = f"{atom.text} {' '.join(atom.keywords)}".lower()
+        if any(token.lower() in text or token in atom.text for token in tokens):
+            matched.append(atom.id)
+    return matched or [item.id for item in atoms]
+
+
+def _expand_php_mysql_packages(raw_text: str, atoms: list[RequirementAtom], packages: list[WorkPackage]) -> list[WorkPackage]:
+    if not _is_php_mysql_project(raw_text, atoms):
+        return packages
+
+    all_requirement_ids = [item.id for item in atoms]
+    additions = [
+        WorkPackage(
+            id="WP-PHP-010-mysql-schema",
+            title="MySQL schema and seed data for notification signing",
+            owner_role="data-engineer",
+            subsystem_id="php-mysql-data",
+            requirement_ids=_php_requirement_ids(atoms, ("mysql", "sql", "database", "schema", "数据表", "数据库", "签收记录")),
+            dependencies=["WP-000-chief-contract"],
+            outputs=["database/schema.sql", "database/seed.sql"],
+            status="ready",
+            parallel_group="implementation",
+        ),
+        WorkPackage(
+            id="WP-PHP-020-php-domain-services",
+            title="PHP domain services and repositories",
+            owner_role="backend-lead",
+            subsystem_id="php-mysql-backend",
+            requirement_ids=_php_requirement_ids(atoms, ("php", "service", "repository", "notification", "签收", "通知", "组织", "密码")),
+            dependencies=["WP-000-chief-contract", "WP-PHP-010-mysql-schema"],
+            outputs=["composer.json", "src/Domain", "src/Repositories", "src/Services"],
+            status="ready",
+            parallel_group="implementation",
+        ),
+        WorkPackage(
+            id="WP-PHP-030-php-http-controllers",
+            title="PHP HTTP controllers, routing, auth, and session flows",
+            owner_role="backend-lead",
+            subsystem_id="php-mysql-backend",
+            requirement_ids=_php_requirement_ids(atoms, ("api", "controller", "route", "auth", "login", "签收", "通知")),
+            dependencies=["WP-PHP-020-php-domain-services"],
+            outputs=["public/index.php", "src/Controllers", "src/Middleware", "src/Support"],
+            status="ready",
+            parallel_group="implementation",
+        ),
+        WorkPackage(
+            id="WP-PHP-040-admin-and-signature-ui",
+            title="Admin console and handwritten signature web UI",
+            owner_role="frontend-lead",
+            subsystem_id="php-mysql-frontend",
+            requirement_ids=_php_requirement_ids(atoms, ("frontend", "ui", "web", "admin", "signature", "手写", "签名", "页面", "管理员")),
+            dependencies=["WP-PHP-030-php-http-controllers"],
+            outputs=["public/assets/app.css", "public/assets/signature.js", "public/views"],
+            status="ready",
+            parallel_group="implementation",
+        ),
+        WorkPackage(
+            id="WP-PHP-050-import-receipt-workflows",
+            title="Organization import, receipt tracking, and audit workflows",
+            owner_role="backend-lead",
+            subsystem_id="php-mysql-backend",
+            requirement_ids=_php_requirement_ids(atoms, ("import", "csv", "receipt", "audit", "批量导入", "阅读时间", "签收")),
+            dependencies=["WP-PHP-030-php-http-controllers"],
+            outputs=["src/Services/CsvImporter.php", "src/Services/ReceiptWorkflow.php", "src/Services/AuditLogger.php"],
+            status="ready",
+            parallel_group="implementation",
+        ),
+        WorkPackage(
+            id="WP-PHP-060-php-contract-tests",
+            title="Executable PHP/MySQL contract and smoke tests",
+            owner_role="qa-automation",
+            subsystem_id="php-mysql-verification",
+            requirement_ids=all_requirement_ids,
+            dependencies=[
+                "WP-PHP-010-mysql-schema",
+                "WP-PHP-020-php-domain-services",
+                "WP-PHP-030-php-http-controllers",
+                "WP-PHP-040-admin-and-signature-ui",
+                "WP-PHP-050-import-receipt-workflows",
+            ],
+            outputs=["tests/Feature/NotificationSigningContractTest.php", "tests/test_php_mysql_contract.py"],
+            status="ready",
+            parallel_group="verification",
+        ),
+        WorkPackage(
+            id="WP-PHP-070-deployment-pack",
+            title="PHP/MySQL deployment package and operations handoff",
+            owner_role="sre-devops",
+            subsystem_id="php-mysql-release",
+            requirement_ids=all_requirement_ids,
+            dependencies=["WP-PHP-060-php-contract-tests"],
+            outputs=["README.md", "docs/deployment.md", "docker-compose.php-mysql.yml"],
+            status="ready",
+            parallel_group="deployment",
+        ),
+    ]
+    additions = [item for item in additions if not _package_exists(packages, item.id)]
+    expanded = _insert_before_review_packages(packages, additions)
+    return _replace_review_dependencies(expanded, [item.id for item in additions if item.parallel_group == "implementation"])
 
 
 ENTERPRISE_PACKAGE_TEMPLATES = [

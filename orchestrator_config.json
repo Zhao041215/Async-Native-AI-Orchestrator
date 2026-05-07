@@ -18,7 +18,7 @@
     "supports_chat_completions": null,
     "temperature": 0.2,
     "max_tokens": 3200,
-    "timeout_seconds": 30,
+    "timeout_seconds": 90,
     "retry_attempts": 2,
     "retry_backoff_seconds": 4
   },

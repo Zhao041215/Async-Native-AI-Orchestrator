@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import subprocess
+import os
 from pathlib import Path
 
 from dev_orchestrator.v2.git_runtime import truncate_text
@@ -47,6 +48,9 @@ class TestRunner:
                 shell=True,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
+                env={**os.environ, "PYTHONIOENCODING": "utf-8"},
                 timeout=self.timeout_seconds,
             )
             results.append(

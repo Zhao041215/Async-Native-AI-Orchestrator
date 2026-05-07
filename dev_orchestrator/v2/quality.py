@@ -80,7 +80,59 @@ DOMAIN_GROUPS = {
         "sso",
         "mfa",
     ],
+    "php-mysql-notification-signing": [
+        "php",
+        "mysql",
+        "sql",
+        "schema",
+        "notification",
+        "notice",
+        "receipt",
+        "signing",
+        "signature",
+        "organization",
+        "import",
+        "audit",
+        "admin",
+        "password",
+        "csrf",
+        "通知",
+        "公告",
+        "签收",
+        "签名",
+        "手写",
+        "组织",
+        "部门",
+        "管理员",
+        "批量导入",
+        "阅读时间",
+        "数据库",
+        "数据表",
+        "密码",
+        "权限",
+    ],
 }
+
+TEXT_FILE_SUFFIXES = {
+    ".py",
+    ".js",
+    ".ts",
+    ".tsx",
+    ".jsx",
+    ".html",
+    ".css",
+    ".md",
+    ".json",
+    ".ps1",
+    ".sh",
+    ".php",
+    ".sql",
+    ".env",
+    ".yml",
+    ".yaml",
+}
+
+APPLICATION_ROOTS = ("apps", "src", "public", "database", "config")
 
 
 def _iter_text_files(root: Path, relative_roots: tuple[str, ...]) -> list[tuple[str, str]]:
@@ -94,7 +146,7 @@ def _iter_text_files(root: Path, relative_roots: tuple[str, ...]) -> list[tuple[
         else:
             candidates = [path for path in base.rglob("*") if path.is_file()]
         for path in candidates:
-            if path.suffix.lower() not in {".py", ".js", ".ts", ".tsx", ".jsx", ".html", ".css", ".md", ".json", ".ps1", ".sh"}:
+            if path.suffix.lower() not in TEXT_FILE_SUFFIXES:
                 continue
             try:
                 text = path.read_text(encoding="utf-8", errors="ignore")
@@ -107,7 +159,7 @@ def _iter_text_files(root: Path, relative_roots: tuple[str, ...]) -> list[tuple[
 def _count_domain_hits(text: str, requirement_bundle: dict) -> dict:
     lowered = text.lower()
     requirement_keywords = {
-        keyword.lower()
+        str(keyword).lower()
         for atom in requirement_bundle.get("atoms", [])
         for keyword in atom.get("keywords", [])
         if len(str(keyword)) >= 3
@@ -137,7 +189,7 @@ def _line_repetition_findings(files: list[tuple[str, str]]) -> list[Finding]:
             if stem:
                 repeated_titles.setdefault(stem, []).append(relative)
         normalized = re.sub(r"\s+", "", text.lower())
-        if len(normalized) > 500 and relative.startswith("apps/"):
+        if len(normalized) > 500 and relative.startswith(tuple(f"{root}/" for root in APPLICATION_ROOTS)):
             content_families.setdefault(normalized[:500], []).append(relative)
     class_offenders = {key: value for key, value in repeated_classes.items() if len(value) >= 8}
     title_offenders = {key: value for key, value in repeated_titles.items() if len(value) >= 8}
@@ -246,10 +298,10 @@ def evaluate_project_quality(project_root: Path, requirement_bundle: dict) -> di
     findings: list[Finding] = []
     all_files = [
         item
-        for item in _iter_text_files(project_root, ("apps", "tests", "infra", "docs", "reports", ".agent"))
+        for item in _iter_text_files(project_root, (*APPLICATION_ROOTS, "tests", "infra", "docs", "reports", ".agent", "README.md", "composer.json"))
         if not item[0].startswith((".agent/v2/", "reports/v2/"))
     ]
-    app_files = [(relative, text) for relative, text in all_files if relative.startswith("apps/")]
+    app_files = [(relative, text) for relative, text in all_files if relative.startswith(tuple(f"{root}/" for root in APPLICATION_ROOTS)) or relative in {"composer.json"}]
     app_text = "\n".join(text for _, text in app_files)
     all_text = "\n".join(text for _, text in all_files)
     app_lower = app_text.lower()
@@ -317,7 +369,7 @@ def evaluate_project_quality(project_root: Path, requirement_bundle: dict) -> di
                 code="no_source_code",
                 severity="critical",
                 category="implementation-depth",
-                message="No source files were found under apps/tests/infra.",
+                message="No source files were found under application, test, or infra roots.",
                 owner="chief",
                 repair_role="chief",
             )
@@ -334,8 +386,10 @@ def evaluate_project_quality(project_root: Path, requirement_bundle: dict) -> di
                 repair_role="qa-automation",
             )
         )
-    if by_area.get("apps", {}).get("source_file_count", 0) and by_area.get("tests", {}).get("source_file_count", 0):
-        app_lines = max(1, int(by_area["apps"].get("source_lines", 0)))
+    app_source_lines = sum(int(by_area.get(area, {}).get("source_lines", 0) or 0) for area in APPLICATION_ROOTS)
+    app_source_files = sum(int(by_area.get(area, {}).get("source_file_count", 0) or 0) for area in APPLICATION_ROOTS)
+    if app_source_files and by_area.get("tests", {}).get("source_file_count", 0):
+        app_lines = max(1, app_source_lines)
         test_lines = int(by_area["tests"].get("source_lines", 0))
         if test_lines / app_lines < 0.04:
             findings.append(

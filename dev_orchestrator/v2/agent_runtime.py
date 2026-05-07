@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 import uuid
@@ -15,6 +16,41 @@ from dev_orchestrator.v2.models import Finding
 
 class AgentContractError(RuntimeError):
     pass
+
+
+def _json_object_candidates(raw: str) -> list[str]:
+    candidates: list[str] = []
+    for match in re.finditer(r"```(?:json)?\s*(.*?)```", raw, flags=re.IGNORECASE | re.DOTALL):
+        block = match.group(1).strip()
+        if block.startswith("{") and block.endswith("}"):
+            candidates.append(block)
+
+    stack = 0
+    start: int | None = None
+    in_string = False
+    escaped = False
+    for index, char in enumerate(raw):
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            continue
+        if char == '"':
+            in_string = True
+            continue
+        if char == "{":
+            if stack == 0:
+                start = index
+            stack += 1
+        elif char == "}" and stack:
+            stack -= 1
+            if stack == 0 and start is not None:
+                candidates.append(raw[start : index + 1])
+                start = None
+    return candidates
 
 
 def parse_agent_response(raw: str) -> dict:
@@ -146,6 +182,9 @@ class WorktreeToolbox:
             shell=True,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
+            env={**os.environ, "PYTHONIOENCODING": "utf-8"},
             timeout=self.timeout_seconds,
         )
         return {
@@ -326,12 +365,14 @@ class LLMAgentRunner:
     ) -> AgentRuntimeResult:
         toolbox = WorktreeToolbox(worktree_path, self.config.runtime.max_shell_seconds)
         system_prompt = self._system_prompt()
+        implementation_rules = self._implementation_rules(work_package)
         messages = [
             {
                 "role": "user",
                 "content": json.dumps(
                     {
                         "work_package": work_package,
+                        "implementation_rules": implementation_rules,
                         "requirement_bundle": {
                             "atoms": requirement_bundle.get("atoms", []),
                             "contracts": requirement_bundle.get("contracts", []),
@@ -355,8 +396,9 @@ class LLMAgentRunner:
         model_calls = 0
         tool_calls = 0
         last_summary = ""
+        max_iterations = self._max_tool_iterations(work_package)
         try:
-            for _ in range(12):
+            for _ in range(max_iterations):
                 raw = self.client.chat(system_prompt, messages)
                 model_calls += 1
                 payload = self._parse_tool_response(raw)
@@ -373,7 +415,18 @@ class LLMAgentRunner:
                         model_calls=model_calls,
                         tool_calls=tool_calls,
                     )
-            raise AgentContractError("Agent exceeded maximum tool-loop iterations.")
+            evidence = self._declared_output_evidence(worktree_path, work_package)
+            if evidence["completion_evidence"]:
+                return AgentRuntimeResult(
+                    status="completed",
+                    summary=(
+                        "Agent reached the tool-loop budget after writing declared implementation outputs; "
+                        f"Chief accepted on-disk evidence: {', '.join(evidence['files'][:8])}."
+                    ),
+                    model_calls=model_calls,
+                    tool_calls=tool_calls,
+                )
+            raise AgentContractError(f"Agent exceeded maximum tool-loop iterations ({max_iterations}).")
         except (AgentContractError, LLMError, OSError, subprocess.SubprocessError, ValueError) as exc:
             return AgentRuntimeResult(
                 status="blocked",
@@ -386,23 +439,116 @@ class LLMAgentRunner:
     def _system_prompt(self) -> str:
         return (
             "You are a V2 implementation agent in an isolated git worktree. "
-            "You must make real file edits through tools. "
+            "You must make real production-grade file edits through tools. "
             "Respond only with strict JSON: {\"tool\":\"...\",\"args\":{},\"summary\":\"...\"}. "
             "Use finish only after writing or verifying concrete artifacts. "
+            "Keep tool use compact: inspect briefly, write complete files, verify with list/read, then finish. "
+            "If a package declares implementation outputs such as .php, .sql, composer.json, src/, public/, database/, apps/, or tests/, "
+            "write those source/schema/test files with real domain logic and traceability evidence before finish. "
+            "Do not satisfy implementation packages with markdown-only reports unless every declared output is documentation. "
             "Never invent patches; git diff will be captured by the Chief."
         )
+
+    def _implementation_rules(self, work_package: dict) -> dict:
+        outputs = [str(item).replace("\\", "/") for item in work_package.get("outputs", [])]
+        output_text = " ".join(outputs).lower()
+        implementation_markers = (".php", ".sql", "composer.json", "src/", "public/", "database/", "apps/", "tests/")
+        is_implementation = any(marker in output_text for marker in implementation_markers)
+        php_mysql = any(marker in output_text for marker in (".php", ".sql", "composer.json", "src/", "public/", "database/"))
+        required_actions = [
+            "inspect existing files before editing",
+            "write at least one declared output path or a concrete file inside each declared output directory",
+            "include requirement/domain terms in code, tests, or schema so traceability can be measured",
+            "finish only after list/read verifies the created files",
+        ]
+        if php_mysql:
+            required_actions.extend(
+                [
+                    "for PHP/MySQL packages, create executable PHP classes/controllers or SQL DDL/DML, not prose-only artifacts",
+                    "prefer public/index.php, src/Controllers, src/Services, src/Repositories, database/schema.sql, and tests/Feature paths when relevant",
+                    "include safe password handling, prepared-statement boundaries, CSRF/session checks, and notification signing domain names where relevant",
+                ]
+            )
+        return {
+            "is_implementation_package": is_implementation,
+            "php_mysql_package": php_mysql,
+            "declared_outputs": outputs,
+            "finish_allowed_only_after": required_actions,
+        }
+
+    def _max_tool_iterations(self, work_package: dict) -> int:
+        outputs = [str(item).replace("\\", "/").lower() for item in work_package.get("outputs", [])]
+        output_text = " ".join(outputs)
+        budget = 12
+        if any(marker in output_text for marker in ("apps/", "src/", "public/", "database/", "tests/", ".php", ".sql")):
+            budget = 18
+        if len(outputs) >= 3 or any(output.endswith("/") or "." not in output.rsplit("/", 1)[-1] for output in outputs):
+            budget = max(budget, 22)
+        if any(marker in output_text for marker in ("src/controllers", "src/services", "src/repositories", "public/index.php")):
+            budget = max(budget, 28)
+        if any(marker in output_text for marker in (".php", ".sql", "composer.json", "src/", "public/", "database/")):
+            budget = max(budget, 30)
+        return budget
+
+    def _declared_output_evidence(self, worktree_path: Path, work_package: dict) -> dict:
+        outputs = [str(item).replace("\\", "/").strip("/") for item in work_package.get("outputs", []) if str(item).strip()]
+        if not outputs:
+            return {"completion_evidence": False, "files": []}
+        evidence_files: list[str] = []
+        covered = 0
+        for output in outputs:
+            if output.startswith(".agent/v2/"):
+                continue
+            target = (Path(worktree_path) / output).resolve()
+            try:
+                if target.is_file() and target.stat().st_size > 0:
+                    covered += 1
+                    evidence_files.append(output)
+                    continue
+                if target.is_dir():
+                    files = [
+                        path
+                        for path in target.rglob("*")
+                        if path.is_file() and ".git" not in path.parts and path.stat().st_size > 0
+                    ]
+                    if files:
+                        covered += 1
+                        evidence_files.extend(path.relative_to(worktree_path).as_posix() for path in files[:6])
+            except OSError:
+                continue
+        implementation_outputs = [item for item in outputs if not item.startswith(".agent/v2/")]
+        required_coverage = 1 if len(implementation_outputs) <= 2 else max(2, len(implementation_outputs) // 2)
+        source_like = [
+            path
+            for path in evidence_files
+            if Path(path).suffix.lower() in {".php", ".sql", ".py", ".js", ".ts", ".tsx", ".html", ".css", ".json", ".md", ".sh"}
+        ]
+        return {
+            "completion_evidence": covered >= required_coverage and bool(source_like),
+            "files": sorted(set(evidence_files)),
+            "covered_outputs": covered,
+            "required_coverage": required_coverage,
+        }
 
     def _parse_tool_response(self, raw: str) -> dict:
         try:
             payload = json.loads(raw)
         except json.JSONDecodeError as exc:
-            match = re.search(r"\{.*\}", raw, flags=re.DOTALL)
-            if not match:
+            payload = None
+            last_error: json.JSONDecodeError | None = None
+            for candidate in _json_object_candidates(raw):
+                try:
+                    parsed = json.loads(candidate)
+                except json.JSONDecodeError as candidate_error:
+                    last_error = candidate_error
+                    continue
+                if isinstance(parsed, dict):
+                    payload = parsed
+                    break
+            if payload is None:
+                if last_error:
+                    raise AgentContractError("Agent tool response contains invalid JSON object.") from last_error
                 raise AgentContractError("Agent tool response is not valid JSON.") from exc
-            try:
-                payload = json.loads(match.group(0))
-            except json.JSONDecodeError as inner:
-                raise AgentContractError("Agent tool response contains invalid JSON object.") from inner
         if not isinstance(payload, dict):
             raise AgentContractError("Agent tool response must be a JSON object.")
         if payload.get("tool") not in {"list", "read", "search", "write", "run_test", "finish"}:

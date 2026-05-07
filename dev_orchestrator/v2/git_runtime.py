@@ -25,7 +25,11 @@ class GitCommandResult:
         return self.code == 0
 
 
-def truncate_text(value: str, limit: int = 16000) -> str:
+def truncate_text(value: object, limit: int = 16000) -> str:
+    if value is None:
+        return ""
+    if not isinstance(value, str):
+        value = str(value)
     if len(value) <= limit:
         return value
     return value[:limit] + "\n[truncated]"
@@ -53,6 +57,8 @@ class GitRuntime:
                 cwd=working_dir,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=timeout_seconds or self.timeout_seconds,
             )
         result = GitCommandResult(

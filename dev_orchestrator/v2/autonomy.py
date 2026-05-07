@@ -80,6 +80,8 @@ LANGUAGE_BY_EXTENSION = {
     ".rs": "rust",
     ".java": "java",
     ".cs": "csharp",
+    ".php": "php",
+    ".sql": "sql",
     ".sh": "shell",
     ".ps1": "powershell",
 }
@@ -198,7 +200,8 @@ def measure_effective_loc(project_root: Path, requirement_bundle: dict) -> dict:
         marker_hit = any(marker.lower() in lowered for marker in TEMPLATE_MARKERS)
         keyword_hits = [keyword for keyword in requirement_keywords if keyword in lowered]
         is_test_or_infra = relative.startswith(("tests/", "infra/"))
-        duplicate_hit = bool(fingerprint and fingerprint in content_fingerprints and relative.startswith("apps/"))
+        is_application = relative.startswith(("apps/", "src/", "public/", "database/", "config/"))
+        duplicate_hit = bool(fingerprint and fingerprint in content_fingerprints and is_application)
         if marker_hit or duplicate_hit or (requirement_keywords and not keyword_hits and not is_test_or_infra):
             excluded_lines += line_count
             excluded_files.append(relative)
@@ -235,10 +238,23 @@ def build_code_index(project_root: Path, tenant_id: str, project_id: str, run_id
         except OSError:
             continue
         suffix = path.suffix.lower()
-        symbols = re.findall(r"^\s*(?:class|def|function|const|let|var)\s+([A-Za-z_][A-Za-z0-9_]*)", text, flags=re.MULTILINE)
+        symbols = re.findall(
+            r"^\s*(?:class|def|function|const|let|var)\s+([A-Za-z_][A-Za-z0-9_]*)",
+            text,
+            flags=re.MULTILINE,
+        )
+        symbols.extend(
+            re.findall(
+                r"^\s*(?:public|private|protected)?\s*(?:static\s+)?function\s+([A-Za-z_][A-Za-z0-9_]*)",
+                text,
+                flags=re.MULTILINE,
+            )
+        )
         api_routes = re.findall(r"@\w+\.(?:get|post|put|patch|delete)\(['\"]([^'\"]+)['\"]", text)
         api_routes.extend(re.findall(r"(?:app|router)\.(?:get|post|put|patch|delete)\(['\"]([^'\"]+)['\"]", text))
+        api_routes.extend(re.findall(r"['\"](?:GET|POST|PUT|PATCH|DELETE)\s+([^'\"]+)['\"]", text))
         db_models = re.findall(r"^\s*class\s+([A-Za-z_][A-Za-z0-9_]*(?:Model|Record|Entity))", text, flags=re.MULTILINE)
+        db_models.extend(re.findall(r"CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?`?([A-Za-z_][A-Za-z0-9_]*)`?", text, flags=re.IGNORECASE))
         test_symbols = re.findall(r"^\s*(?:def|function)\s+(test_[A-Za-z_][A-Za-z0-9_]*)", text, flags=re.MULTILINE)
         keywords = sorted({item.lower() for item in re.findall(r"[A-Za-z][A-Za-z0-9_-]{3,}", text)})[:30]
         parts = relative.split("/")
