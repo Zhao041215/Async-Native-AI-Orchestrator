@@ -44,6 +44,7 @@ class V2ChiefExecutor:
         self.max_repair_rounds = max_repair_rounds
 
     def execute_run(self, project_id: str, run_id: str) -> dict:
+        existing_run = self.storage.get_run(run_id)
         project = self.storage.get_project(project_id)
         requirement_bundle = self.storage.get_requirement_bundle(project_id)
         project_root = Path(project["project_path"]).resolve()
@@ -77,32 +78,76 @@ class V2ChiefExecutor:
         dag = build_dag(requirement_bundle.get("work_packages", []))
         (run_root / "dag.json").write_text(json.dumps(dag, indent=2, ensure_ascii=True), encoding="utf-8")
         package_map = {item["id"]: item for item in requirement_bundle.get("work_packages", [])}
+        existing_patch_sets = [
+            item
+            for item in self.storage.list_patch_sets(run_id)
+            if item.get("status") in {"captured", "applied"}
+        ]
+        captured_package_ids = {item.get("work_package_id", "") for item in existing_patch_sets if item.get("work_package_id")}
+        existing_continuation = existing_run.get("continuation_state", {}) if existing_run else {}
+        completed_waves = [
+            str(item)
+            for item in existing_continuation.get("completed_waves", [])
+            if str(item).strip()
+        ]
+        completed_packages = sorted(
+            set(str(item) for item in existing_continuation.get("completed_packages", []) if str(item).strip())
+            | captured_package_ids
+            | {
+                item.get("work_package_id", "")
+                for item in self.storage.list_agent_runs(run_id)
+                if item.get("status") == "completed" and item.get("work_package_id")
+            }
+        )
+        completed_wave_set = set(completed_waves)
+        for wave in dag.get("waves", []):
+            package_ids = [item_id for item_id in wave.get("work_package_ids", []) if item_id in package_map]
+            if package_ids and set(package_ids).issubset(captured_package_ids):
+                completed_wave_set.add(wave.get("id"))
+        completed_waves = [wave.get("id") for wave in dag.get("waves", []) if wave.get("id") in completed_wave_set]
+        pending_waves = [wave.get("id") for wave in dag.get("waves", []) if wave.get("id") not in completed_wave_set]
         self.storage.update_run(
             run_id,
             continuation_state={
-                **self.storage.get_run(run_id).get("continuation_state", {}),
+                **existing_continuation,
                 "schema_version": "2.2.0",
                 "checkpoint": "blueprint_complete",
                 "state": "running",
                 "next_action": "execute_waves",
-                "completed_waves": [],
-                "pending_waves": [wave.get("id") for wave in dag.get("waves", [])],
-                "completed_packages": [],
-                "pending_packages": list(package_map.keys()),
+                "completed_waves": completed_waves,
+                "pending_waves": pending_waves,
+                "completed_packages": completed_packages,
+                "pending_packages": [item for item in package_map if item not in completed_packages],
                 "applied_patch_ids": [],
                 "pending_patch_ids": [],
-                "patch_paths": [],
+                "patch_paths": [item["patch_path"] for item in existing_patch_sets if item.get("patch_path")],
                 "release_manifest_path": "",
                 "failure_reason": "",
-                "summary": "DAG waves are ready for execution.",
+                "summary": "DAG waves are ready for execution." if not completed_waves else "Resuming from durable wave checkpoint.",
             },
         )
 
-        patch_sets: list[dict] = []
+        patch_sets: list[dict] = list(existing_patch_sets)
         failure_context = ""
         for wave in dag.get("waves", []):
             work_packages = [package_map[item_id] for item_id in wave.get("work_package_ids", []) if item_id in package_map]
             if not work_packages:
+                continue
+            wave_package_ids = {item["id"] for item in work_packages}
+            current_patch_sets = [
+                item
+                for item in self.storage.list_patch_sets(run_id)
+                if item.get("status") in {"captured", "applied"}
+            ]
+            captured_package_ids = {item.get("work_package_id", "") for item in current_patch_sets if item.get("work_package_id")}
+            if wave.get("id") in completed_wave_set or wave_package_ids.issubset(captured_package_ids):
+                self.storage.add_event(
+                    run_id,
+                    "info",
+                    "chief",
+                    "Skipping completed DAG wave during resume.",
+                    {"wave_id": wave.get("id"), "work_packages": [item["id"] for item in work_packages]},
+                )
                 continue
             self.storage.add_event(
                 run_id,
@@ -139,6 +184,7 @@ class V2ChiefExecutor:
                 attempt=1,
                 failure_context=failure_context,
             )
+            wave_results = list(attempt_results)
             for result in attempt_results:
                 if result.patch_set:
                     patch_sets.append(result.patch_set)
@@ -163,6 +209,7 @@ class V2ChiefExecutor:
                     )
                     if repaired.patch_set:
                         patch_sets.append(repaired.patch_set)
+                    wave_results.append(repaired)
                     if repaired.agent_run["status"] != "completed":
                         return self._block_run(project_id, run_id, "Agent repair attempts exhausted.")
             run_state = self.storage.get_run(run_id)
@@ -172,7 +219,7 @@ class V2ChiefExecutor:
                 completed.append(wave.get("id"))
             pending = [item for item in continuation.get("pending_waves", []) if item != wave.get("id")]
             completed_packages = set(continuation.get("completed_packages", []))
-            for result in attempt_results:
+            for result in wave_results:
                 if result.agent_run.get("status") == "completed":
                     completed_packages.add(result.agent_run["work_package_id"])
             completed_package_list = sorted(completed_packages)
@@ -429,6 +476,12 @@ class V2ChiefExecutor:
                 return last
         return last
 
+    def _is_release_integration_patch(self, patch_set: dict) -> bool:
+        files = [str(item).replace("\\", "/") for item in patch_set.get("files_changed", [])]
+        if not files:
+            return False
+        return any(not file.startswith(".agent/v2/") for file in files)
+
     def _integrate_and_validate(
         self,
         *,
@@ -458,7 +511,21 @@ class V2ChiefExecutor:
             }
         )
         applied_patch_sets: list[dict] = []
-        for patch_set in [item for item in patch_sets if item.get("status") == "captured"]:
+        for patch_set in [item for item in patch_sets if item.get("status") in {"captured", "applied"}]:
+            if not self._is_release_integration_patch(patch_set):
+                self.storage.save_integration_step(
+                    {
+                        "run_id": run_id,
+                        "step_type": "skip_control_patch",
+                        "status": "skipped",
+                        "work_package_id": patch_set["work_package_id"],
+                        "patch_set_id": patch_set["id"],
+                        "message": "Skipped control-plane-only patch during product release integration.",
+                        "payload": {"files_changed": patch_set.get("files_changed", [])},
+                    }
+                )
+                self.storage.update_patch_set(patch_set["id"], status="applied")
+                continue
             apply_result = git.apply_patch(integration_path, Path(patch_set["patch_path"]))
             step = self.storage.save_integration_step(
                 {

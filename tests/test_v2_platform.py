@@ -215,6 +215,119 @@ def test_php_mysql_contract_files_exist():
         finally:
             shutil.rmtree(root, ignore_errors=True)
 
+    def test_control_plane_only_patch_is_not_part_of_release_integration(self) -> None:
+        root = (Path(__file__).resolve().parent.parent / "workspace" / "v2-test-scratch" / uuid.uuid4().hex).resolve()
+        try:
+            config = build_config(root)
+            executor = V2ChiefExecutor(config=config, storage=V2Storage(config.db_path))
+
+            self.assertFalse(
+                executor._is_release_integration_patch(
+                    {
+                        "files_changed": [".agent/v2/acceptance-contract.json", ".agent/v2/dag.json"],
+                    }
+                )
+            )
+            self.assertTrue(
+                    executor._is_release_integration_patch(
+                    {
+                        "files_changed": ["public/index.php", ".agent/v2/dag.json"],
+                    }
+                )
+            )
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+    def test_resume_contract_uses_latest_artifact_per_path_and_ignores_manifest_self_reference(self) -> None:
+        root = (Path(__file__).resolve().parent.parent / "workspace" / "v2-test-scratch" / uuid.uuid4().hex).resolve()
+        try:
+            config = build_config(root)
+            storage = V2Storage(config.db_path)
+            service = V2Orchestrator(config=config, storage=storage)
+            project = service.create_project(
+                name="resume-guard",
+                title="Resume Guard",
+                description="Must support PHP MySQL notification signing and artifact recovery.",
+            )
+            run = storage.create_run(
+                {
+                    "id": str(uuid.uuid4()),
+                    "project_id": project["id"],
+                    "tenant_id": project["tenant_id"],
+                    "created_by": project["created_by"],
+                    "status": "running",
+                    "chief_summary": "test",
+                    "created_at": "now",
+                    "updated_at": "now",
+                    "artifact_manifest_path": "",
+                    "continuation_state": {
+                        "patch_paths": [],
+                        "release_patch_path": "",
+                        "release_manifest_path": "",
+                    },
+                }
+            )
+            first_artifact = service._register_artifact(
+                tenant_id=project["tenant_id"],
+                project_id=project["id"],
+                run_id=run["id"],
+                kind="continuation",
+                name="continuation-state.json",
+                payload={"version": 1},
+            )
+            second_artifact = service._register_artifact(
+                tenant_id=project["tenant_id"],
+                project_id=project["id"],
+                run_id=run["id"],
+                kind="continuation",
+                name="continuation-state.json",
+                payload={"version": 2},
+            )
+            manifest_path = root / "workspace" / "artifacts" / "manifest.json"
+            manifest_path.parent.mkdir(parents=True, exist_ok=True)
+            manifest_path.write_text(
+                __import__("json").dumps(
+                    {
+                        "items": [
+                            {
+                                "id": first_artifact["id"],
+                                "kind": "continuation",
+                                "path": first_artifact["path"],
+                                "sha256": first_artifact["sha256"],
+                                "size_bytes": first_artifact["size_bytes"],
+                            },
+                            {
+                                "id": second_artifact["id"],
+                                "kind": "continuation",
+                                "path": second_artifact["path"],
+                                "sha256": second_artifact["sha256"],
+                                "size_bytes": second_artifact["size_bytes"],
+                            },
+                            {
+                                "id": "self",
+                                "kind": "manifest",
+                                "path": str(manifest_path),
+                                "sha256": "self",
+                                "size_bytes": 1,
+                            },
+                        ]
+                    },
+                    ensure_ascii=True,
+                ),
+                encoding="utf-8",
+            )
+            storage.update_run(run["id"], artifact_manifest_path=str(manifest_path))
+
+            recovery = service._validate_run_recovery_contract(run["id"])
+
+            self.assertTrue(recovery["ok"])
+            checked_paths = [item["path"] for item in recovery["checked"] if item.get("kind") == "continuation"]
+            self.assertEqual(checked_paths.count(first_artifact["path"]), 1)
+            self.assertEqual(checked_paths.count(second_artifact["path"]), 1)
+            self.assertNotIn(str(manifest_path), checked_paths)
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
     def test_llm_runner_accepts_on_disk_declared_outputs_at_tool_budget(self) -> None:
         class ExhaustingClient:
             def chat(self, system_prompt, messages, **kwargs):
@@ -246,6 +359,28 @@ def test_php_mysql_contract_files_exist():
         finally:
             shutil.rmtree(root, ignore_errors=True)
 
+    def test_git_write_patch_preserves_large_diffs_without_truncation(self) -> None:
+        root = (Path(__file__).resolve().parent.parent / "workspace" / "v2-test-scratch" / uuid.uuid4().hex).resolve()
+        try:
+            root.mkdir(parents=True, exist_ok=True)
+            project_root = root / "project"
+            project_root.mkdir(parents=True, exist_ok=True)
+            git = GitRuntime(project_root, root / "worktrees")
+            sandbox = git.ensure_repository()
+            worktree = git.create_worktree("run-large-diff", "backend", "WP-PHP-050-import-receipt-workflows", 1, sandbox["base_sha"])
+            target = Path(worktree["path"]) / "src" / "Services" / "ReceiptWorkflow.php"
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text("<?php\n" + "\n".join(f"// line {i}" for i in range(800)) + "\n", encoding="utf-8")
+
+            patch = git.write_patch(Path(worktree["path"]), sandbox["base_sha"], root / "large.patch")
+
+            patch_text = Path(patch["patch_path"]).read_text(encoding="utf-8")
+            self.assertFalse(patch["empty"])
+            self.assertNotIn("[truncated]", patch_text)
+            self.assertGreater(len(patch_text), 1000)
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
     def test_git_sandbox_initializes_non_git_project_and_creates_worktree(self) -> None:
         root = (Path(__file__).resolve().parent.parent / "workspace" / "v2-test-scratch" / uuid.uuid4().hex).resolve()
         try:
@@ -261,6 +396,23 @@ def test_php_mysql_contract_files_exist():
             self.assertTrue((project_root / ".git").exists())
             self.assertTrue(Path(worktree["path"]).exists())
             self.assertEqual(worktree["base_sha"], sandbox["base_sha"])
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+    def test_git_worktree_recreation_uses_unique_branch_when_previous_branch_remains(self) -> None:
+        root = (Path(__file__).resolve().parent.parent / "workspace" / "v2-test-scratch" / uuid.uuid4().hex).resolve()
+        try:
+            root.mkdir(parents=True, exist_ok=True)
+            project_root = root / "project"
+            project_root.mkdir(parents=True, exist_ok=True)
+            git = GitRuntime(project_root, root / "worktrees")
+            sandbox = git.ensure_repository()
+
+            first = git.create_worktree("run-retry", "integration", "release-candidate", 1, sandbox["base_sha"])
+            second = git.create_worktree("run-retry", "integration", "release-candidate", 1, sandbox["base_sha"])
+
+            self.assertTrue(Path(second["path"]).exists())
+            self.assertNotEqual(first["branch"], second["branch"])
         finally:
             shutil.rmtree(root, ignore_errors=True)
 

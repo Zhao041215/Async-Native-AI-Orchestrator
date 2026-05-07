@@ -4,6 +4,7 @@ import shutil
 import subprocess
 import threading
 import hashlib
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -42,17 +43,16 @@ class GitRuntime:
         self.timeout_seconds = timeout_seconds
         self._lock = threading.RLock()
 
-    def git(
+    def _run_git_process(
         self,
         args: list[str],
         *,
         cwd: Path | None = None,
-        check: bool = True,
         timeout_seconds: int | None = None,
-    ) -> GitCommandResult:
+    ) -> subprocess.CompletedProcess[str]:
         working_dir = Path(cwd or self.project_root).resolve()
         with self._lock:
-            completed = subprocess.run(
+            return subprocess.run(
                 ["git", *args],
                 cwd=working_dir,
                 capture_output=True,
@@ -61,6 +61,16 @@ class GitRuntime:
                 errors="replace",
                 timeout=timeout_seconds or self.timeout_seconds,
             )
+
+    def git(
+        self,
+        args: list[str],
+        *,
+        cwd: Path | None = None,
+        check: bool = True,
+        timeout_seconds: int | None = None,
+    ) -> GitCommandResult:
+        completed = self._run_git_process(args, cwd=cwd, timeout_seconds=timeout_seconds)
         result = GitCommandResult(
             code=completed.returncode,
             stdout=truncate_text(completed.stdout),
@@ -112,11 +122,17 @@ class GitRuntime:
         self._assert_inside(path, self.worktree_root)
         if path.exists():
             shutil.rmtree(path)
+        self.git(["worktree", "prune"], check=False)
         path.parent.mkdir(parents=True, exist_ok=True)
-        branch = f"v2/{run_id[:6]}/{safe_purpose}-{digest}-{attempt}"
-        existing = self.git(["show-ref", "--verify", "--quiet", f"refs/heads/{branch}"], check=False)
-        if existing.ok:
-            branch = f"{branch}-{digest}"
+        branch_base = f"v2/{run_id[:6]}/{safe_purpose}-{digest}-{attempt}"
+        branch = branch_base
+        for index in range(10):
+            existing = self.git(["show-ref", "--verify", "--quiet", f"refs/heads/{branch}"], check=False)
+            if not existing.ok:
+                break
+            branch = f"{branch_base}-{uuid.uuid4().hex[:8]}"
+        else:
+            raise GitRuntimeError(f"Could not allocate unique worktree branch for {branch_base}")
         self.git(["worktree", "add", "-f", "-b", branch, str(path), base_sha])
         return {"path": str(path), "branch": branch, "base_sha": base_sha}
 
@@ -151,7 +167,12 @@ class GitRuntime:
 
     def write_patch(self, worktree_path: Path, base_sha: str, patch_path: Path) -> dict:
         self.mark_untracked_for_diff(worktree_path)
-        diff = self.git(["diff", "--binary", base_sha, "--", *self._diff_pathspec()], cwd=worktree_path).stdout
+        completed = self._run_git_process(["diff", "--binary", base_sha, "--", *self._diff_pathspec()], cwd=worktree_path)
+        if completed.returncode != 0:
+            raise GitRuntimeError(
+                f"git diff --binary failed with code {completed.returncode}: {truncate_text(completed.stderr or completed.stdout)}"
+            )
+        diff = completed.stdout
         patch_path.parent.mkdir(parents=True, exist_ok=True)
         patch_path.write_text(diff, encoding="utf-8")
         files = self.changed_files(worktree_path, base_sha)

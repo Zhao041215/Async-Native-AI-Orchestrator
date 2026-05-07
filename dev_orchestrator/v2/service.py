@@ -639,6 +639,18 @@ class V2Orchestrator:
             }
         )
 
+    def _latest_artifacts_by_path(self, items: list[dict]) -> list[dict]:
+        latest: dict[str, dict] = {}
+        order: list[str] = []
+        for item in items:
+            path = str(item.get("path", "")).strip()
+            if not path:
+                continue
+            if path not in latest:
+                order.append(path)
+            latest[path] = item
+        return [latest[path] for path in order]
+
     def _artifact_source_root(self, project_root: Path, run_id: str) -> Path:
         worktrees = self.storage.list_worktrees(run_id)
         for item in reversed(worktrees):
@@ -659,6 +671,21 @@ class V2Orchestrator:
         row["integrity_ok"] = bool(row["exists"] and row["size_ok"] and row["sha256_ok"])
         return row
 
+    def _artifact_requirement_score(self, item: dict) -> tuple[int, int]:
+        score = 0
+        if str(item.get("sha256", "") or "").strip():
+            score += 2
+        if int(item.get("size_bytes", 0) or 0) > 0:
+            score += 1
+        if item.get("strict_integrity"):
+            score += 1
+        source = str(item.get("source", ""))
+        if source.startswith("artifact_db:"):
+            score += 2
+        elif source.startswith("artifact_manifest.items"):
+            score += 1
+        return score, len(source)
+
     def _read_json_file(self, path: Path) -> tuple[dict, str]:
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
@@ -677,13 +704,17 @@ class V2Orchestrator:
         if not isinstance(items, list):
             return [], [{"kind": "artifact_manifest", "path": manifest_path, "source": "artifact_manifest.items", "error": "manifest items must be a list"}]
         normalized: list[dict] = []
+        manifest_path_text = str(path.resolve())
         for index, item in enumerate(items):
             if not isinstance(item, dict):
+                continue
+            item_path = str(item.get("path", "")).strip()
+            if item_path and str(Path(item_path).resolve()) == manifest_path_text:
                 continue
             normalized.append(
             {
                 "kind": item.get("kind", "artifact"),
-                "path": item.get("path", ""),
+                "path": item_path,
                 "source": f"artifact_manifest.items[{index}]",
                 "sha256": item.get("sha256", ""),
                 "size_bytes": item.get("size_bytes", 0),
@@ -691,14 +722,14 @@ class V2Orchestrator:
                 "strict_integrity": True,
             }
             )
-        return normalized, []
+        return self._latest_artifacts_by_path(normalized), []
 
     def _validate_run_recovery_contract(self, run_id: str) -> dict:
         run = self.storage.get_run(run_id)
         candidate = self.storage.latest_release_candidate_for_project(run["project_id"])
         continuation = run.get("continuation_state", {})
         required: list[dict] = []
-        db_artifacts = self.storage.list_artifacts(run_id=run_id)
+        db_artifacts = self._latest_artifacts_by_path(self.storage.list_artifacts(run_id=run_id))
 
         def add_required(kind: str, path: object, source: str) -> None:
             if path is None:
@@ -788,18 +819,24 @@ class V2Orchestrator:
                         }
                     )
 
-        seen: set[tuple[str, str]] = set()
-        checked: list[dict] = []
-        missing: list[dict] = []
-        mismatched: list[dict] = []
+        chosen: dict[str, dict] = {}
+        order: list[str] = []
         for item in required:
             if not str(item.get("path", "")).strip():
                 continue
-            key = (item.get("kind", ""), item.get("path", ""), item.get("source", ""))
-            if key in seen:
+            path = str(item.get("path", ""))
+            current = chosen.get(path)
+            if current is None:
+                chosen[path] = item
+                order.append(path)
                 continue
-            seen.add(key)
-            row = self._artifact_integrity_row(item)
+            if self._artifact_requirement_score(item) >= self._artifact_requirement_score(current):
+                chosen[path] = item
+        checked: list[dict] = []
+        missing: list[dict] = []
+        mismatched: list[dict] = []
+        for path in order:
+            row = self._artifact_integrity_row(chosen[path])
             checked.append(row)
             if not row["exists"]:
                 missing.append(row)
@@ -942,8 +979,12 @@ class V2Orchestrator:
             )
         )
 
-        existing = self.storage.list_artifacts(run_id=run_id)
-        manifest_payload = build_artifact_manifest(existing + run_artifacts)
+        existing = [
+            item
+            for item in self.storage.list_artifacts(run_id=run_id)
+            if item.get("kind") != "manifest"
+        ]
+        manifest_payload = build_artifact_manifest(self._latest_artifacts_by_path(existing + run_artifacts))
         manifest_artifact = self._register_artifact(
             tenant_id=tenant_id,
             project_id=project_id,
