@@ -36,7 +36,7 @@ textarea {
   font: inherit;
 }
 
-.v4-shell {
+.v5-shell {
   width: min(1440px, calc(100% - 32px));
   margin: 0 auto;
   padding: 24px 0 48px;
@@ -354,6 +354,35 @@ form button {
   font-size: 12px;
 }
 
+.action-strip {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.action-strip .action-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.action-strip .action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.action-strip .action-buttons button {
+  flex: 0 0 auto;
+}
+
+.action-strip .action-note {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 pre {
   max-height: 320px;
   overflow: auto;
@@ -410,7 +439,7 @@ pre {
 }
 
 @media (max-width: 700px) {
-  .v4-shell {
+  .v5-shell {
     width: min(100% - 20px, 1440px);
   }
 

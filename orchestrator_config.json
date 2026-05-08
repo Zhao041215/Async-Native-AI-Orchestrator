@@ -34,7 +34,7 @@
     "max_conflicts_per_task": 16,
     "max_resume_attempts_per_task": 20,
     "max_failures_per_task": 20,
-    "deployment_mode": "docker-compose-v4",
+    "deployment_mode": "docker-compose-v5",
     "queue_mode": "postgres-durable",
     "sandbox_mode": "tenant-governed-worktree"
   },
@@ -51,7 +51,7 @@
   "production": {
     "queue_backend": "postgres-durable",
     "worker_model": "multi-process-worker",
-    "deployment_target": "docker-compose-v4",
+    "deployment_target": "docker-compose-v5",
     "diagnostics_enabled": true,
     "future_auth_enabled": false
   }

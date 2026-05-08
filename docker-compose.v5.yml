@@ -1,0 +1,58 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.v5
+    image: ai-agent-v5:local
+    working_dir: /app
+    command: python run_server.py --api --host 0.0.0.0 --port 8787
+    environment:
+      V5_DATABASE_URL: postgresql+psycopg://orchestrator:orchestrator@postgres:5432/orchestrator
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_API_BASE: ${OPENAI_API_BASE:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-}
+      OPENAI_WIRE_API: ${OPENAI_WIRE_API:-}
+      OPENAI_PROVIDER_PROFILE: ${OPENAI_PROVIDER_PROFILE:-}
+      OPENAI_API_PATH: ${OPENAI_API_PATH:-}
+      OPENAI_REASONING_EFFORT: ${OPENAI_REASONING_EFFORT:-}
+      OPENAI_DISABLE_RESPONSE_STORAGE: ${OPENAI_DISABLE_RESPONSE_STORAGE:-}
+    ports:
+      - "8787:8787"
+    volumes:
+      - .:/app
+    depends_on:
+      - postgres
+
+  worker-supervisor:
+    build:
+      context: .
+      dockerfile: Dockerfile.v5
+    image: ai-agent-v5:local
+    working_dir: /app
+    command: python run_server.py --worker-supervisor --tenant local-workspace --roles requirements,architect,planner,db,backend,frontend,qa,security,integration,review,repair,release,docs
+    environment:
+      V5_DATABASE_URL: postgresql+psycopg://orchestrator:orchestrator@postgres:5432/orchestrator
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_API_BASE: ${OPENAI_API_BASE:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-}
+      OPENAI_WIRE_API: ${OPENAI_WIRE_API:-}
+      OPENAI_PROVIDER_PROFILE: ${OPENAI_PROVIDER_PROFILE:-}
+      OPENAI_API_PATH: ${OPENAI_API_PATH:-}
+      OPENAI_REASONING_EFFORT: ${OPENAI_REASONING_EFFORT:-}
+      OPENAI_DISABLE_RESPONSE_STORAGE: ${OPENAI_DISABLE_RESPONSE_STORAGE:-}
+    volumes:
+      - .:/app
+    depends_on:
+      - postgres
+
+  postgres:
+    image: ${V5_POSTGRES_IMAGE:-docker.1ms.run/library/postgres:16-alpine}
+    environment:
+      POSTGRES_USER: orchestrator
+      POSTGRES_PASSWORD: orchestrator
+      POSTGRES_DB: orchestrator
+    volumes:
+      - v5-postgres:/var/lib/postgresql/data
+
+volumes:
+  v5-postgres:

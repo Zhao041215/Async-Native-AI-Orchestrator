@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>V5 Autonomous Delivery Workbench</title>
-  <link rel="stylesheet" href="/static/styles.css?v=20260508a">
+  <title>V5 AI-Agent Workbench</title>
+  <link rel="stylesheet" href="/static/styles.css?v=20260508c">
 </head>
 <body>
-  <main class="v4-shell">
+  <main class="v5-shell">
     <header class="topbar">
       <div>
         <p class="eyebrow">Dev Orchestrator V5</p>
-        <h1>Autonomous Delivery Workbench</h1>
+        <h1>AI-Agent Delivery Workbench</h1>
       </div>
       <div class="status-strip">
         <span id="health-pill" class="pill">checking</span>
@@ -26,21 +26,10 @@
           <p class="eyebrow">Create</p>
           <h2>Create and Dispatch</h2>
         </div>
-        <label>Project name<input name="name" placeholder="personnel-admin"></label>
-        <label>Project title<input name="title" placeholder="Enterprise admin system"></label>
+        <label>Project name<input name="name" placeholder="knowledge-base"></label>
+        <label>Project title<input name="title" placeholder="Knowledge Base Management"></label>
         <label>Project path<input name="project_path" placeholder="E:\ProgramProjects\YourProject"></label>
-        <label>Stack pack
-          <select name="stack_pack">
-            <option value="auto">auto</option>
-            <option value="php_mysql_single_dir">php_mysql_single_dir</option>
-            <option value="nextjs_prisma_postgres">nextjs_prisma_postgres</option>
-            <option value="python_fastapi_postgres">python_fastapi_postgres</option>
-            <option value="react_node_mysql">react_node_mysql</option>
-            <option value="node_express_mysql">node_express_mysql</option>
-            <option value="laravel_mysql">laravel_mysql</option>
-            <option value="static_spa_api">static_spa_api</option>
-          </select>
-        </label>
+        <label>Technology guidance<input name="stack_pack" placeholder="AI decides structure; optional constraints"></label>
         <label>Target scale
           <select name="target_scale">
             <option value="small">small</option>
@@ -50,7 +39,7 @@
           </select>
         </label>
         <label>Effective LOC target<input name="effective_loc_target" type="number" value="1000" min="100"></label>
-        <label>Requirements<textarea name="description" rows="8" placeholder="For example: Baota deployment, PHP + MySQL, admin login, CRUD, audit, reports, health check."></textarea></label>
+        <label>Requirements<textarea name="description" rows="8" placeholder="Describe the product, users, workflows, constraints, scale, and deployment expectations."></textarea></label>
         <button id="create-run" type="submit">Create and Run</button>
       </form>
 
@@ -72,17 +61,18 @@
           <h2 id="run-title">Select a Project</h2>
         </div>
         <div id="run-summary" class="summary"></div>
+        <div id="run-actions" class="action-strip"></div>
 
         <h3>V5 Control Plane</h3>
-        <div id="v45-summary" class="summary wide"></div>
+        <div id="v5-summary" class="summary wide"></div>
 
-        <h3>AI Calls</h3>
+        <h3>Agent Runs</h3>
         <div id="ai-call-list" class="list compact"></div>
 
         <h3>Waves</h3>
         <div id="wave-list" class="list compact"></div>
 
-        <h3>Packages</h3>
+        <h3>Agent Packages</h3>
         <div id="package-list" class="list compact"></div>
 
         <h3>Quality Gates</h3>
@@ -113,6 +103,6 @@
       </section>
     </section>
   </main>
-  <script src="/static/app.js?v=20260508a"></script>
+  <script src="/static/app.js?v=20260508c"></script>
 </body>
 </html>

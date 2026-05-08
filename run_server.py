@@ -7,22 +7,22 @@ from pathlib import Path
 from dev_orchestrator.config import load_config
 from dev_orchestrator.llm_client import OpenAICompatibleClient
 from dev_orchestrator.llm_contract_check import run_llm_contract_check
-from dev_orchestrator.v4.service import V4Orchestrator
-from dev_orchestrator.v4.store import InMemoryV4Store, build_store
-from dev_orchestrator.v4.system_check import build_v4_system_check
-from dev_orchestrator.v4.worker import DEFAULT_WORKER_ROLES, DurableWorker, WorkerSupervisor
+from dev_orchestrator.v5.service import V5Orchestrator
+from dev_orchestrator.v5.store import InMemoryV5Store, build_store
+from dev_orchestrator.v5.system_check import build_v5_system_check
+from dev_orchestrator.v5.worker import DEFAULT_WORKER_ROLES, DurableWorker, WorkerSupervisor
 
 
 def _root() -> Path:
     return Path(__file__).resolve().parent
 
 
-def _build_v4(memory_store: bool = False) -> tuple[Path, V4Orchestrator]:
+def _build_v5(memory_store: bool = False) -> tuple[Path, V5Orchestrator]:
     root = _root()
     config = load_config(root)
-    store = InMemoryV4Store() if memory_store else build_store(config.database_url)
+    store = InMemoryV5Store() if memory_store else build_store(config.database_url)
     llm_client = None if memory_store else OpenAICompatibleClient(config.llm)
-    service = V4Orchestrator(store=store, workspace_root=config.workspace_root, tenant_id=config.identity.default_tenant, llm_client=llm_client)
+    service = V5Orchestrator(store=store, workspace_root=config.workspace_root, tenant_id=config.identity.default_tenant, llm_client=llm_client)
     service.bootstrap(attempts=30, delay_seconds=1.0)
     return root, service
 
@@ -30,7 +30,7 @@ def _build_v4(memory_store: bool = False) -> tuple[Path, V4Orchestrator]:
 def run_system_check(strict_db: bool = False) -> None:
     root = _root()
     config = load_config(root)
-    print(json.dumps(build_v4_system_check(root, config.to_dict(), strict_db=strict_db), indent=2, ensure_ascii=True))
+    print(json.dumps(build_v5_system_check(root, config.to_dict(), strict_db=strict_db), indent=2, ensure_ascii=True))
 
 
 def run_llm_handshake_check() -> None:
@@ -41,7 +41,7 @@ def run_llm_handshake_check() -> None:
 
 
 def run_worker_process(role: str, tenant_id: str, worker_id: str, once: bool, poll_seconds: float, lease_seconds: int, max_jobs: int, memory_store: bool = False) -> None:
-    _, service = _build_v4(memory_store=memory_store)
+    _, service = _build_v5(memory_store=memory_store)
     worker = DurableWorker(
         service=service,
         role=role,
@@ -73,28 +73,28 @@ def run_worker_supervisor(roles: str, tenant_id: str, poll_seconds: float, lease
 
 
 def run_api(host: str, port: int, memory_store: bool = False) -> None:
-    from dev_orchestrator.v4.api import run_api_server
+    from dev_orchestrator.v5.api import run_api_server
 
     root = _root()
     config = load_config(root)
-    store = InMemoryV4Store() if memory_store else build_store(config.database_url)
+    store = InMemoryV5Store() if memory_store else build_store(config.database_url)
     llm_client = None if memory_store else OpenAICompatibleClient(config.llm)
-    service = V4Orchestrator(store=store, workspace_root=config.workspace_root, tenant_id=config.identity.default_tenant, llm_client=llm_client)
+    service = V5Orchestrator(store=store, workspace_root=config.workspace_root, tenant_id=config.identity.default_tenant, llm_client=llm_client)
     service.bootstrap(attempts=1 if memory_store else 30, delay_seconds=1.0)
     run_api_server(service, config, host=host or config.server.host, port=port or config.server.port)
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run the V4 multi-process autonomous delivery control plane.")
-    parser.add_argument("--api", action="store_true", help="Start the V4 FastAPI control plane.")
+    parser = argparse.ArgumentParser(description="Run the V5 demand-driven autonomous delivery control plane.")
+    parser.add_argument("--api", action="store_true", help="Start the V5 FastAPI control plane.")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", default=8787, type=int)
     parser.add_argument("--system-check", action="store_true")
     parser.add_argument("--strict-db", action="store_true", help="Require Postgres bootstrap during --system-check.")
     parser.add_argument("--llm-contract-check", action="store_true")
-    parser.add_argument("--worker", action="store_true", help="Run one V4 durable worker process.")
-    parser.add_argument("--worker-supervisor", action="store_true", help="Start and supervise V4 role worker processes.")
-    parser.add_argument("--memory-store", action="store_true", help="Development-only in-memory store for opening the V4 console without Postgres.")
+    parser.add_argument("--worker", action="store_true", help="Run one V5 durable worker process.")
+    parser.add_argument("--worker-supervisor", action="store_true", help="Start and supervise V5 role worker processes.")
+    parser.add_argument("--memory-store", action="store_true", help="Development-only in-memory store for opening the V5 console without Postgres.")
     parser.add_argument("--role", default="backend", help="Worker role for --worker.")
     parser.add_argument("--roles", default=",".join(DEFAULT_WORKER_ROLES), help="Comma-separated roles for --worker-supervisor.")
     parser.add_argument("--tenant", default="", help="Tenant id for worker operations.")

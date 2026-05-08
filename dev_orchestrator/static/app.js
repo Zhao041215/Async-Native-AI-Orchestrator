@@ -8,20 +8,22 @@ const state = {
   workers: [],
 };
 
-const API_BASE = "/api/v5";
+let API_BASE = "/api/v5";
 const $ = (id) => document.getElementById(id);
 
 const nodes = {
   health: $("health-pill"),
   workers: $("worker-count"),
   refresh: $("refresh"),
+  createRun: $("create-run"),
   selectAllProjects: $("select-all-projects"),
   deleteSelectedProjects: $("delete-selected-projects"),
   form: $("project-form"),
   projectList: $("project-list"),
   runTitle: $("run-title"),
   runSummary: $("run-summary"),
-  v45Summary: $("v45-summary"),
+  runActions: $("run-actions"),
+  v5Summary: $("v5-summary"),
   aiCallList: $("ai-call-list"),
   waveList: $("wave-list"),
   packageList: $("package-list"),
@@ -35,7 +37,14 @@ const nodes = {
 };
 
 async function fetchJson(path, options = {}) {
-  const response = await fetch(path, {
+  const pathText = String(path || "");
+  let candidate = pathText;
+  if (pathText.startsWith("/api/v5/")) {
+    candidate = pathText;
+  } else if (pathText.startsWith("/")) {
+    candidate = `${API_BASE}${pathText}`;
+  }
+  const response = await fetch(candidate, {
     headers: { "Content-Type": "application/json", ...(options.headers || {}) },
     ...options,
   });
@@ -64,6 +73,145 @@ function statusClass(value) {
   if (["no_go", "dead_letter", "blocked", "failed", "rollback_failed", "fail", "blocked_for_human_review"].includes(item)) return "bad";
   if (["queued", "retry", "paused", "leased"].includes(item)) return "live";
   return "neutral";
+}
+
+function latestArtifactByKind(items, kind) {
+  const matches = (items || []).filter((item) => item.kind === kind);
+  return matches[matches.length - 1] || null;
+}
+
+function createActionButton(label, { className = "", disabled = false, title = "", onClick }) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = label;
+  if (className) {
+    button.className = className;
+  }
+  if (title) {
+    button.title = title;
+  }
+  button.disabled = disabled;
+  button.addEventListener("click", async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (button.disabled) {
+      return;
+    }
+    const originalLabel = button.textContent;
+    button.disabled = true;
+    button.textContent = "Working...";
+    try {
+      await onClick();
+    } catch (error) {
+      nodes.health.textContent = error.message;
+      nodes.health.className = "pill bad";
+    } finally {
+      button.textContent = originalLabel;
+      button.disabled = disabled;
+    }
+  });
+  return button;
+}
+
+function renderRunActions(current, continuation, artifacts) {
+  nodes.runActions.innerHTML = "";
+  if (!current) {
+    nodes.runActions.innerHTML = '<div class="empty">No run selected</div>';
+    return;
+  }
+
+  const releaseCandidate = latestArtifactByKind(artifacts.items || [], "release_candidate");
+  const nextAction = continuation.continuation?.next_action || current.continuation?.next_action || "-";
+  const releaseStatus = continuation.continuation?.release_status || current.continuation?.release_status || "-";
+  const canApply = Boolean(releaseCandidate?.id) && (current.status === "release_ready" || nextAction === "apply" || releaseStatus === "GO");
+  const canRollback = Boolean(releaseCandidate?.id) && (current.status === "completed" || releaseStatus === "applied" || nextAction === "delivery_complete");
+  const canRepair = ["blocked", "no_go", "blocked_for_human_review"].includes(String(current.status || "").toLowerCase()) || String(nextAction || "").startsWith("repair");
+  const canPause = !["paused", "completed", "rolled_back", "cancelled"].includes(String(current.status || "").toLowerCase());
+  const canResume = ["paused", "blocked"].includes(String(current.status || "").toLowerCase());
+  const canRequeue = ["blocked", "paused", "no_go"].includes(String(current.status || "").toLowerCase());
+
+  const meta = document.createElement("div");
+  meta.className = "action-meta";
+  meta.innerHTML = `
+    <span class="chip ${statusClass(current.status)}">${esc(current.status || "-")}</span>
+    <span class="chip neutral">checkpoint ${esc(current.checkpoint || "-")}</span>
+    <span class="chip ${statusClass(nextAction)}">next ${esc(nextAction)}</span>
+    <span class="chip ${statusClass(releaseStatus)}">release ${esc(releaseStatus)}</span>
+  `;
+
+  const buttons = document.createElement("div");
+  buttons.className = "action-buttons";
+  buttons.appendChild(createActionButton("Apply release", {
+    className: "primary",
+    disabled: !canApply,
+    title: releaseCandidate?.id ? `Apply release candidate ${shortId(releaseCandidate.id)}` : "No release candidate yet",
+    onClick: async () => {
+      if (!releaseCandidate?.id) return;
+      await fetchJson(`${API_BASE}/release-candidates/${releaseCandidate.id}/apply`, { method: "POST" });
+      await refreshAll();
+    },
+  }));
+  buttons.appendChild(createActionButton("Rollback", {
+    className: "danger subtle",
+    disabled: !canRollback,
+    title: releaseCandidate?.id ? `Rollback release candidate ${shortId(releaseCandidate.id)}` : "No release candidate yet",
+    onClick: async () => {
+      if (!releaseCandidate?.id) return;
+      await fetchJson(`${API_BASE}/release-candidates/${releaseCandidate.id}/rollback`, { method: "POST" });
+      await refreshAll();
+    },
+  }));
+  buttons.appendChild(createActionButton("Repair", {
+    className: "subtle",
+    disabled: !canRepair,
+    title: "Create a repair job for this run",
+    onClick: async () => {
+      await fetchJson(`${API_BASE}/runs/${current.id}/repair`, { method: "POST" });
+      await refreshAll();
+    },
+  }));
+  buttons.appendChild(createActionButton("Requeue blocked", {
+    className: "subtle",
+    disabled: !canRequeue,
+    title: "Move a blocked run back to queued",
+    onClick: async () => {
+      await fetchJson(`${API_BASE}/runs/${current.id}/requeue-blocked`, { method: "POST" });
+      await refreshAll();
+    },
+  }));
+  buttons.appendChild(createActionButton("Pause", {
+    className: "subtle",
+    disabled: !canPause,
+    title: "Pause at the next job boundary",
+    onClick: async () => {
+      await fetchJson(`${API_BASE}/runs/${current.id}/pause`, { method: "POST" });
+      await refreshAll();
+    },
+  }));
+  buttons.appendChild(createActionButton("Resume", {
+    className: "subtle",
+    disabled: !canResume,
+    title: "Resume a paused run",
+    onClick: async () => {
+      await fetchJson(`${API_BASE}/runs/${current.id}/resume`, { method: "POST" });
+      await refreshAll();
+    },
+  }));
+  buttons.appendChild(createActionButton("Refresh run", {
+    className: "subtle",
+    title: "Refresh this run panel",
+    onClick: async () => {
+      await renderRun(current.id);
+    },
+  }));
+
+  const note = document.createElement("div");
+  note.className = "action-note";
+  note.textContent = releaseCandidate?.id
+    ? `Release candidate ${shortId(releaseCandidate.id)} is the manual trigger point. Apply starts the release job; rollback reverts the applied candidate.`
+    : "This run has no release candidate yet. Wait for quality and release candidate generation, or use Repair if the run is blocked.";
+
+  nodes.runActions.append(meta, buttons, note);
 }
 
 async function refreshAll() {
@@ -98,7 +246,8 @@ async function refreshAll() {
 function clearDetailView() {
   nodes.runTitle.textContent = "Select a Project";
   nodes.runSummary.innerHTML = "";
-  nodes.v45Summary.innerHTML = "";
+  nodes.runActions.innerHTML = "";
+  nodes.v5Summary.innerHTML = "";
   nodes.aiCallList.innerHTML = '<div class="empty">No project selected</div>';
   nodes.waveList.innerHTML = '<div class="empty">No project selected</div>';
   nodes.packageList.innerHTML = '<div class="empty">No project selected</div>';
@@ -118,16 +267,17 @@ function renderProjectOverview() {
   }
   const runs = state.selectedProjectRuns || [];
   const latestRun = runs[0];
-  const stackPack = project.config?.stack_pack || "-";
+  const technologyGuidance = project.config?.stack_pack || "AI-decided";
   const targetScale = project.config?.target_scale || "-";
   const projectPath = project.project_path || "-";
   nodes.runTitle.textContent = `${project.title || project.name} - Project view`;
   nodes.runSummary.innerHTML = `
     <div><strong>${esc(project.status || "-")}</strong><small>project status</small></div>
-    <div><strong>${esc(stackPack)}</strong><small>stack pack</small></div>
+    <div><strong>${esc(technologyGuidance)}</strong><small>technology guidance</small></div>
     <div><strong>${esc(targetScale)}</strong><small>target scale</small></div>
   `;
-  nodes.v45Summary.innerHTML = `
+  nodes.runActions.innerHTML = '<div class="empty">No run selected</div>';
+  nodes.v5Summary.innerHTML = `
     <div><strong>${esc(projectPath)}</strong><small>project path</small></div>
     <div><strong>${esc(runs.length)}</strong><small>run count</small></div>
     <div><strong>${esc(latestRun?.status || "none")}</strong><small>latest run</small></div>
@@ -303,7 +453,7 @@ function renderWorkers() {
 }
 
 async function renderRun(runId) {
-  const [run, jobs, continuation, artifacts, aiCalls, waves, packages, quality, contextIndex, repairs] = await Promise.all([
+  const [run, jobs, continuation, artifacts, aiCalls, waves, packages, quality, contextIndex, repairs, layout, patchSets] = await Promise.all([
     fetchJson(`${API_BASE}/runs/${runId}`),
     fetchJson(`${API_BASE}/runs/${runId}/jobs`),
     fetchJson(`${API_BASE}/runs/${runId}/continuation`),
@@ -314,9 +464,12 @@ async function renderRun(runId) {
     fetchJson(`${API_BASE}/runs/${runId}/quality-report`).catch(() => ({ report: null })),
     fetchJson(`${API_BASE}/runs/${runId}/context-index`).catch(() => ({ snapshot: null })),
     fetchJson(`${API_BASE}/runs/${runId}/repair-history`).catch(() => ({ items: [] })),
+    fetchJson(`${API_BASE}/runs/${runId}/project-layout`).catch(() => ({ layout: null })),
+    fetchJson(`${API_BASE}/runs/${runId}/patch-sets`).catch(() => ({ items: [] })),
   ]);
   const current = run.run;
   const qualityReport = quality.report || {};
+  const releaseCandidate = latestArtifactByKind(artifacts.items || [], "release_candidate");
   const currentWave = continuation.continuation?.current_wave || "-";
   const effectiveLoc = qualityReport.effective_loc?.total ?? current.metadata?.effective_loc_metrics?.total ?? 0;
   const targetLoc = current.metadata?.project_config?.effective_loc_target || "-";
@@ -326,13 +479,14 @@ async function renderRun(runId) {
   nodes.runSummary.innerHTML = `
     <div><strong>${esc(current.status)}</strong><small>status</small></div>
     <div><strong>${esc(current.checkpoint)}</strong><small>checkpoint</small></div>
-    <div><strong>${esc((current.metadata?.product_contract || {}).stack_pack || "-")}</strong><small>stack pack</small></div>
+    <div><strong>${esc(layout.layout?.delivery_root || current.metadata?.project_layout?.delivery_root || "-")}</strong><small>delivery root</small></div>
   `;
-  nodes.v45Summary.innerHTML = `
+  renderRunActions(current, continuation, artifacts);
+  nodes.v5Summary.innerHTML = `
     <div><strong>${esc(currentWave)}</strong><small>current wave</small></div>
     <div><strong>${esc(effectiveLoc)} / ${esc(targetLoc)}</strong><small>effective LOC</small></div>
-    <div><strong>${esc(aiCalls.items?.length || 0)}</strong><small>AI calls</small></div>
-    <div><strong>${esc(failedGates.length)}</strong><small>failed gates</small></div>
+    <div><strong>${esc(aiCalls.items?.length || 0)}</strong><small>agent runs</small></div>
+    <div><strong>${esc(patchSets.items?.length || 0)}</strong><small>patch sets</small></div>
   `;
   nodes.aiCallList.innerHTML = (aiCalls.items || []).map((artifact) => {
     const payload = artifact.payload || {};
@@ -388,6 +542,11 @@ async function renderRun(runId) {
 
 nodes.form.addEventListener("submit", async (event) => {
   event.preventDefault();
+  const originalLabel = nodes.createRun?.textContent || "Create and Run";
+  if (nodes.createRun) {
+    nodes.createRun.disabled = true;
+    nodes.createRun.textContent = "Creating...";
+  }
   const form = new FormData(nodes.form);
   const payload = {
     name: form.get("name") || "",
@@ -398,15 +557,25 @@ nodes.form.addEventListener("submit", async (event) => {
     target_scale: form.get("target_scale") || "small",
     effective_loc_target: Number.parseInt(form.get("effective_loc_target") || "1000", 10),
   };
-  const project = await fetchJson(`${API_BASE}/projects`, { method: "POST", body: JSON.stringify(payload) });
-  state.selectedProjectId = project.project.id;
-  const run = await fetchJson(`${API_BASE}/projects/${project.project.id}/runs`, {
-    method: "POST",
-    body: JSON.stringify({ requirements_text: payload.description }),
-  });
-  state.selectedRunId = run.run.id;
-  nodes.form.reset();
-  await refreshAll();
+  try {
+    const project = await fetchJson(`${API_BASE}/projects`, { method: "POST", body: JSON.stringify(payload) });
+    state.selectedProjectId = project.project.id;
+    const run = await fetchJson(`${API_BASE}/projects/${project.project.id}/runs`, {
+      method: "POST",
+      body: JSON.stringify({ requirements_text: payload.description }),
+    });
+    state.selectedRunId = run.run.id;
+    nodes.form.reset();
+    await refreshAll();
+  } catch (error) {
+    nodes.health.textContent = error.message;
+    nodes.health.className = "pill bad";
+  } finally {
+    if (nodes.createRun) {
+      nodes.createRun.disabled = false;
+      nodes.createRun.textContent = originalLabel;
+    }
+  }
 });
 
 nodes.refresh.addEventListener("click", refreshAll);
