@@ -147,6 +147,14 @@ button:disabled {
   padding-top: 18px;
 }
 
+.create-panel {
+  grid-column: 1;
+}
+
+.projects-panel {
+  grid-column: 2;
+}
+
 .panel {
   background: var(--panel);
   border: 2px solid var(--ink);
@@ -156,7 +164,16 @@ button:disabled {
 }
 
 .detail {
+  grid-column: 3;
   grid-row: span 2;
+}
+
+.model-settings-panel {
+  grid-column: 1;
+}
+
+.workers-panel {
+  grid-column: 2;
 }
 
 .panel-title {
@@ -229,6 +246,52 @@ textarea {
 form button {
   width: 100%;
   margin-top: 14px;
+}
+
+.settings-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.settings-actions button {
+  width: 100%;
+  margin-top: 0;
+}
+
+.setting-toggle {
+  width: 100%;
+  margin-top: 12px;
+}
+
+.settings-status {
+  display: flex;
+  min-height: 34px;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.form-status {
+  min-height: 34px;
+  margin-top: 10px;
+  border: 1px dashed var(--line);
+  border-radius: 6px;
+  padding: 9px 10px;
+  background: rgba(255, 255, 255, 0.65);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.form-status:empty {
+  display: none;
 }
 
 .list {
@@ -360,6 +423,42 @@ form button {
   margin-top: 12px;
 }
 
+.export-strip {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto auto;
+  gap: 10px;
+  align-items: end;
+  margin-top: 12px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.export-strip label {
+  margin-top: 0;
+}
+
+.export-strip button {
+  width: auto;
+  margin-top: 0;
+  white-space: nowrap;
+}
+
+.export-overwrite {
+  align-self: center;
+  padding-bottom: 9px;
+}
+
+.export-strip .form-status {
+  grid-column: 1 / -1;
+  margin-top: 0;
+}
+
+.hidden {
+  display: none !important;
+}
+
 .action-strip .action-meta {
   display: flex;
   flex-wrap: wrap;
@@ -433,6 +532,14 @@ pre {
     grid-template-columns: 1fr;
   }
 
+  .create-panel,
+  .projects-panel,
+  .detail,
+  .model-settings-panel,
+  .workers-panel {
+    grid-column: auto;
+  }
+
   .detail {
     grid-row: auto;
   }
@@ -453,5 +560,10 @@ pre {
   .project-toolbar {
     grid-template-columns: 1fr;
     justify-items: start;
+  }
+
+  .export-strip,
+  .settings-actions {
+    grid-template-columns: 1fr;
   }
 }

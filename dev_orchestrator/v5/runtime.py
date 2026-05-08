@@ -31,16 +31,46 @@ class AgentFileRuntime:
         self.workspace_root = workspace_root.resolve()
 
     def project_root(self, project: dict[str, Any]) -> Path:
+        status = self.project_path_status(project)
+        if not status["ok"]:
+            raise PatchValidationError(status["reason"])
+        return Path(status["project_root"]).resolve()
+
+    def project_path_status(self, project: dict[str, Any]) -> dict[str, Any]:
         configured = str(project.get("project_path") or "").strip()
-        if configured:
-            if self._can_use_configured_project_path(configured):
-                return Path(configured).expanduser().resolve()
-            if self._looks_like_windows_absolute_path(configured):
-                return self._fallback_project_root(project)
-            candidate = (self.workspace_root / Path(configured)).expanduser().resolve()
-            if self._is_within(candidate, self.workspace_root):
-                return candidate
-        return self._fallback_project_root(project)
+        if not configured:
+            root = self._fallback_project_root(project)
+            return {"ok": True, "source": "default_workspace", "configured": "", "project_root": str(root), "reason": ""}
+        if self._can_use_configured_project_path(configured):
+            root = Path(configured).expanduser().resolve()
+            return {"ok": True, "source": "absolute_path", "configured": configured, "project_root": str(root), "reason": ""}
+        if self._looks_like_windows_absolute_path(configured):
+            mapped = self._map_windows_workspace_path(configured)
+            if mapped is not None:
+                return {
+                    "ok": True,
+                    "source": "windows_workspace_mapped_path",
+                    "configured": configured,
+                    "project_root": str(mapped),
+                    "reason": "",
+                }
+            return {
+                "ok": False,
+                "source": "unsupported_windows_absolute_path",
+                "configured": configured,
+                "project_root": "",
+                "reason": "This Windows path is outside the mounted workspace visible to the API runtime. Use a relative path such as v5-test01, a path under E:\\...\\workspace\\projects\\..., or an in-container path under /app/workspace/projects.",
+            }
+        candidate = (self.workspace_root / Path(configured)).expanduser().resolve()
+        if self._is_within(candidate, self.workspace_root):
+            return {"ok": True, "source": "workspace_relative_path", "configured": configured, "project_root": str(candidate), "reason": ""}
+        return {
+            "ok": False,
+            "source": "invalid_relative_path",
+            "configured": configured,
+            "project_root": "",
+            "reason": "Project path must be absolute for this runtime or stay inside the configured workspace root.",
+        }
 
     def apply_file_manifest(
         self,
@@ -193,6 +223,22 @@ class AgentFileRuntime:
 
     def _looks_like_windows_absolute_path(self, configured: str) -> bool:
         return bool(self._WINDOWS_ABSOLUTE_PATH.match(configured))
+
+    def _map_windows_workspace_path(self, configured: str) -> Path | None:
+        normalized = str(configured or "").replace("\\", "/").strip()
+        lowered = normalized.lower()
+        markers = ("workspace/projects/projects/", "workspace/projects/", "workspace/")
+        for marker in markers:
+            index = lowered.find(marker)
+            if index < 0:
+                continue
+            relative = normalized[index + len(marker) :].strip("/")
+            if not relative:
+                return self.workspace_root
+            candidate = (self.workspace_root / Path(relative)).resolve()
+            if self._is_within(candidate, self.workspace_root):
+                return candidate
+        return None
 
     def _is_within(self, candidate: Path, root: Path) -> bool:
         try:

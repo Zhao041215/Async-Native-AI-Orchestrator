@@ -1,19 +1,25 @@
 from __future__ import annotations
 
 import json
+import shutil
 import time
 from pathlib import Path
 from typing import Any
 
 from dev_orchestrator.llm_client import LLMError, OpenAICompatibleClient
+from dev_orchestrator.v5.agent_contracts import agent_contract_schema, validate_agent_contract
 from dev_orchestrator.v5.ai_scheduler import AICallScheduler
 from dev_orchestrator.v5.artifacts import ArtifactWriter, build_manifest
+from dev_orchestrator.v5.code_indexer import build_code_index
+from dev_orchestrator.v5.contract_store import build_contract_index
 from dev_orchestrator.v5.context_memory import build_context_snapshot_v2, package_context, validate_context_snapshot
 from dev_orchestrator.v5.llm_policy import get_ai_task_budget
-from dev_orchestrator.v5.models import DEFAULT_TENANT, new_id, slugify
+from dev_orchestrator.v5.models import DEFAULT_TENANT, new_id, sha256_file, slugify
+from dev_orchestrator.v5.patch_runtime import TransactionalPatchRuntime
 from dev_orchestrator.v5.release_quality import build_deploy_guide, validate_ai_native_project
 from dev_orchestrator.v5.runtime import AgentFileRuntime, PatchValidationError
 from dev_orchestrator.v5.store import V5Store
+from dev_orchestrator.v5.test_runner import run_validation_commands
 
 
 DEFAULT_PROJECT_CONFIG = {
@@ -31,6 +37,35 @@ PACKAGE_ROLE_TO_TASK = {
     "docs": "code_generation",
     "release": "release_notes",
 }
+
+
+class AgentContractViolationError(LLMError):
+    retryable = False
+
+
+class ProjectPathError(RuntimeError):
+    pass
+
+
+class DeliveryExportError(RuntimeError):
+    pass
+
+
+EXPORT_EXCLUDED_DIRS = {
+    ".agent",
+    ".git",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".v5",
+    "__pycache__",
+    "artifacts",
+    "logs",
+    "node_modules",
+    "reports",
+}
+
+EXPORT_EXCLUDED_FILES = {".coverage", ".DS_Store"}
 
 
 def _compact_text(value: str, limit: int = 9000) -> str:
@@ -61,10 +96,15 @@ class V5Orchestrator:
         self.workspace_root = workspace_root
         self.tenant_id = tenant_id or DEFAULT_TENANT
         self.artifacts = ArtifactWriter(workspace_root)
-        self.runtime = AgentFileRuntime(workspace_root / "projects")
+        self.runtime = AgentFileRuntime(workspace_root)
+        self.patch_runtime = TransactionalPatchRuntime(self.runtime)
         self.materializer = self.runtime
         self.llm_client = llm_client
         self.ai_scheduler = AICallScheduler(llm_client)
+
+    def update_llm_client(self, llm_client: OpenAICompatibleClient | None) -> None:
+        self.llm_client = llm_client
+        self.ai_scheduler.llm_client = llm_client
 
     def bootstrap(self, attempts: int = 1, delay_seconds: float = 1.0) -> None:
         self.workspace_root.mkdir(parents=True, exist_ok=True)
@@ -100,14 +140,19 @@ class V5Orchestrator:
                 "config": config,
             },
         )
+        path_status = self.runtime.project_path_status(project)
+        if not path_status["ok"]:
+            self.store.delete_project(project["id"])
+            raise ProjectPathError(path_status["reason"])
         self.store.add_event(project["tenant_id"], project["id"], None, "project_created", {"project_id": project["id"]})
-        return project
+        return self._project_snapshot(project)
 
     def list_projects(self, tenant_id: str | None = None) -> list[dict[str, Any]]:
-        return self.store.list_projects(tenant_id or self.tenant_id)
+        return [self._project_snapshot(project) for project in self.store.list_projects(tenant_id or self.tenant_id)]
 
     def get_project(self, project_id: str) -> dict[str, Any] | None:
-        return self.store.get_project(project_id)
+        project = self.store.get_project(project_id)
+        return self._project_snapshot(project) if project else None
 
     def list_runs(self, project_id: str) -> list[dict[str, Any]]:
         return self.store.list_runs(project_id)
@@ -115,6 +160,9 @@ class V5Orchestrator:
     def create_run(self, project_id: str, requirements_text: str = "", tenant_id: str | None = None) -> dict[str, Any]:
         project = self._require_project(project_id)
         text = requirements_text or project.get("description") or project.get("title") or project.get("name")
+        path_status = self.runtime.project_path_status(project)
+        if not path_status["ok"]:
+            raise ProjectPathError(path_status["reason"])
         self.runtime.reset_project_root(project)
         run = self.store.create_run(
             tenant_id or project.get("tenant_id") or self.tenant_id,
@@ -171,6 +219,59 @@ class V5Orchestrator:
     def cancel_run(self, run_id: str) -> dict[str, Any]:
         run = self._require_run(run_id)
         return self.store.update_run(run_id, status="cancelled", continuation={**dict(run.get("continuation") or {}), "next_action": "cancelled"})
+
+    def export_delivery(self, run_id: str, target_path: str, overwrite: bool = False) -> dict[str, Any]:
+        run = self._require_run(run_id)
+        project = self._require_project(run["project_id"])
+        source_root = self.runtime.project_root(project)
+        if not source_root.exists() or not source_root.is_dir():
+            raise DeliveryExportError(f"project root not found: {source_root}")
+        target_root = self._resolve_export_target(target_path, project)
+        if target_root == source_root or self.runtime._is_within(target_root, source_root):
+            raise DeliveryExportError("export target must be outside the internal project workspace")
+        if target_root.exists():
+            if any(target_root.iterdir()) and not overwrite:
+                raise DeliveryExportError("export target already contains files; enable overwrite to replace it")
+            if overwrite:
+                shutil.rmtree(target_root)
+        target_root.mkdir(parents=True, exist_ok=True)
+
+        copied: list[dict[str, Any]] = []
+        skipped: list[dict[str, str]] = []
+        for path in sorted(source_root.rglob("*")):
+            relative = path.relative_to(source_root)
+            normalized = str(relative).replace("\\", "/")
+            if self._should_skip_export_path(relative):
+                skipped.append({"path": normalized, "reason": "excluded_internal_or_cache_path"})
+                continue
+            target = (target_root / relative).resolve()
+            if not self.runtime._is_within(target, target_root):
+                skipped.append({"path": normalized, "reason": "target_escape"})
+                continue
+            if path.is_dir():
+                target.mkdir(parents=True, exist_ok=True)
+                continue
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(path, target)
+            copied.append({"path": normalized, "size": target.stat().st_size, "sha256": sha256_file(target)})
+
+        report = {
+            "schema_version": "5.0",
+            "run_id": run_id,
+            "project_id": project["id"],
+            "source_project_root": str(source_root),
+            "target_path": str(target_root),
+            "overwrite": overwrite,
+            "copied_count": len(copied),
+            "skipped_count": len(skipped),
+            "copied_files": copied,
+            "skipped": skipped[:200],
+            "ok": True,
+        }
+        artifact = self._record_json(project, run, "delivery_export", "delivery-export-report.json", report)
+        latest_run = self._require_run(run_id)
+        self.store.update_run(run_id, metadata={**dict(latest_run.get("metadata") or {}), "delivery_export_path": artifact["path"], "delivery_export_target": str(target_root)})
+        return report
 
     def execute_job(self, job: dict[str, Any]) -> dict[str, Any]:
         job_type = job["job_type"]
@@ -306,9 +407,20 @@ class V5Orchestrator:
             wave_id_by_key[wave["wave_key"]] = stored_wave["id"]
         for package in plan["packages"]:
             self.store.upsert_work_package(run["id"], wave_id_by_key[package["wave_key"]], package)
-        context_snapshot = build_context_snapshot_v2(requirements=metadata.get("requirements_analysis", {}), architecture=metadata.get("architecture_design", {}), package_plan=plan, project_root=self.runtime.project_root(project))
+        code_index, contract_index = self._refresh_indexes(project, {**run, "metadata": {**metadata, "package_dag": plan}})
+        context_snapshot = build_context_snapshot_v2(requirements=metadata.get("requirements_analysis", {}), architecture=metadata.get("architecture_design", {}), package_plan=plan, project_root=self.runtime.project_root(project), code_index=code_index, contract_index=contract_index)
         self._record_json(project, run, "context_snapshot", "context-snapshot.json", context_snapshot)
-        metadata.update({"package_dag": plan, "context_snapshot": context_snapshot, "context_snapshot_id": context_snapshot["index_hash"]})
+        metadata.update(
+            {
+                "package_dag": plan,
+                "context_snapshot": context_snapshot,
+                "context_snapshot_id": context_snapshot["index_hash"],
+                "code_index": code_index,
+                "contract_index": contract_index,
+                "code_index_hash": code_index.get("index_hash", ""),
+                "contract_index_hash": contract_index.get("index_hash", ""),
+            }
+        )
         first_wave = min(plan["waves"], key=lambda item: item["sequence"])
         continuation = {**dict(run.get("continuation") or {}), "checkpoint": "package_planning_completed", "current_wave": first_wave["wave_key"], "pending_packages": [package["package_key"] for package in plan["packages"]], "next_action": "worker_claim_package_jobs"}
         updated_run = self.store.update_run(run["id"], status="running", checkpoint="package_planning_completed", continuation=continuation, metadata=metadata)
@@ -351,7 +463,8 @@ class V5Orchestrator:
             },
             required=True,
         )
-        apply_result = self.runtime.apply_file_manifest(
+        apply_result = self.patch_runtime.apply_file_manifest_transaction(
+            run_id=run["id"],
             project=project,
             layout=((run.get("metadata") or {}).get("project_layout") or {}),
             agent_output=output,
@@ -360,6 +473,7 @@ class V5Orchestrator:
         )
         if not apply_result.get("ok"):
             self._record_json(project, run, "integration_conflict", f"conflict-{package['package_key']}.json", apply_result, {"work_package_id": package["id"]})
+            self.store.enqueue_job(run["tenant_id"], {"job_type": "integration", "role": "integration", "run_id": run["id"], "resume_key": f"run:{run['id']}:integration:conflict:{package['id']}:{new_id()}", "payload": {"conflicts": apply_result.get("conflicts", [])}, "max_attempts": 2})
             raise RuntimeError(f"agent patch conflict: {apply_result.get('conflicts')}")
         patch_set = self._record_json(
             project,
@@ -375,6 +489,8 @@ class V5Orchestrator:
             },
             {"work_package_id": package["id"], "role": package["role"]},
         )
+        self._record_json(project, run, "patch_transaction", f"{apply_result['transaction_id']}.json", apply_result, {"work_package_id": package["id"], "role": package["role"]})
+        self._write_patch_transaction_report(project, run)
         if task_kind == "test_generation":
             self._record_json(
                 project,
@@ -444,17 +560,23 @@ class V5Orchestrator:
                 "layout": metadata.get("project_layout", {}),
                 "packages": self.store.list_work_packages(run["id"]),
                 "current_project_files": self.runtime.list_project_files(project),
+                "contract_index": metadata.get("contract_index", {}),
+                "conflict_evidence": [artifact.get("payload", {}) for artifact in self.store.list_artifacts(run["id"]) if artifact["kind"] == "integration_conflict"],
             },
             required=True,
         )
         changed_files: list[str] = []
         if output.get("files"):
-            apply_result = self.runtime.apply_file_manifest(project=project, layout=metadata.get("project_layout", {}), agent_output=output, allowed_paths=["**"], forbidden_paths=[".git/**", ".v5/**"], replace_conflicts=True)
+            apply_result = self.patch_runtime.apply_file_manifest_transaction(run_id=run["id"], project=project, layout=metadata.get("project_layout", {}), agent_output=output, allowed_paths=["**"], forbidden_paths=[".git/**", ".v5/**"], replace_conflicts=True, conflict_sources=[artifact.get("payload", {}) for artifact in self.store.list_artifacts(run["id"]) if artifact["kind"] == "integration_conflict"])
             changed_files = apply_result.get("changed_files", [])
             self._record_json(project, run, "patch_set", "integration.json", {"schema_version": "5.0", "role": "integration", "agent_output": output, **apply_result}, {"role": "integration"})
+            self._record_json(project, run, "patch_transaction", f"{apply_result['transaction_id']}.json", apply_result, {"role": "integration"})
+            self._write_patch_transaction_report(project, run)
         report = {"schema_version": "5.0", "ok": True, "status": "passed", "changed_files": changed_files, "summary": output.get("summary", "")}
         self._record_json(project, run, "integration_report", "integration-report.json", report)
-        context_snapshot = build_context_snapshot_v2(requirements=metadata.get("requirements_analysis", {}), architecture=metadata.get("architecture_design", {}), package_plan=metadata.get("package_dag", {}), project_root=self.runtime.project_root(project))
+        code_index, contract_index = self._refresh_indexes(project, run)
+        metadata = dict((self._require_run(run["id"]).get("metadata") or metadata))
+        context_snapshot = build_context_snapshot_v2(requirements=metadata.get("requirements_analysis", {}), architecture=metadata.get("architecture_design", {}), package_plan=metadata.get("package_dag", {}), project_root=self.runtime.project_root(project), code_index=code_index, contract_index=contract_index)
         metadata.update({"context_snapshot": context_snapshot, "context_snapshot_id": context_snapshot["index_hash"]})
         continuation = {**dict(run.get("continuation") or {}), "checkpoint": "integration_completed", "integration_status": "passed", "next_action": "code_review"}
         self.store.update_run(run["id"], status="running", checkpoint="integration_completed", continuation=continuation, metadata=metadata)
@@ -472,7 +594,7 @@ class V5Orchestrator:
             job=job,
             task_kind="code_review",
             system_prompt="You are review_agent. Return strict JSON only with ok, status, findings, required_fixes, requirement_coverage, security_notes.",
-            user_payload={"project": self._project_prompt(project), "files": self._file_summaries(project), "packages": self.store.list_work_packages(run["id"]), "requirements": (run.get("metadata") or {}).get("requirements_analysis", {})},
+            user_payload={"project": self._project_prompt(project), "files": self._file_summaries(project), "packages": self.store.list_work_packages(run["id"]), "requirements": (run.get("metadata") or {}).get("requirements_analysis", {}), "contract_index": (run.get("metadata") or {}).get("contract_index", {})},
             required=True,
         )
         output.setdefault("ok", str(output.get("status", "GO")).upper() != "NO_GO")
@@ -491,13 +613,26 @@ class V5Orchestrator:
         project = self._require_project(run["project_id"])
         metadata = dict(run.get("metadata") or {})
         artifacts = self.store.list_artifacts(run["id"])
+        test_execution_report = self._execute_validation_commands(project, run, metadata, artifacts)
+        artifacts = self.store.list_artifacts(run["id"])
+        code_index, contract_index = self._refresh_indexes(project, self._require_run(run["id"]))
+        latest_run = self._require_run(run["id"])
+        metadata = dict(latest_run.get("metadata") or metadata)
+        context_snapshot = build_context_snapshot_v2(requirements=metadata.get("requirements_analysis", {}), architecture=metadata.get("architecture_design", {}), package_plan=metadata.get("package_dag", {}), project_root=self.runtime.project_root(project), code_index=code_index, contract_index=contract_index)
+        metadata.update({"context_snapshot": context_snapshot, "context_snapshot_id": context_snapshot["index_hash"]})
         run_context = {
             "agent_runs": [artifact for artifact in artifacts if artifact["kind"] == "agent_run"],
             "patch_sets": [artifact for artifact in artifacts if artifact["kind"] == "patch_set"],
             "packages": self.store.list_work_packages(run["id"]),
             "test_reports": [artifact for artifact in artifacts if artifact["kind"] == "test_report"],
+            "test_execution_reports": [artifact for artifact in artifacts if artifact["kind"] == "test_execution_report"],
+            "test_execution_report": test_execution_report,
             "code_reviews": [artifact for artifact in artifacts if artifact["kind"] == "code_review_report"],
             "release_notes": [artifact for artifact in artifacts if artifact["kind"] == "release_notes"],
+            "agent_contract_reports": [artifact for artifact in artifacts if artifact["kind"] == "agent_contract_report"],
+            "patch_transactions": [artifact for artifact in artifacts if artifact["kind"] == "patch_transaction"],
+            "code_index": code_index,
+            "contract_index": contract_index,
             "requirements_text": metadata.get("requirements_text", ""),
             "effective_loc_target": (metadata.get("project_config") or {}).get("effective_loc_target", 0),
         }
@@ -505,7 +640,7 @@ class V5Orchestrator:
         quality_artifact = self._record_json(project, run, "quality_report", "quality-report.json", quality_report)
         if quality_report.get("template_leak_report"):
             self._record_json(project, run, "template_leak_report", "template-leak-report.json", quality_report.get("template_leak_report"))
-        metadata.update({"quality_report_path": quality_artifact["path"], "effective_loc_metrics": quality_report.get("effective_loc", {})})
+        metadata.update({"quality_report_path": quality_artifact["path"], "effective_loc_metrics": quality_report.get("effective_loc", {}), "test_execution_report": test_execution_report})
         continuation = {**dict(run.get("continuation") or {}), "checkpoint": "quality_completed", "quality_status": quality_report["status"], "next_action": "release_notes" if quality_report["ok"] else "repair_quality"}
         self.store.update_run(run["id"], status="running" if quality_report["ok"] else "no_go", checkpoint="quality_completed", continuation=continuation, metadata=metadata)
         if quality_report["ok"]:
@@ -590,14 +725,16 @@ class V5Orchestrator:
             job=job,
             task_kind="failure_analysis",
             system_prompt="You are repair_agent. Return strict JSON only. Produce file-manifest patches that fix the failed gate without changing unrelated files.",
-            user_payload={"failure": payload, "layout": (run.get("metadata") or {}).get("project_layout", {}), "files": self._file_summaries(project), "artifacts": self._artifact_summaries(run["id"])},
+            user_payload={"failure": payload, "layout": (run.get("metadata") or {}).get("project_layout", {}), "files": self._file_summaries(project), "artifacts": self._artifact_summaries(run["id"]), "contract_index": (run.get("metadata") or {}).get("contract_index", {})},
             required=True,
         )
         changed_files: list[str] = []
         if output.get("files"):
-            apply_result = self.runtime.apply_file_manifest(project=project, layout=((run.get("metadata") or {}).get("project_layout") or {}), agent_output=output, allowed_paths=["**"], forbidden_paths=[".git/**", ".v5/**"], replace_conflicts=True)
+            apply_result = self.patch_runtime.apply_file_manifest_transaction(run_id=run["id"], project=project, layout=((run.get("metadata") or {}).get("project_layout") or {}), agent_output=output, allowed_paths=["**"], forbidden_paths=[".git/**", ".v5/**"], replace_conflicts=True)
             changed_files = apply_result.get("changed_files", [])
             self._record_json(project, run, "patch_set", f"repair-{attempt}.json", {"schema_version": "5.0", "role": "repair", "agent_output": output, **apply_result}, {"role": "repair", "repair_attempt": attempt})
+            self._record_json(project, run, "patch_transaction", f"{apply_result['transaction_id']}.json", apply_result, {"role": "repair", "repair_attempt": attempt})
+            self._write_patch_transaction_report(project, run)
         report = {"schema_version": "5.0", "ok": True, "status": "repair_applied", "repair_attempt": attempt, "changed_files": changed_files, "next_action": "code_review"}
         self._record_json(project, run, "repair_report", f"repair-report-{attempt}.json", report)
         self.store.update_run(run["id"], status="running", continuation={**dict(run.get("continuation") or {}), "repair_attempt": attempt, "next_action": "code_review"})
@@ -668,19 +805,122 @@ class V5Orchestrator:
         )
 
     def _invoke_json_agent(self, project: dict[str, Any], run: dict[str, Any], *, role: str, job: dict[str, Any], system_prompt: str, user_payload: dict[str, Any], required: bool, task_kind: str) -> dict[str, Any]:
-        payload = self.ai_scheduler.call(run_id=run["id"], role=role, job=job, system_prompt=system_prompt, user_payload=user_payload, task_kind=task_kind, required=required)
-        payload["parsed_response"] = _json_or_empty(payload.get("raw_response", {}))
-        self._record_json(project, run, "agent_run", f"{payload['agent_run_id']}.json", payload, {"role": role, "job_id": job.get("id", ""), "task_kind": payload.get("task_kind", task_kind)})
-        if payload.get("ok"):
-            self.store.add_event(run["tenant_id"], project["id"], run["id"], "llm_call_completed", {"agent_run_id": payload["agent_run_id"], "role": role, "job_id": job.get("id", ""), "task_kind": payload.get("task_kind", task_kind), "model_tier": payload.get("model_tier", ""), "elapsed_ms": payload.get("elapsed_ms", 0)})
-            parsed = dict(payload["parsed_response"])
-            parsed.setdefault("agent_run_id", payload["agent_run_id"])
-            return parsed
-        self.store.add_event(run["tenant_id"], project["id"], run["id"], "llm_call_failed", {"agent_run_id": payload["agent_run_id"], "role": role, "job_id": job.get("id", ""), "task_kind": payload.get("task_kind", task_kind), "error": str(payload.get("error", ""))[:1000]})
-        if required:
-            self.store.update_run(run["id"], status="blocked", continuation={**dict(run.get("continuation") or {}), "failure_reason": "llm_call_failed", "next_action": "repair_llm_connection"})
-            raise LLMError(str(payload.get("error", "llm call failed")))
-        return dict(payload["parsed_response"])
+        retry_payload = dict(user_payload)
+        retry_prompt = system_prompt
+        last_error = "agent contract validation failed"
+        for attempt in (1, 2):
+            payload = self.ai_scheduler.call(run_id=run["id"], role=role, job=job, system_prompt=retry_prompt, user_payload=retry_payload, task_kind=task_kind, required=required)
+            payload["parsed_response"] = _json_or_empty(payload.get("raw_response", {}))
+            payload["contract_attempt"] = attempt
+            if not payload.get("ok"):
+                self._record_json(project, run, "agent_run", f"{payload['agent_run_id']}.json", payload, {"role": role, "job_id": job.get("id", ""), "task_kind": payload.get("task_kind", task_kind)})
+                self.store.add_event(run["tenant_id"], project["id"], run["id"], "llm_call_failed", {"agent_run_id": payload["agent_run_id"], "role": role, "job_id": job.get("id", ""), "task_kind": payload.get("task_kind", task_kind), "error": str(payload.get("error", ""))[:1000]})
+                if required:
+                    self.store.update_run(run["id"], status="blocked", continuation={**dict(run.get("continuation") or {}), "failure_reason": "llm_call_failed", "next_action": "repair_llm_connection"})
+                    raise LLMError(str(payload.get("error", "llm call failed")))
+                return dict(payload["parsed_response"])
+
+            validation = validate_agent_contract(task_kind, dict(payload["parsed_response"]))
+            payload["contract_validation"] = self._contract_validation_summary(validation)
+            if validation["ok"]:
+                payload["parsed_response"] = dict(validation["data"])
+            self._record_json(project, run, "agent_run", f"{payload['agent_run_id']}.json", payload, {"role": role, "job_id": job.get("id", ""), "task_kind": payload.get("task_kind", task_kind), "contract_attempt": attempt})
+
+            if validation["ok"]:
+                self.store.add_event(run["tenant_id"], project["id"], run["id"], "llm_call_completed", {"agent_run_id": payload["agent_run_id"], "role": role, "job_id": job.get("id", ""), "task_kind": payload.get("task_kind", task_kind), "model_tier": payload.get("model_tier", ""), "elapsed_ms": payload.get("elapsed_ms", 0), "contract_schema": validation["schema_name"], "contract_attempt": attempt})
+                self._write_agent_contract_report(project, run)
+                parsed = dict(validation["data"])
+                parsed.setdefault("agent_run_id", payload["agent_run_id"])
+                return parsed
+
+            last_error = f"agent contract validation failed for {task_kind}: {validation['errors']}"
+            self._record_agent_contract_violation(project, run, role, job, task_kind, attempt, payload, validation)
+            self.store.add_event(run["tenant_id"], project["id"], run["id"], "agent_contract_violation", {"agent_run_id": payload["agent_run_id"], "role": role, "job_id": job.get("id", ""), "task_kind": task_kind, "attempt": attempt, "schema_name": validation["schema_name"], "errors": validation["errors"]})
+            self._write_agent_contract_report(project, run)
+            if attempt == 1:
+                retry_payload = {
+                    **dict(user_payload),
+                    "agent_contract_retry": {
+                        "previous_attempt": attempt,
+                        "schema_name": validation["schema_name"],
+                        "schema_errors": validation["errors"],
+                        "required_json_schema": validation.get("schema") or agent_contract_schema(task_kind),
+                        "instruction": "Return corrected strict JSON only. Do not include markdown fences or explanatory text.",
+                    },
+                }
+                retry_prompt = (
+                    f"{system_prompt}\n\n"
+                    "The previous response failed the required JSON contract. Return corrected strict JSON only. "
+                    f"Schema errors: {json.dumps(validation['errors'], ensure_ascii=True)}"
+                )
+
+        blocked_run = self.store.update_run(run["id"], status="blocked", continuation={**dict(run.get("continuation") or {}), "failure_reason": "agent_contract_violation", "next_action": "repair_agent_contract", "contract_error": last_error[:2000]})
+        self._write_agent_contract_report(project, blocked_run)
+        raise AgentContractViolationError(last_error)
+
+    def _contract_validation_summary(self, validation: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "ok": bool(validation.get("ok")),
+            "schema_name": validation.get("schema_name", ""),
+            "errors": validation.get("errors", []),
+        }
+
+    def _record_agent_contract_violation(self, project: dict[str, Any], run: dict[str, Any], role: str, job: dict[str, Any], task_kind: str, attempt: int, payload: dict[str, Any], validation: dict[str, Any]) -> dict[str, Any]:
+        violation = {
+            "schema_version": "5.0",
+            "run_id": run["id"],
+            "job_id": job.get("id", ""),
+            "role": role,
+            "task_kind": task_kind,
+            "attempt": attempt,
+            "agent_run_id": payload.get("agent_run_id", ""),
+            "schema_name": validation.get("schema_name", ""),
+            "errors": validation.get("errors", []),
+            "parsed_response": payload.get("parsed_response", {}),
+            "raw_response_preview": str(payload.get("raw_response", ""))[:4000],
+            "schema": validation.get("schema") or agent_contract_schema(task_kind),
+        }
+        return self._record_json(project, run, "agent_contract_violation", f"{payload.get('agent_run_id', new_id())}.json", violation, {"role": role, "job_id": job.get("id", ""), "task_kind": task_kind, "attempt": attempt})
+
+    def _write_agent_contract_report(self, project: dict[str, Any], run: dict[str, Any]) -> dict[str, Any]:
+        artifacts = self.store.list_artifacts(run["id"])
+        validations = []
+        for artifact in artifacts:
+            if artifact["kind"] != "agent_run":
+                continue
+            payload = artifact.get("payload") or {}
+            validation = payload.get("contract_validation") or {}
+            if not validation:
+                continue
+            validations.append(
+                {
+                    "agent_run_id": payload.get("agent_run_id", artifact["id"]),
+                    "role": payload.get("role", ""),
+                    "job_id": payload.get("job_id", ""),
+                    "task_kind": payload.get("task_kind", ""),
+                    "attempt": payload.get("contract_attempt", 1),
+                    "ok": bool(validation.get("ok")),
+                    "schema_name": validation.get("schema_name", ""),
+                    "errors": validation.get("errors", []),
+                }
+            )
+        violations = [artifact.get("payload") or {} for artifact in artifacts if artifact["kind"] == "agent_contract_violation"]
+        blocked = bool((run.get("continuation") or {}).get("next_action") == "repair_agent_contract")
+        latest_by_key: dict[tuple[str, str, str], dict[str, Any]] = {}
+        for item in validations:
+            latest_by_key[(item["role"], item["job_id"], item["task_kind"])] = item
+        report_ok = not blocked and all(item["ok"] for item in latest_by_key.values())
+        report = {
+            "schema_version": "5.0",
+            "run_id": run["id"],
+            "ok": report_ok,
+            "status": "blocked" if blocked else ("passed" if not violations else "passed_with_retries"),
+            "validation_count": len(validations),
+            "violation_count": len(violations),
+            "validations": validations,
+            "violations": violations,
+        }
+        return self._record_json(project, run, "agent_contract_report", "agent-contract-report.json", report)
 
     def _project_run_snapshot(self, run: dict[str, Any]) -> dict[str, Any]:
         projected = dict(run)
@@ -770,6 +1010,73 @@ class V5Orchestrator:
         matches = [artifact for artifact in self.store.list_artifacts(run_id) if artifact["kind"] == kind]
         return (matches[-1].get("payload") if matches else {}) or {}
 
+    def _refresh_indexes(self, project: dict[str, Any], run: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+        metadata = dict(run.get("metadata") or {})
+        artifacts = self.store.list_artifacts(run["id"])
+        code_index = build_code_index(self.runtime.project_root(project))
+        code_artifact = self._record_json(project, run, "code_index", "code-index.json", code_index)
+        contract_index = build_contract_index(
+            architecture=metadata.get("architecture_design", {}),
+            package_plan=metadata.get("package_dag", {}),
+            patch_sets=[artifact for artifact in artifacts if artifact["kind"] == "patch_set"],
+            code_index=code_index,
+            code_review=self._latest_payload_or_empty(artifacts, "code_review_report"),
+        )
+        contract_artifact = self._record_json(project, run, "contract_index", "contract-index.json", contract_index)
+        latest_run = self._require_run(run["id"])
+        self.store.update_run(
+            run["id"],
+            metadata={
+                **dict(latest_run.get("metadata") or {}),
+                "code_index": code_index,
+                "contract_index": contract_index,
+                "code_index_hash": code_index.get("index_hash", ""),
+                "contract_index_hash": contract_index.get("index_hash", ""),
+                "code_index_path": code_artifact["path"],
+                "contract_index_path": contract_artifact["path"],
+            },
+        )
+        return code_index, contract_index
+
+    def _latest_payload_or_empty(self, artifacts: list[dict[str, Any]], kind: str) -> dict[str, Any]:
+        matches = [artifact for artifact in artifacts if artifact["kind"] == kind]
+        return (matches[-1].get("payload") if matches else {}) or {}
+
+    def _write_patch_transaction_report(self, project: dict[str, Any], run: dict[str, Any]) -> dict[str, Any]:
+        transactions = [artifact.get("payload") or {} for artifact in self.store.list_artifacts(run["id"]) if artifact["kind"] == "patch_transaction"]
+        report = {
+            "schema_version": "5.0",
+            "run_id": run["id"],
+            "ok": all(item.get("ok", False) for item in transactions) if transactions else True,
+            "transaction_count": len(transactions),
+            "changed_file_count": sum(len(item.get("changed_files") or []) for item in transactions),
+            "conflict_count": sum(len(item.get("conflicts") or []) for item in transactions),
+            "transactions": transactions,
+        }
+        return self._record_json(project, run, "patch_transaction_report", "patch-transactions.json", report)
+
+    def _execute_validation_commands(self, project: dict[str, Any], run: dict[str, Any], metadata: dict[str, Any], artifacts: list[dict[str, Any]]) -> dict[str, Any]:
+        layout = metadata.get("project_layout") or {}
+        layout_commands = [str(item).strip() for item in layout.get("validation_commands") or [] if str(item).strip()]
+        qa_reports = [artifact.get("payload") or {} for artifact in artifacts if artifact["kind"] == "test_report"]
+        qa_commands = [str(command).strip() for report in qa_reports for command in report.get("commands") or [] if str(command).strip()]
+        commands = layout_commands or qa_commands
+        source = "project_layout" if layout_commands else ("qa_agent" if qa_commands else "none")
+        execution = run_validation_commands(self.runtime.project_root(project), commands)
+        report = {
+            **execution,
+            "run_id": run["id"],
+            "source": source,
+            "commands": commands,
+            "coverage": {
+                "layout_validation_command_count": len(layout_commands),
+                "qa_command_count": len(qa_commands),
+                "selected_command_count": len(commands),
+            },
+        }
+        self._record_json(project, run, "test_execution_report", "test-execution-report.json", report)
+        return report
+
     def _current_wave(self, waves: list[dict[str, Any]]) -> str | None:
         pending = [wave for wave in waves if wave.get("status") != "completed"]
         if not pending:
@@ -790,6 +1097,45 @@ class V5Orchestrator:
 
     def _project_prompt(self, project: dict[str, Any]) -> dict[str, Any]:
         return {"id": project.get("id"), "name": project.get("name"), "title": project.get("title"), "description": project.get("description"), "config": project.get("config") or {}, "project_path": project.get("project_path", "")}
+
+    def _project_snapshot(self, project: dict[str, Any]) -> dict[str, Any]:
+        snapshot = dict(project)
+        snapshot["project_path_status"] = self.runtime.project_path_status(project)
+        snapshot["resolved_project_root"] = snapshot["project_path_status"].get("project_root", "")
+        return snapshot
+
+    def _resolve_export_target(self, target_path: str, project: dict[str, Any]) -> Path:
+        configured = str(target_path or "").strip()
+        if not configured:
+            configured = project.get("name") or project.get("title") or project["id"]
+        if self.runtime._can_use_configured_project_path(configured):
+            return Path(configured).expanduser().resolve()
+        normalized = configured.replace("\\", "/")
+        lowered = normalized.lower()
+        marker = "/ai_agent/"
+        if self.runtime._looks_like_windows_absolute_path(configured) and marker in lowered:
+            suffix = normalized[lowered.index(marker) + len(marker) :].strip("/")
+            candidate = (self.workspace_root.parent / suffix).resolve()
+            return candidate
+        if normalized.lower().startswith("/app/"):
+            return Path(normalized).resolve()
+        if self.runtime._looks_like_windows_absolute_path(configured):
+            raise DeliveryExportError("Windows export paths must be under the mounted AI_Agent folder, or use a relative export path")
+        candidate = Path(configured).expanduser()
+        if candidate.is_absolute():
+            return candidate.resolve()
+        return (self.workspace_root.parent / "exports" / candidate).resolve()
+
+    def _should_skip_export_path(self, relative: Path) -> bool:
+        parts = set(relative.parts)
+        name = relative.name
+        if parts & EXPORT_EXCLUDED_DIRS:
+            return True
+        if name in EXPORT_EXCLUDED_FILES:
+            return True
+        if name.endswith((".pyc", ".pyo", ".log", ".tmp")):
+            return True
+        return False
 
     def _normalize_layout(self, design: dict[str, Any]) -> dict[str, Any]:
         layout = design.get("project_layout") or design.get("layout") or {}

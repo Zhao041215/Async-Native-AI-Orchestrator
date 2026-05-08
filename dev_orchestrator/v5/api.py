@@ -8,10 +8,12 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from dev_orchestrator.config import AppConfig
+from dev_orchestrator.config import AppConfig, update_config
+from dev_orchestrator.llm_client import OpenAICompatibleClient, list_provider_profiles
+from dev_orchestrator.llm_contract_check import run_llm_contract_check
 from dev_orchestrator.v5.llm_policy import list_ai_task_budgets
 from dev_orchestrator.v5.models import DEFAULT_TENANT, new_id
-from dev_orchestrator.v5.service import V5Orchestrator
+from dev_orchestrator.v5.service import DeliveryExportError, ProjectPathError, V5Orchestrator
 from dev_orchestrator.v5.system_check import build_v5_system_check
 from dev_orchestrator.v5.worker import WorkerStatusRegistry
 
@@ -40,6 +42,37 @@ class RunCreate(BaseModel):
 
 class ProjectBatchDelete(BaseModel):
     project_ids: list[str] = Field(default_factory=list)
+
+
+class DeliveryExportRequest(BaseModel):
+    target_path: str = ""
+    overwrite: bool = False
+
+
+class ModelSettingsUpdate(BaseModel):
+    llm: dict[str, Any] = Field(default_factory=dict)
+    model_provider: str = ""
+    model_providers: dict[str, Any] = Field(default_factory=dict)
+    model: str = ""
+    model_reasoning_effort: str = ""
+    disable_response_storage: bool | None = None
+    api_key: str = ""
+
+
+RECOMMENDED_CUSTOM_MODEL_SETTINGS: dict[str, Any] = {
+    "model_provider": "custom",
+    "model": "gpt-5.3-codex",
+    "model_reasoning_effort": "xhigh",
+    "disable_response_storage": True,
+    "model_providers": {
+        "custom": {
+            "name": "custom",
+            "wire_api": "responses",
+            "requires_openai_auth": True,
+            "base_url": "https://deepkey.top/v1",
+        }
+    },
+}
 
 
 def build_app(service: V5Orchestrator, config: AppConfig) -> FastAPI:
@@ -79,6 +112,42 @@ def build_app(service: V5Orchestrator, config: AppConfig) -> FastAPI:
             "budgets": list_ai_task_budgets(),
         }
 
+    @app.get("/api/v5/model-settings")
+    def get_model_settings() -> dict[str, Any]:
+        return {
+            "llm": config.to_dict()["llm"],
+            "provider_profiles": list_provider_profiles(),
+            "recommended": RECOMMENDED_CUSTOM_MODEL_SETTINGS,
+        }
+
+    @app.put("/api/v5/model-settings")
+    def update_model_settings(payload: ModelSettingsUpdate) -> dict[str, Any]:
+        llm_payload = _normalize_model_settings_payload(payload.model_dump())
+        updated = update_config(config, {"llm": llm_payload})
+        _sync_llm_env_file(config.root_dir, updated.llm)
+        service.update_llm_client(OpenAICompatibleClient(updated.llm))
+        return {
+            "ok": True,
+            "llm": updated.to_dict()["llm"],
+            "provider_profiles": list_provider_profiles(),
+            "recommended": RECOMMENDED_CUSTOM_MODEL_SETTINGS,
+        }
+
+    @app.post("/api/v5/model-settings/test")
+    def test_model_settings(payload: ModelSettingsUpdate) -> dict[str, Any]:
+        llm_payload = _normalize_model_settings_payload(payload.model_dump())
+        probe_config = update_config(config, {"llm": llm_payload})
+        _sync_llm_env_file(config.root_dir, probe_config.llm)
+        service.update_llm_client(OpenAICompatibleClient(probe_config.llm))
+        result = run_llm_contract_check(service.llm_client)
+        return {
+            "ok": bool(result.get("ok")),
+            "result": result,
+            "llm": probe_config.to_dict()["llm"],
+            "provider_profiles": list_provider_profiles(),
+            "recommended": RECOMMENDED_CUSTOM_MODEL_SETTINGS,
+        }
+
     @app.post("/api/v5/projects")
     def create_project(payload: ProjectCreate, request: Request) -> dict[str, Any]:
         tenant_id = request.headers.get(config.identity.tenant_header) or service.tenant_id
@@ -87,7 +156,10 @@ def build_app(service: V5Orchestrator, config: AppConfig) -> FastAPI:
         for key in ("target_scale", "stack_pack", "deployment_mode", "api_only", "effective_loc_target", "unattended_mode"):
             config_payload[key] = data.pop(key)
         data["config"] = config_payload
-        project = service.create_project(data, tenant_id=tenant_id)
+        try:
+            project = service.create_project(data, tenant_id=tenant_id)
+        except ProjectPathError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
         return {"project": project}
 
     @app.get("/api/v5/projects")
@@ -142,7 +214,10 @@ def build_app(service: V5Orchestrator, config: AppConfig) -> FastAPI:
         project = service.get_project(project_id)
         if not project:
             raise HTTPException(status_code=404, detail="project not found")
-        run = service.create_run(project_id, payload.requirements_text)
+        try:
+            run = service.create_run(project_id, payload.requirements_text)
+        except ProjectPathError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
         return {"run": run}
 
     @app.get("/api/v5/runs/{run_id}")
@@ -176,6 +251,36 @@ def build_app(service: V5Orchestrator, config: AppConfig) -> FastAPI:
     def patch_sets(run_id: str) -> dict[str, Any]:
         service.get_run(run_id) or _missing_run()
         return {"items": [artifact for artifact in service.list_artifacts(run_id) if artifact["kind"] == "patch_set"]}
+
+    @app.get("/api/v5/runs/{run_id}/agent-contract-report")
+    def agent_contract_report(run_id: str) -> dict[str, Any]:
+        service.get_run(run_id) or _missing_run()
+        return {"report": _latest_payload(service.list_artifacts(run_id), "agent_contract_report")}
+
+    @app.get("/api/v5/runs/{run_id}/patch-transactions")
+    def patch_transactions(run_id: str) -> dict[str, Any]:
+        service.get_run(run_id) or _missing_run()
+        artifacts = service.list_artifacts(run_id)
+        return {
+            "report": _latest_optional_payload(artifacts, "patch_transaction_report"),
+            "items": [artifact for artifact in artifacts if artifact["kind"] == "patch_transaction"],
+            "conflicts": [artifact for artifact in artifacts if artifact["kind"] == "integration_conflict"],
+        }
+
+    @app.get("/api/v5/runs/{run_id}/test-execution")
+    def test_execution(run_id: str) -> dict[str, Any]:
+        service.get_run(run_id) or _missing_run()
+        return {"report": _latest_payload(service.list_artifacts(run_id), "test_execution_report")}
+
+    @app.get("/api/v5/runs/{run_id}/code-index")
+    def code_index(run_id: str) -> dict[str, Any]:
+        service.get_run(run_id) or _missing_run()
+        return {"index": _latest_payload(service.list_artifacts(run_id), "code_index")}
+
+    @app.get("/api/v5/runs/{run_id}/contract-index")
+    def contract_index(run_id: str) -> dict[str, Any]:
+        service.get_run(run_id) or _missing_run()
+        return {"index": _latest_payload(service.list_artifacts(run_id), "contract_index")}
 
     @app.get("/api/v5/runs/{run_id}/project-layout")
     def project_layout(run_id: str) -> dict[str, Any]:
@@ -286,6 +391,15 @@ def build_app(service: V5Orchestrator, config: AppConfig) -> FastAPI:
         service.get_run(run_id) or _missing_run()
         return {"run": service.cancel_run(run_id)}
 
+    @app.post("/api/v5/runs/{run_id}/export-delivery")
+    def export_delivery(run_id: str, payload: DeliveryExportRequest) -> dict[str, Any]:
+        service.get_run(run_id) or _missing_run()
+        try:
+            report = service.export_delivery(run_id, payload.target_path, overwrite=payload.overwrite)
+        except DeliveryExportError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        return {"ok": True, "report": report}
+
     @app.get("/api/v5/workers")
     def workers(limit: int = 12) -> dict[str, Any]:
         limit = max(1, min(limit, 100))
@@ -336,6 +450,9 @@ def build_app(service: V5Orchestrator, config: AppConfig) -> FastAPI:
         ("/api/v5/system-check", system_check, ["GET"]),
         ("/api/v5/stack-packs", stack_packs, ["GET"]),
         ("/api/v5/ai-policy", ai_policy, ["GET"]),
+        ("/api/v5/model-settings", get_model_settings, ["GET"]),
+        ("/api/v5/model-settings", update_model_settings, ["PUT"]),
+        ("/api/v5/model-settings/test", test_model_settings, ["POST"]),
         ("/api/v5/projects", create_project, ["POST"]),
         ("/api/v5/projects", list_projects, ["GET"]),
         ("/api/v5/projects/{project_id}", get_project, ["GET"]),
@@ -351,6 +468,11 @@ def build_app(service: V5Orchestrator, config: AppConfig) -> FastAPI:
         ("/api/v5/runs/{run_id}/solution-graph", solution_graph, ["GET"]),
         ("/api/v5/runs/{run_id}/agent-runs", agent_runs, ["GET"]),
         ("/api/v5/runs/{run_id}/patch-sets", patch_sets, ["GET"]),
+        ("/api/v5/runs/{run_id}/agent-contract-report", agent_contract_report, ["GET"]),
+        ("/api/v5/runs/{run_id}/patch-transactions", patch_transactions, ["GET"]),
+        ("/api/v5/runs/{run_id}/test-execution", test_execution, ["GET"]),
+        ("/api/v5/runs/{run_id}/code-index", code_index, ["GET"]),
+        ("/api/v5/runs/{run_id}/contract-index", contract_index, ["GET"]),
         ("/api/v5/runs/{run_id}/project-layout", project_layout, ["GET"]),
         ("/api/v5/runs/{run_id}/dag", dag, ["GET"]),
         ("/api/v5/runs/{run_id}/code-review", code_review, ["GET"]),
@@ -373,6 +495,7 @@ def build_app(service: V5Orchestrator, config: AppConfig) -> FastAPI:
         ("/api/v5/runs/{run_id}/requeue-blocked", requeue_blocked, ["POST"]),
         ("/api/v5/runs/{run_id}/repair", repair, ["POST"]),
         ("/api/v5/runs/{run_id}/cancel", cancel, ["POST"]),
+        ("/api/v5/runs/{run_id}/export-delivery", export_delivery, ["POST"]),
         ("/api/v5/workers", workers, ["GET"]),
         ("/api/v5/dead-letter", dead_letter, ["GET"]),
         ("/api/v5/dead-letter/{job_id}/requeue", requeue_dead_letter, ["POST"]),
@@ -388,11 +511,96 @@ def _missing_run() -> None:
     raise HTTPException(status_code=404, detail="run not found")
 
 
+def _normalize_model_settings_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    llm_payload = dict(payload.get("llm") or {})
+    provider_key = str(payload.get("model_provider") or "").strip()
+    providers = payload.get("model_providers") or {}
+    provider = providers.get(provider_key) if isinstance(providers, dict) and provider_key else {}
+    if not isinstance(provider, dict):
+        provider = {}
+
+    provider_name = str(provider.get("name") or provider_key or "").strip()
+    wire_api = str(provider.get("wire_api") or llm_payload.get("wire_api") or "").strip()
+    base_url = str(provider.get("base_url") or llm_payload.get("api_base") or "").strip()
+    requires_openai_auth = provider.get("requires_openai_auth")
+
+    if provider_name == "custom":
+        llm_payload["provider_profile"] = "custom-responses-compatible" if wire_api == "responses" else "custom-chat-compatible"
+    elif provider_name:
+        llm_payload["provider_profile"] = provider_name
+    if base_url:
+        llm_payload["api_base"] = base_url
+    if wire_api:
+        llm_payload["wire_api"] = wire_api
+    if payload.get("model"):
+        llm_payload["model"] = payload["model"]
+    if payload.get("model_reasoning_effort"):
+        llm_payload["model_reasoning_effort"] = payload["model_reasoning_effort"]
+    if payload.get("disable_response_storage") is not None:
+        llm_payload["disable_response_storage"] = bool(payload["disable_response_storage"])
+    if payload.get("api_key") not in {"", "***", None}:
+        llm_payload["api_key"] = payload["api_key"]
+    if requires_openai_auth is True:
+        llm_payload.setdefault("auth_header", "Authorization")
+        llm_payload.setdefault("auth_scheme", "Bearer")
+    if wire_api == "responses":
+        llm_payload["api_path"] = str(provider.get("api_path") or "/responses")
+        llm_payload["supports_responses"] = True
+        llm_payload["supports_chat_completions"] = False
+    elif wire_api:
+        llm_payload["api_path"] = str(provider.get("api_path") or "/chat/completions")
+        llm_payload["supports_responses"] = False
+        llm_payload["supports_chat_completions"] = True
+    llm_payload["use_mock"] = False
+    return llm_payload
+
+
+def _sync_llm_env_file(root_dir: Path, llm_config: Any) -> None:
+    path = root_dir / ".env"
+    existing: list[str] = []
+    if path.exists():
+        try:
+            existing = path.read_text(encoding="utf-8").splitlines()
+        except OSError:
+            existing = []
+    updates = {
+        "OPENAI_API_BASE": str(getattr(llm_config, "api_base", "") or ""),
+        "OPENAI_MODEL": str(getattr(llm_config, "model", "") or ""),
+        "OPENAI_WIRE_API": str(getattr(llm_config, "wire_api", "") or ""),
+        "OPENAI_PROVIDER_PROFILE": str(getattr(llm_config, "provider_profile", "") or ""),
+        "OPENAI_API_PATH": str(getattr(llm_config, "api_path", "") or ""),
+        "OPENAI_REASONING_EFFORT": str(getattr(llm_config, "model_reasoning_effort", "") or ""),
+        "OPENAI_DISABLE_RESPONSE_STORAGE": "true" if bool(getattr(llm_config, "disable_response_storage", False)) else "false",
+    }
+    api_key = str(getattr(llm_config, "api_key", "") or "")
+    if api_key and api_key != "***":
+        updates["OPENAI_API_KEY"] = api_key
+
+    seen: set[str] = set()
+    lines: list[str] = []
+    for line in existing:
+        key = line.split("=", 1)[0].strip() if "=" in line else ""
+        if key in updates:
+            lines.append(f"{key}={updates[key]}")
+            seen.add(key)
+        else:
+            lines.append(line)
+    for key, value in updates.items():
+        if key not in seen:
+            lines.append(f"{key}={value}")
+    path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+
+
 def _latest_payload(artifacts: list[dict[str, Any]], kind: str) -> dict[str, Any]:
     matches = [artifact for artifact in artifacts if artifact["kind"] == kind]
     if not matches:
         raise HTTPException(status_code=404, detail=f"{kind} not found")
     return matches[-1].get("payload") or {}
+
+
+def _latest_optional_payload(artifacts: list[dict[str, Any]], kind: str) -> dict[str, Any]:
+    matches = [artifact for artifact in artifacts if artifact["kind"] == kind]
+    return (matches[-1].get("payload") if matches else {}) or {}
 
 
 def run_api_server(service: V5Orchestrator, config: AppConfig, host: str, port: int) -> None:

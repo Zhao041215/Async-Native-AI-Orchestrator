@@ -1,0 +1,31 @@
+Traceback (most recent call last):
+  File "/app/dev_orchestrator/v5/worker.py", line 118, in run_once
+    result = self.service.execute_job(job)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/dev_orchestrator/v5/service.py", line 204, in execute_job
+    return self._execute_requirements_analysis(job)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/dev_orchestrator/v5/service.py", line 269, in _execute_requirements_analysis
+    self.store.update_run(run["id"], status="running", checkpoint="requirements_completed", continuation=continuation, metadata=metadata)
+  File "/app/dev_orchestrator/v5/store.py", line 456, in update_run
+    raise StoreError(f"run not found: {run_id}")
+dev_orchestrator.v5.store.StoreError: run not found: e7399385-0c81-4492-9817-7b2e7959cb98
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/app/run_server.py", line 125, in <module>
+    main()
+  File "/app/run_server.py", line 115, in main
+    run_worker_process(args.role, args.tenant, args.worker_id, args.once, args.poll_seconds, args.lease_seconds, args.max_jobs, memory_store=args.memory_store)
+  File "/app/run_server.py", line 56, in run_worker_process
+    print(json.dumps(worker.run_forever(max_jobs=max_jobs if max_jobs > 0 else None), indent=2, ensure_ascii=True))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/dev_orchestrator/v5/worker.py", line 150, in run_forever
+    result = self.run_once()
+             ^^^^^^^^^^^^^^^
+  File "/app/dev_orchestrator/v5/worker.py", line 134, in run_once
+    self.service.store.fail_job(job["id"], self.worker_id, error, retryable=retryable)
+  File "/app/dev_orchestrator/v5/store.py", line 645, in fail_job
+    raise StoreError(f"job not found: {job_id}")
+dev_orchestrator.v5.store.StoreError: job not found: f6e0c82c-13cd-46f8-a966-580db1a8ee01

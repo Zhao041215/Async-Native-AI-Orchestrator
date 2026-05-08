@@ -1,0 +1,24 @@
+Traceback (most recent call last):
+  File "/app/run_server.py", line 125, in <module>
+    main()
+  File "/app/run_server.py", line 115, in main
+    run_worker_process(args.role, args.tenant, args.worker_id, args.once, args.poll_seconds, args.lease_seconds, args.max_jobs, memory_store=args.memory_store)
+  File "/app/run_server.py", line 56, in run_worker_process
+    print(json.dumps(worker.run_forever(max_jobs=max_jobs if max_jobs > 0 else None), indent=2, ensure_ascii=True))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/dev_orchestrator/v5/worker.py", line 145, in run_forever
+    result = self.run_once()
+             ^^^^^^^^^^^^^^^
+  File "/app/dev_orchestrator/v5/worker.py", line 101, in run_once
+    self._status("idle", current_job=None, last_error="")
+  File "/app/dev_orchestrator/v5/worker.py", line 152, in _status
+    self.registry.update(
+  File "/app/dev_orchestrator/v5/worker.py", line 30, in update
+    path.write_text(json.dumps(payload, indent=2, ensure_ascii=True), encoding="utf-8")
+  File "/usr/local/lib/python3.12/pathlib.py", line 1047, in write_text
+    with self.open(mode='w', encoding=encoding, errors=errors, newline=newline) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/pathlib.py", line 1013, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/app/workspace/projects/runtime/workers/release-18-d373fdaf.json'

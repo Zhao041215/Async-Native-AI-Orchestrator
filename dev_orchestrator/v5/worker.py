@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from dev_orchestrator.config import load_config
+from dev_orchestrator.llm_client import OpenAICompatibleClient
 from dev_orchestrator.v5.models import DEFAULT_TENANT, ROLES, iso_now, new_id
 from dev_orchestrator.v5.service import V5Orchestrator
 
@@ -95,8 +97,11 @@ class DurableWorker:
         self.lease_seconds = lease_seconds
         self.registry = registry or WorkerStatusRegistry(service.workspace_root)
         self.processed_job_count = 0
+        self.root_dir = Path(__file__).resolve().parents[2]
+        self._config_mtime = 0.0
 
     def run_once(self) -> WorkerRunResult:
+        self._reload_llm_config_if_changed()
         self.service.store.requeue_expired_jobs(self.tenant_id)
         self._status("idle", current_job=None, last_error="")
         job = self.service.store.claim_job(self.tenant_id, self.role, self.worker_id, self.lease_seconds)
@@ -125,7 +130,8 @@ class DurableWorker:
             )
         except Exception as exc:
             error = f"{type(exc).__name__}: {exc}"
-            self.service.store.fail_job(job["id"], self.worker_id, error, retryable=True)
+            retryable = bool(getattr(exc, "retryable", True))
+            self.service.store.fail_job(job["id"], self.worker_id, error, retryable=retryable)
             self._status("error", current_job=None, last_error=error)
             return WorkerRunResult(
                 worker_id=self.worker_id,
@@ -160,6 +166,20 @@ class DurableWorker:
                 "log_path": "",
             },
         )
+
+    def _reload_llm_config_if_changed(self) -> None:
+        if self.service.llm_client is None or not isinstance(self.service.llm_client, OpenAICompatibleClient):
+            return
+        config_path = self.root_dir / "orchestrator_config.json"
+        try:
+            mtime = config_path.stat().st_mtime
+        except OSError:
+            return
+        if mtime <= self._config_mtime:
+            return
+        config = load_config(self.root_dir)
+        self.service.update_llm_client(OpenAICompatibleClient(config.llm))
+        self._config_mtime = mtime
 
 
 class WorkerSupervisor:

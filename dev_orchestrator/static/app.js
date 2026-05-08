@@ -6,6 +6,8 @@ const state = {
   selectedProjectRuns: [],
   selectedProjectIds: new Set(),
   workers: [],
+  modelSettings: null,
+  modelSettingsDirty: false,
 };
 
 let API_BASE = "/api/v5";
@@ -16,14 +18,27 @@ const nodes = {
   workers: $("worker-count"),
   refresh: $("refresh"),
   createRun: $("create-run"),
+  createRunStatus: $("create-run-status"),
+  modelSettingsForm: $("model-settings-form"),
+  applyRecommendedModel: $("apply-recommended-model"),
+  testModelSettings: $("test-model-settings"),
+  saveModelSettings: $("save-model-settings"),
+  modelSettingsStatus: $("model-settings-status"),
   selectAllProjects: $("select-all-projects"),
   deleteSelectedProjects: $("delete-selected-projects"),
   form: $("project-form"),
+  exportForm: $("delivery-export-form"),
+  exportDelivery: $("export-delivery"),
+  deliveryExportStatus: $("delivery-export-status"),
   projectList: $("project-list"),
   runTitle: $("run-title"),
   runSummary: $("run-summary"),
   runActions: $("run-actions"),
   v5Summary: $("v5-summary"),
+  contractValidation: $("contract-validation"),
+  patchTransactions: $("patch-transactions"),
+  testExecution: $("test-execution"),
+  codeContractIndex: $("code-contract-index"),
   aiCallList: $("ai-call-list"),
   waveList: $("wave-list"),
   packageList: $("package-list"),
@@ -34,6 +49,21 @@ const nodes = {
   continuation: $("continuation"),
   artifactList: $("artifact-list"),
   workerList: $("worker-list"),
+};
+
+const recommendedModelSettings = {
+  model_provider: "custom",
+  model: "gpt-5.3-codex",
+  model_reasoning_effort: "xhigh",
+  disable_response_storage: true,
+  model_providers: {
+    custom: {
+      name: "custom",
+      wire_api: "responses",
+      requires_openai_auth: true,
+      base_url: "https://deepkey.top/v1",
+    },
+  },
 };
 
 async function fetchJson(path, options = {}) {
@@ -78,6 +108,18 @@ function statusClass(value) {
 function latestArtifactByKind(items, kind) {
   const matches = (items || []).filter((item) => item.kind === kind);
   return matches[matches.length - 1] || null;
+}
+
+function setCreateRunStatus(message, tone = "neutral") {
+  if (!nodes.createRunStatus) return;
+  nodes.createRunStatus.textContent = message || "";
+  nodes.createRunStatus.className = `form-status ${tone}`;
+}
+
+function setDeliveryExportStatus(message, tone = "neutral") {
+  if (!nodes.deliveryExportStatus) return;
+  nodes.deliveryExportStatus.textContent = message || "";
+  nodes.deliveryExportStatus.className = `form-status ${tone}`;
 }
 
 function createActionButton(label, { className = "", disabled = false, title = "", onClick }) {
@@ -215,15 +257,18 @@ function renderRunActions(current, continuation, artifacts) {
 }
 
 async function refreshAll() {
-  const [health, projects, workers] = await Promise.all([
+  const [health, projects, workers, modelSettings] = await Promise.all([
     fetchJson(`${API_BASE}/health`),
     fetchJson(`${API_BASE}/projects`),
     fetchJson(`${API_BASE}/workers?limit=12`),
+    fetchJson(`${API_BASE}/model-settings`).catch(() => ({ llm: null, recommended: recommendedModelSettings })),
   ]);
   nodes.health.textContent = `${health.status} / ${health.kernel}`;
   nodes.health.className = "pill good";
   state.projects = projects.items || [];
   state.workers = workers.items || [];
+  state.modelSettings = modelSettings;
+  renderModelSettings(modelSettings);
   state.selectedProjectIds = new Set([...state.selectedProjectIds].filter((id) => state.projects.some((project) => project.id === id)));
   if (state.selectedProjectId && !state.projects.some((project) => project.id === state.selectedProjectId)) {
     state.selectedProjectId = "";
@@ -247,7 +292,15 @@ function clearDetailView() {
   nodes.runTitle.textContent = "Select a Project";
   nodes.runSummary.innerHTML = "";
   nodes.runActions.innerHTML = "";
+  if (nodes.exportForm) {
+    nodes.exportForm.classList.add("hidden");
+  }
+  setDeliveryExportStatus("");
   nodes.v5Summary.innerHTML = "";
+  nodes.contractValidation.innerHTML = "";
+  nodes.patchTransactions.innerHTML = "";
+  nodes.testExecution.innerHTML = "";
+  nodes.codeContractIndex.innerHTML = "";
   nodes.aiCallList.innerHTML = '<div class="empty">No project selected</div>';
   nodes.waveList.innerHTML = '<div class="empty">No project selected</div>';
   nodes.packageList.innerHTML = '<div class="empty">No project selected</div>';
@@ -269,7 +322,7 @@ function renderProjectOverview() {
   const latestRun = runs[0];
   const technologyGuidance = project.config?.stack_pack || "AI-decided";
   const targetScale = project.config?.target_scale || "-";
-  const projectPath = project.project_path || "-";
+  const projectPath = project.resolved_project_root || project.project_path_status?.project_root || project.project_path || "-";
   nodes.runTitle.textContent = `${project.title || project.name} - Project view`;
   nodes.runSummary.innerHTML = `
     <div><strong>${esc(project.status || "-")}</strong><small>project status</small></div>
@@ -277,12 +330,20 @@ function renderProjectOverview() {
     <div><strong>${esc(targetScale)}</strong><small>target scale</small></div>
   `;
   nodes.runActions.innerHTML = '<div class="empty">No run selected</div>';
+  if (nodes.exportForm) {
+    nodes.exportForm.classList.add("hidden");
+  }
+  setDeliveryExportStatus("");
   nodes.v5Summary.innerHTML = `
     <div><strong>${esc(projectPath)}</strong><small>project path</small></div>
     <div><strong>${esc(runs.length)}</strong><small>run count</small></div>
     <div><strong>${esc(latestRun?.status || "none")}</strong><small>latest run</small></div>
     <div><strong>${esc(latestRun?.checkpoint || "-")}</strong><small>latest checkpoint</small></div>
   `;
+  nodes.contractValidation.innerHTML = '<div class="empty">No run selected</div>';
+  nodes.patchTransactions.innerHTML = '<div class="empty">No run selected</div>';
+  nodes.testExecution.innerHTML = '<div class="empty">No run selected</div>';
+  nodes.codeContractIndex.innerHTML = '<div class="empty">No run selected</div>';
   nodes.aiCallList.innerHTML = '<div class="empty">No run selected</div>';
   nodes.waveList.innerHTML = '<div class="empty">No run selected</div>';
   nodes.packageList.innerHTML = '<div class="empty">No run selected</div>';
@@ -432,6 +493,145 @@ async function deleteSelectedProjects() {
   await refreshAll();
 }
 
+function providerNameFromProfile(profile) {
+  const value = String(profile || "").trim();
+  if (value.startsWith("custom-")) return "custom";
+  return value || "custom";
+}
+
+function recommendedFromPayload(payload) {
+  return payload?.recommended || recommendedModelSettings;
+}
+
+function modelProviderFromSettings(settings) {
+  const llm = settings?.llm || {};
+  const recommended = recommendedFromPayload(settings);
+  return {
+    model_provider: providerNameFromProfile(llm.provider_profile) || recommended.model_provider,
+    model: llm.model || recommended.model,
+    model_reasoning_effort: llm.model_reasoning_effort || recommended.model_reasoning_effort,
+    disable_response_storage: Boolean(llm.disable_response_storage ?? recommended.disable_response_storage),
+    model_providers: {
+      custom: {
+        name: "custom",
+        wire_api: llm.wire_api || recommended.model_providers.custom.wire_api,
+        requires_openai_auth: (llm.auth_header || "Authorization") === "Authorization",
+        base_url: llm.api_base || recommended.model_providers.custom.base_url,
+      },
+    },
+  };
+}
+
+function fillModelSettingsForm(settings) {
+  if (!nodes.modelSettingsForm) return;
+  const values = modelProviderFromSettings(settings);
+  const form = nodes.modelSettingsForm;
+  form.elements.model_provider.value = values.model_provider;
+  form.elements.base_url.value = values.model_providers.custom.base_url;
+  form.elements.model.value = values.model;
+  form.elements.wire_api.value = values.model_providers.custom.wire_api;
+  form.elements.model_reasoning_effort.value = values.model_reasoning_effort;
+  form.elements.disable_response_storage.checked = values.disable_response_storage;
+  form.elements.requires_openai_auth.checked = Boolean(values.model_providers.custom.requires_openai_auth);
+  form.elements.api_key.value = "";
+}
+
+function renderModelSettings(settings, { force = false } = {}) {
+  if (!nodes.modelSettingsStatus) return;
+  const formActive = nodes.modelSettingsForm?.contains(document.activeElement);
+  if (force || (!state.modelSettingsDirty && !formActive)) {
+    fillModelSettingsForm(settings);
+  }
+  const llm = settings?.llm || {};
+  const profile = llm.provider_profile || "custom";
+  const keyState = llm.api_key === "***" ? "key stored" : "key missing";
+  nodes.modelSettingsStatus.innerHTML = `
+    <span class="chip ${llm.use_mock ? "live" : "good"}">${esc(llm.use_mock ? "mock" : "live")}</span>
+    <span class="chip neutral">${esc(profile)}</span>
+    <span class="chip neutral">${esc(llm.wire_api || "responses")}</span>
+    <span class="chip ${llm.api_key === "***" ? "good" : "live"}">${esc(keyState)}</span>
+  `;
+}
+
+function applyRecommendedModelSettings() {
+  fillModelSettingsForm({ recommended: recommendedModelSettings, llm: {} });
+  state.modelSettingsDirty = true;
+  nodes.modelSettingsStatus.innerHTML = '<span class="chip live">preset ready</span>';
+}
+
+function buildModelSettingsPayloadFromForm() {
+  const form = new FormData(nodes.modelSettingsForm);
+  const provider = String(form.get("model_provider") || "custom").trim();
+  const wireApi = String(form.get("wire_api") || "responses").trim();
+  const payload = {
+    model_provider: provider,
+    model: String(form.get("model") || "").trim(),
+    model_reasoning_effort: String(form.get("model_reasoning_effort") || "").trim(),
+    disable_response_storage: Boolean(form.get("disable_response_storage")),
+    api_key: String(form.get("api_key") || ""),
+    model_providers: {
+      [provider]: {
+        name: provider,
+        wire_api: wireApi,
+        requires_openai_auth: Boolean(form.get("requires_openai_auth")),
+        base_url: String(form.get("base_url") || "").trim(),
+      },
+    },
+  };
+  return payload;
+}
+
+async function saveModelSettings(event) {
+  event.preventDefault();
+  const originalLabel = nodes.saveModelSettings?.textContent || "Save settings";
+  if (nodes.saveModelSettings) {
+    nodes.saveModelSettings.disabled = true;
+    nodes.saveModelSettings.textContent = "Saving...";
+  }
+  try {
+    const payload = buildModelSettingsPayloadFromForm();
+    const result = await fetchJson(`${API_BASE}/model-settings`, { method: "PUT", body: JSON.stringify(payload) });
+    state.modelSettings = result;
+    state.modelSettingsDirty = false;
+    renderModelSettings(result, { force: true });
+    nodes.modelSettingsStatus.insertAdjacentHTML("beforeend", '<span class="chip good">saved</span>');
+  } catch (error) {
+    nodes.modelSettingsStatus.innerHTML = `<span class="chip bad">${esc(error.message)}</span>`;
+  } finally {
+    if (nodes.saveModelSettings) {
+      nodes.saveModelSettings.disabled = false;
+      nodes.saveModelSettings.textContent = originalLabel;
+    }
+  }
+}
+
+async function testModelSettings() {
+  const originalLabel = nodes.testModelSettings?.textContent || "Test API";
+  if (nodes.testModelSettings) {
+    nodes.testModelSettings.disabled = true;
+    nodes.testModelSettings.textContent = "Testing...";
+  }
+  nodes.modelSettingsStatus.innerHTML = '<span class="chip live">testing connection</span>';
+  try {
+    const payload = buildModelSettingsPayloadFromForm();
+    const result = await fetchJson(`${API_BASE}/model-settings/test`, { method: "POST", body: JSON.stringify(payload) });
+    state.modelSettings = result;
+    state.modelSettingsDirty = false;
+    renderModelSettings(result, { force: true });
+    const probe = result.result || {};
+    const tone = result.ok ? "good" : "bad";
+    const message = result.ok ? "connection ok" : (probe.error || "connection failed");
+    nodes.modelSettingsStatus.insertAdjacentHTML("beforeend", `<span class="chip ${tone}">${esc(message)}</span>`);
+  } catch (error) {
+    nodes.modelSettingsStatus.innerHTML = `<span class="chip bad">${esc(error.message)}</span>`;
+  } finally {
+    if (nodes.testModelSettings) {
+      nodes.testModelSettings.disabled = false;
+      nodes.testModelSettings.textContent = originalLabel;
+    }
+  }
+}
+
 function renderWorkers() {
   nodes.workerList.innerHTML = "";
   if (!state.workers.length) {
@@ -453,7 +653,7 @@ function renderWorkers() {
 }
 
 async function renderRun(runId) {
-  const [run, jobs, continuation, artifacts, aiCalls, waves, packages, quality, contextIndex, repairs, layout, patchSets] = await Promise.all([
+  const [run, jobs, continuation, artifacts, aiCalls, waves, packages, quality, contextIndex, repairs, layout, patchSets, contractReport, patchTransactions, testExecution, codeIndex, contractIndex] = await Promise.all([
     fetchJson(`${API_BASE}/runs/${runId}`),
     fetchJson(`${API_BASE}/runs/${runId}/jobs`),
     fetchJson(`${API_BASE}/runs/${runId}/continuation`),
@@ -466,6 +666,11 @@ async function renderRun(runId) {
     fetchJson(`${API_BASE}/runs/${runId}/repair-history`).catch(() => ({ items: [] })),
     fetchJson(`${API_BASE}/runs/${runId}/project-layout`).catch(() => ({ layout: null })),
     fetchJson(`${API_BASE}/runs/${runId}/patch-sets`).catch(() => ({ items: [] })),
+    fetchJson(`${API_BASE}/runs/${runId}/agent-contract-report`).catch(() => ({ report: null })),
+    fetchJson(`${API_BASE}/runs/${runId}/patch-transactions`).catch(() => ({ report: null, items: [], conflicts: [] })),
+    fetchJson(`${API_BASE}/runs/${runId}/test-execution`).catch(() => ({ report: null })),
+    fetchJson(`${API_BASE}/runs/${runId}/code-index`).catch(() => ({ index: null })),
+    fetchJson(`${API_BASE}/runs/${runId}/contract-index`).catch(() => ({ index: null })),
   ]);
   const current = run.run;
   const qualityReport = quality.report || {};
@@ -482,11 +687,41 @@ async function renderRun(runId) {
     <div><strong>${esc(layout.layout?.delivery_root || current.metadata?.project_layout?.delivery_root || "-")}</strong><small>delivery root</small></div>
   `;
   renderRunActions(current, continuation, artifacts);
+  renderDeliveryExport(current);
   nodes.v5Summary.innerHTML = `
     <div><strong>${esc(currentWave)}</strong><small>current wave</small></div>
     <div><strong>${esc(effectiveLoc)} / ${esc(targetLoc)}</strong><small>effective LOC</small></div>
     <div><strong>${esc(aiCalls.items?.length || 0)}</strong><small>agent runs</small></div>
     <div><strong>${esc(patchSets.items?.length || 0)}</strong><small>patch sets</small></div>
+  `;
+  const contractPayload = contractReport.report || {};
+  const patchPayload = patchTransactions.report || {};
+  const testPayload = testExecution.report || {};
+  const codePayload = codeIndex.index || {};
+  const contractIndexPayload = contractIndex.index || {};
+  nodes.contractValidation.innerHTML = `
+    <div><strong class="${contractPayload.ok ? "good" : "bad"}">${esc(contractPayload.status || "pending")}</strong><small>status</small></div>
+    <div><strong>${esc(contractPayload.validation_count || 0)}</strong><small>validated calls</small></div>
+    <div><strong>${esc(contractPayload.violation_count || 0)}</strong><small>violations</small></div>
+    <div><strong>${esc(shortId(contractPayload.run_id || current.id))}</strong><small>run</small></div>
+  `;
+  nodes.patchTransactions.innerHTML = `
+    <div><strong class="${patchPayload.ok !== false ? "good" : "bad"}">${esc(patchPayload.transaction_count || patchTransactions.items?.length || 0)}</strong><small>transactions</small></div>
+    <div><strong>${esc(patchPayload.changed_file_count || 0)}</strong><small>changed files</small></div>
+    <div><strong class="${(patchPayload.conflict_count || patchTransactions.conflicts?.length || 0) ? "bad" : "good"}">${esc(patchPayload.conflict_count || patchTransactions.conflicts?.length || 0)}</strong><small>conflicts</small></div>
+    <div><strong>${esc(patchTransactions.items?.[patchTransactions.items.length - 1]?.payload?.transaction_id ? shortId(patchTransactions.items[patchTransactions.items.length - 1].payload.transaction_id) : "-")}</strong><small>latest transaction</small></div>
+  `;
+  nodes.testExecution.innerHTML = `
+    <div><strong class="${testPayload.ok ? "good" : "bad"}">${esc(testPayload.status || "pending")}</strong><small>status</small></div>
+    <div><strong>${esc(testPayload.executed_count || 0)} / ${esc(testPayload.command_count || 0)}</strong><small>executed</small></div>
+    <div><strong>${esc(testPayload.source || "-")}</strong><small>source</small></div>
+    <div><strong>${esc((testPayload.safety_failures || []).length)}</strong><small>safety blocks</small></div>
+  `;
+  nodes.codeContractIndex.innerHTML = `
+    <div><strong>${esc((codePayload.files || []).length)}</strong><small>indexed files</small></div>
+    <div><strong>${esc(shortId(codePayload.index_hash || ""))}</strong><small>code hash</small></div>
+    <div><strong>${esc((contractIndexPayload.contracts || []).length)}</strong><small>contracts</small></div>
+    <div><strong>${esc(shortId(contractIndexPayload.index_hash || ""))}</strong><small>contract hash</small></div>
   `;
   nodes.aiCallList.innerHTML = (aiCalls.items || []).map((artifact) => {
     const payload = artifact.payload || {};
@@ -540,6 +775,54 @@ async function renderRun(runId) {
   `).join("") || '<div class="empty">No artifacts yet</div>';
 }
 
+function renderDeliveryExport(current) {
+  if (!nodes.exportForm) return;
+  const exportable = ["release_ready", "completed"].includes(String(current.status || "").toLowerCase());
+  nodes.exportForm.classList.toggle("hidden", !current?.id);
+  nodes.exportDelivery.disabled = !exportable;
+  nodes.exportDelivery.title = exportable ? "Copy runnable delivery files to the selected folder" : "Available after the run reaches release_ready or completed";
+  if (!nodes.exportForm.elements.target_path.value && current?.metadata?.delivery_export_target) {
+    nodes.exportForm.elements.target_path.value = current.metadata.delivery_export_target;
+  }
+  if (exportable && !nodes.deliveryExportStatus.textContent) {
+    setDeliveryExportStatus("Ready to export runnable project files.", "neutral");
+  } else if (!exportable) {
+    setDeliveryExportStatus("Export is available after release is ready.", "live");
+  }
+}
+
+async function exportDelivery(event) {
+  event.preventDefault();
+  if (!state.selectedRunId) return;
+  const originalLabel = nodes.exportDelivery?.textContent || "Export delivery";
+  if (nodes.exportDelivery) {
+    nodes.exportDelivery.disabled = true;
+    nodes.exportDelivery.textContent = "Exporting...";
+  }
+  const form = new FormData(nodes.exportForm);
+  const payload = {
+    target_path: String(form.get("target_path") || "").trim(),
+    overwrite: Boolean(form.get("overwrite")),
+  };
+  setDeliveryExportStatus("Copying runnable files...", "live");
+  try {
+    const result = await fetchJson(`${API_BASE}/runs/${state.selectedRunId}/export-delivery`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    const report = result.report || {};
+    setDeliveryExportStatus(`Exported ${report.copied_count || 0} files to ${report.target_path || "-"}.`, "good");
+    await renderRun(state.selectedRunId);
+  } catch (error) {
+    setDeliveryExportStatus(error.message, "bad");
+  } finally {
+    if (nodes.exportDelivery) {
+      nodes.exportDelivery.disabled = false;
+      nodes.exportDelivery.textContent = originalLabel;
+    }
+  }
+}
+
 nodes.form.addEventListener("submit", async (event) => {
   event.preventDefault();
   const originalLabel = nodes.createRun?.textContent || "Create and Run";
@@ -547,6 +830,7 @@ nodes.form.addEventListener("submit", async (event) => {
     nodes.createRun.disabled = true;
     nodes.createRun.textContent = "Creating...";
   }
+  setCreateRunStatus("Creating project...", "live");
   const form = new FormData(nodes.form);
   const payload = {
     name: form.get("name") || "",
@@ -559,6 +843,7 @@ nodes.form.addEventListener("submit", async (event) => {
   };
   try {
     const project = await fetchJson(`${API_BASE}/projects`, { method: "POST", body: JSON.stringify(payload) });
+    setCreateRunStatus("Project created. Starting run...", "live");
     state.selectedProjectId = project.project.id;
     const run = await fetchJson(`${API_BASE}/projects/${project.project.id}/runs`, {
       method: "POST",
@@ -566,10 +851,12 @@ nodes.form.addEventListener("submit", async (event) => {
     });
     state.selectedRunId = run.run.id;
     nodes.form.reset();
+    setCreateRunStatus(`Run ${shortId(run.run.id)} queued.`, "good");
     await refreshAll();
   } catch (error) {
     nodes.health.textContent = error.message;
     nodes.health.className = "pill bad";
+    setCreateRunStatus(error.message, "bad");
   } finally {
     if (nodes.createRun) {
       nodes.createRun.disabled = false;
@@ -593,6 +880,13 @@ nodes.deleteSelectedProjects.addEventListener("click", () => {
     nodes.health.className = "pill bad";
   });
 });
+nodes.exportForm?.addEventListener("submit", exportDelivery);
+nodes.applyRecommendedModel?.addEventListener("click", applyRecommendedModelSettings);
+nodes.testModelSettings?.addEventListener("click", testModelSettings);
+nodes.modelSettingsForm?.addEventListener("input", () => {
+  state.modelSettingsDirty = true;
+});
+nodes.modelSettingsForm?.addEventListener("submit", saveModelSettings);
 refreshAll().catch((error) => {
   nodes.health.textContent = error.message;
   nodes.health.className = "pill bad";

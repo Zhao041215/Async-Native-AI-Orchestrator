@@ -69,6 +69,32 @@ def validate_ai_native_project(
     latest_test = (test_reports[-1].get("payload") if test_reports else {}) or {}
     gates.append(_gate("test_evidence_gate", bool(latest_test.get("ok", False)), details=latest_test))
 
+    test_execution_reports = run_context.get("test_execution_reports", [])
+    latest_execution = run_context.get("test_execution_report") or ((test_execution_reports[-1].get("payload") if test_execution_reports else {}) or {})
+    safety_failures = latest_execution.get("safety_failures") or []
+    gates.append(_gate("validation_command_coverage_gate", bool(latest_execution.get("command_count", 0)), details={"source": latest_execution.get("source", ""), "coverage": latest_execution.get("coverage", {})}))
+    gates.append(_gate("test_command_safety_gate", not safety_failures, details={"safety_failures": safety_failures}))
+    gates.append(_gate("test_execution_gate", bool(latest_execution.get("ok", False)), details=latest_execution))
+
+    agent_contract_reports = run_context.get("agent_contract_reports", [])
+    latest_contract_report = (agent_contract_reports[-1].get("payload") if agent_contract_reports else {}) or {}
+    if latest_contract_report:
+        gates.append(_gate("agent_contract_gate", bool(latest_contract_report.get("ok", False)), details=latest_contract_report))
+
+    patch_transactions = run_context.get("patch_transactions", [])
+    transaction_failures = [artifact.get("payload") or {} for artifact in patch_transactions if not (artifact.get("payload") or {}).get("ok", False)]
+    gates.append(_gate("patch_transaction_gate", not transaction_failures, details={"transaction_count": len(patch_transactions), "failures": transaction_failures[:20]}))
+
+    code_index = run_context.get("code_index") or {}
+    contract_index = run_context.get("contract_index") or {}
+    gates.append(_gate("code_index_freshness_gate", bool(code_index.get("index_hash")) and bool(code_index.get("files")), details={"index_hash": code_index.get("index_hash", ""), "file_count": len(code_index.get("files") or [])}, severity="major"))
+    contracts = contract_index.get("contracts") or []
+    ownerless = [contract for contract in contracts if not contract.get("owner_package")]
+    missing_consumers = contract_index.get("missing_consumers") or []
+    gates.append(_gate("contract_owner_gate", not ownerless, details={"ownerless": ownerless[:50]}, severity="major"))
+    gates.append(_gate("contract_consumer_gate", not missing_consumers, details={"missing_consumers": missing_consumers[:50]}))
+    gates.append(_gate("cross_package_contract_gate", bool(contract_index.get("index_hash")) and not ownerless and not missing_consumers, details={"contract_count": len(contracts), "index_hash": contract_index.get("index_hash", "")}, severity="major"))
+
     template_report = build_template_leak_report(project_root, str(run_context.get("requirements_text") or ""))
     gates.append(_gate("anti_template_gate", template_report["ok"], details=template_report))
 
