@@ -20,7 +20,7 @@ def build_v4_system_check(root_dir: Path, config: dict[str, Any], strict_db: boo
     logs_root = (root_dir / runtime.get("logs_path", "logs")).resolve()
     database_url = default_database_url()
     checks = {
-        "kernel": "v4",
+        "kernel": "v5",
         "storage": "postgres",
         "tenant": DEFAULT_TENANT,
         "workspace_root": str(workspace_root),
@@ -57,8 +57,7 @@ def build_v4_system_check(root_dir: Path, config: dict[str, Any], strict_db: boo
         "release_version": read_release_version(root_dir),
         "root_dir": str(root_dir),
         "hosted_ready": not failures,
-        "v4_only": True,
+        "v4_only": False,
         "failures": failures,
         "checks": checks,
     }
-

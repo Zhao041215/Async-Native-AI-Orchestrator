@@ -29,7 +29,7 @@ STACK_PACKS: dict[str, StackPack] = {
     "php_mysql_single_dir": StackPack(
         id="php_mysql_single_dir",
         title="PHP 8.2 + MySQL single directory",
-        description="Baota and virtual-host friendly PHP/MySQL product with index.php at release root.",
+        description="Single-directory PHP/MySQL deployment substrate for demand-driven admin products.",
         deployment_mode="single_directory_upload",
         release_root="release",
         api_only_default=False,
@@ -54,7 +54,7 @@ STACK_PACKS: dict[str, StackPack] = {
     "laravel_mysql": StackPack(
         id="laravel_mysql",
         title="Laravel + MySQL",
-        description="Standard Laravel-style PHP enterprise application.",
+        description="Standard Laravel-style PHP enterprise application substrate.",
         deployment_mode="docker_compose",
         release_root="release",
         api_only_default=False,
@@ -70,7 +70,7 @@ STACK_PACKS: dict[str, StackPack] = {
     "node_express_mysql": StackPack(
         id="node_express_mysql",
         title="Node.js + Express + MySQL",
-        description="Express API with an operational admin surface.",
+        description="Express API substrate with an operational admin surface.",
         deployment_mode="node_service",
         release_root="release",
         api_only_default=False,
@@ -86,7 +86,7 @@ STACK_PACKS: dict[str, StackPack] = {
     "react_node_mysql": StackPack(
         id="react_node_mysql",
         title="React + Node.js + MySQL",
-        description="Separated React console and Node API.",
+        description="Separated React console and Node API substrate.",
         deployment_mode="docker_compose",
         release_root="release",
         api_only_default=False,
@@ -102,7 +102,7 @@ STACK_PACKS: dict[str, StackPack] = {
     "nextjs_prisma_postgres": StackPack(
         id="nextjs_prisma_postgres",
         title="Next.js + Prisma + PostgreSQL",
-        description="Modern SaaS control plane with tenant-ready Postgres data model.",
+        description="Modern SaaS control plane substrate with tenant-ready Postgres data model.",
         deployment_mode="docker_compose",
         release_root="release",
         api_only_default=False,
@@ -118,7 +118,7 @@ STACK_PACKS: dict[str, StackPack] = {
     "python_fastapi_postgres": StackPack(
         id="python_fastapi_postgres",
         title="FastAPI + PostgreSQL",
-        description="Python API/data service stack for AI, RAG, and automation workloads.",
+        description="Python API/data substrate for AI, RAG, and automation workloads.",
         deployment_mode="docker_compose",
         release_root="release",
         api_only_default=True,
@@ -167,7 +167,7 @@ def decide_stack_pack(
     api_only: bool | None = None,
 ) -> dict[str, Any]:
     requested = (requested_stack_pack or "auto").strip()
-    lowered = requirement_text.lower()
+    lowered = str(requirement_text or "").lower()
     if requested != "auto":
         if requested not in STACK_PACKS:
             return {
@@ -188,19 +188,49 @@ def decide_stack_pack(
 
     rules: list[tuple[str, tuple[str, ...], str]] = [
         (
-            "php_mysql_single_dir",
-            ("baota", "bt panel", "php", "mysql", "virtual host", "shared host", "宝塔", "虚拟主机", "后台"),
-            "traditional PHP/MySQL or Baota-friendly deployment language detected",
-        ),
-        (
             "python_fastapi_postgres",
-            ("ai", "rag", "embedding", "model", "fastapi", "python", "data pipeline", "知识库", "模型", "向量"),
+            (
+                "ai",
+                "rag",
+                "embedding",
+                "vector",
+                "model",
+                "fastapi",
+                "python",
+                "data pipeline",
+                "\u77e5\u8bc6\u5e93\u5411\u91cf",
+                "\u5411\u91cf",
+                "\u6a21\u578b",
+            ),
             "AI/data service language detected",
         ),
         (
-            "react_node_mysql",
-            ("react", "front-end separation", "frontend separation", "前后端分离"),
-            "React plus API deployment language detected",
+            "php_mysql_single_dir",
+            (
+                "baota",
+                "bt panel",
+                "php",
+                "mysql",
+                "virtual host",
+                "shared host",
+                "knowledge base",
+                "knowledge",
+                "wiki",
+                "article",
+                "document",
+                "content",
+                "\u77e5\u8bc6\u5e93",
+                "\u6587\u6863",
+                "\u6587\u7ae0",
+                "\u4e0a\u4f20",
+                "\u540e\u53f0",
+            ),
+            "traditional PHP/MySQL or deploy-simple product language detected",
+        ),
+        (
+            "nextjs_prisma_postgres",
+            ("saas", "tenant", "rbac", "sso", "audit", "dashboard", "multi-tenant", "\u591a\u79df\u6237", "\u63a7\u5236\u53f0"),
+            "SaaS control-plane language detected",
         ),
         (
             "node_express_mysql",
@@ -208,18 +238,18 @@ def decide_stack_pack(
             "Node/Express API language detected",
         ),
         (
-            "nextjs_prisma_postgres",
-            ("saas", "tenant", "rbac", "sso", "audit", "dashboard", "multi-tenant", "多租户", "控制台"),
-            "SaaS control-plane language detected",
+            "react_node_mysql",
+            ("react", "front-end separation", "frontend separation", "frontend", "separated frontend", "\u524d\u540e\u7aef\u5206\u79bb"),
+            "React plus API deployment language detected",
         ),
         (
             "static_spa_api",
-            ("static", "spa", "landing", "tool site", "静态", "查询工具"),
+            ("static", "spa", "landing", "tool site", "\u9759\u6001", "\u67e5\u8be2\u5de5\u5177"),
             "static browser application language detected",
         ),
     ]
     for stack_pack_id, keywords, reason in rules:
-        evidence = [keyword for keyword in keywords if keyword in lowered]
+        evidence = [keyword for keyword in keywords if _keyword_match(lowered, keyword)]
         if evidence:
             return {
                 "ok": True,
@@ -247,6 +277,19 @@ def decide_stack_pack(
     }
 
 
+def _keyword_match(lowered_text: str, keyword: str) -> bool:
+    normalized = keyword.strip().lower()
+    if not normalized:
+        return False
+    if any(char.isspace() for char in normalized) or "-" in normalized or any(ord(char) > 127 for char in normalized):
+        return normalized in lowered_text
+    if len(normalized) <= 4:
+        import re
+
+        return bool(re.search(rf"(?<![a-z0-9]){re.escape(normalized)}(?![a-z0-9])", lowered_text))
+    return normalized in lowered_text
+
+
 def build_product_contract(
     stack_pack_id: str,
     deployment_mode: str = "",
@@ -255,7 +298,7 @@ def build_product_contract(
     pack = get_stack_pack(stack_pack_id)
     resolved_api_only = pack.api_only_default if api_only is None else bool(api_only)
     return {
-        "schema_version": "4.0",
+        "schema_version": "5.0",
         "stack_pack": pack.id,
         "deployment_mode": deployment_mode or pack.deployment_mode,
         "api_only": resolved_api_only,
@@ -269,4 +312,3 @@ def build_product_contract(
         "required_files": list(pack.required_files),
         "test_commands": list(pack.test_commands),
     }
-

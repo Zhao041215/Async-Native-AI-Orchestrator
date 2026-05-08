@@ -44,7 +44,7 @@ class ProjectBatchDelete(BaseModel):
 
 
 def build_app(service: V4Orchestrator, config: AppConfig) -> FastAPI:
-    app = FastAPI(title="Dev Orchestrator V4", version="4.0")
+    app = FastAPI(title="Dev Orchestrator V5", version="5.0")
     static_root = config.root_dir / "dev_orchestrator" / "static"
     if static_root.exists():
         app.mount("/static", StaticFiles(directory=str(static_root)), name="static")
@@ -54,11 +54,11 @@ def build_app(service: V4Orchestrator, config: AppConfig) -> FastAPI:
         index_path = static_root / "index.html"
         if index_path.exists():
             return FileResponse(index_path)
-        return {"service": "dev-orchestrator-v4", "api": "/api/v4/health"}
+        return {"service": "dev-orchestrator-v5", "api": "/api/v5/health"}
 
     @app.get("/api/v4/health")
     def health() -> dict[str, Any]:
-        return {"status": "ok", "kernel": "v4", "storage": "postgres", "tenant": service.tenant_id}
+        return {"status": "ok", "kernel": "v5", "storage": "postgres", "tenant": service.tenant_id}
 
     @app.get("/api/v4/system-check")
     def system_check() -> dict[str, Any]:
@@ -102,6 +102,13 @@ def build_app(service: V4Orchestrator, config: AppConfig) -> FastAPI:
         if not project:
             raise HTTPException(status_code=404, detail="project not found")
         return {"project": project}
+
+    @app.get("/api/v4/projects/{project_id}/runs")
+    def list_project_runs(project_id: str) -> dict[str, Any]:
+        project = service.get_project(project_id)
+        if not project:
+            raise HTTPException(status_code=404, detail="project not found")
+        return {"items": service.list_runs(project_id)}
 
     @app.delete("/api/v4/projects/{project_id}")
     def delete_project(project_id: str) -> dict[str, Any]:
@@ -198,6 +205,15 @@ def build_app(service: V4Orchestrator, config: AppConfig) -> FastAPI:
         service.get_run(run_id) or _missing_run()
         return {"items": [artifact for artifact in service.list_artifacts(run_id) if artifact["kind"] == "repair_report"]}
 
+    @app.get("/api/v4/runs/{run_id}/template-leak-report")
+    def template_leak_report(run_id: str) -> dict[str, Any]:
+        return {"report": _latest_payload(service.list_artifacts(run_id), "template_leak_report")}
+
+    @app.get("/api/v4/runs/{run_id}/agent-trace")
+    def agent_trace(run_id: str) -> dict[str, Any]:
+        service.get_run(run_id) or _missing_run()
+        return {"items": [artifact for artifact in service.list_artifacts(run_id) if artifact["kind"] == "agent_run"]}
+
     @app.get("/api/v4/runs/{run_id}/artifacts")
     def artifacts(run_id: str) -> dict[str, Any]:
         service.get_run(run_id) or _missing_run()
@@ -289,6 +305,49 @@ def build_app(service: V4Orchestrator, config: AppConfig) -> FastAPI:
     @app.post("/api/v4/release-candidates/{candidate_id}/rollback")
     def rollback(candidate_id: str) -> dict[str, Any]:
         return {"job": service.enqueue_rollback(candidate_id)}
+
+    for path, endpoint, methods in [
+        ("/api/v5/health", health, ["GET"]),
+        ("/api/v5/system-check", system_check, ["GET"]),
+        ("/api/v5/stack-packs", stack_packs, ["GET"]),
+        ("/api/v5/ai-policy", ai_policy, ["GET"]),
+        ("/api/v5/projects", create_project, ["POST"]),
+        ("/api/v5/projects", list_projects, ["GET"]),
+        ("/api/v5/projects/{project_id}", get_project, ["GET"]),
+        ("/api/v5/projects/{project_id}/runs", list_project_runs, ["GET"]),
+        ("/api/v5/projects/{project_id}", delete_project, ["DELETE"]),
+        ("/api/v5/projects/batch-delete", batch_delete_projects, ["POST"]),
+        ("/api/v5/projects/{project_id}/requirements", update_requirements, ["POST"]),
+        ("/api/v5/projects/{project_id}/stack-decision", stack_decision, ["GET"]),
+        ("/api/v5/projects/{project_id}/runs", create_run, ["POST"]),
+        ("/api/v5/runs/{run_id}", get_run, ["GET"]),
+        ("/api/v5/runs/{run_id}/continuation", continuation, ["GET"]),
+        ("/api/v5/runs/{run_id}/jobs", jobs, ["GET"]),
+        ("/api/v5/runs/{run_id}/ai-calls", ai_calls, ["GET"]),
+        ("/api/v5/runs/{run_id}/waves", waves, ["GET"]),
+        ("/api/v5/runs/{run_id}/packages", packages, ["GET"]),
+        ("/api/v5/runs/{run_id}/wave-report", wave_report, ["GET"]),
+        ("/api/v5/runs/{run_id}/quality-report", quality_report, ["GET"]),
+        ("/api/v5/runs/{run_id}/context-index", context_index, ["GET"]),
+        ("/api/v5/runs/{run_id}/repair-history", repair_history, ["GET"]),
+        ("/api/v5/runs/{run_id}/template-leak-report", template_leak_report, ["GET"]),
+        ("/api/v5/runs/{run_id}/agent-trace", agent_trace, ["GET"]),
+        ("/api/v5/runs/{run_id}/artifacts", artifacts, ["GET"]),
+        ("/api/v5/runs/{run_id}/release-structure", release_structure, ["GET"]),
+        ("/api/v5/runs/{run_id}/deploy-guide", deploy_guide, ["GET"]),
+        ("/api/v5/runs/{run_id}/browser-smoke", browser_smoke, ["GET"]),
+        ("/api/v5/runs/{run_id}/pause", pause, ["POST"]),
+        ("/api/v5/runs/{run_id}/resume", resume, ["POST"]),
+        ("/api/v5/runs/{run_id}/requeue-blocked", requeue_blocked, ["POST"]),
+        ("/api/v5/runs/{run_id}/repair", repair, ["POST"]),
+        ("/api/v5/runs/{run_id}/cancel", cancel, ["POST"]),
+        ("/api/v5/workers", workers, ["GET"]),
+        ("/api/v5/dead-letter", dead_letter, ["GET"]),
+        ("/api/v5/dead-letter/{job_id}/requeue", requeue_dead_letter, ["POST"]),
+        ("/api/v5/release-candidates/{candidate_id}/apply", apply, ["POST"]),
+        ("/api/v5/release-candidates/{candidate_id}/rollback", rollback, ["POST"]),
+    ]:
+        app.add_api_route(path, endpoint, methods=methods, include_in_schema=False)
 
     return app
 

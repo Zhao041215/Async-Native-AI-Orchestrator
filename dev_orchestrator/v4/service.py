@@ -95,6 +95,9 @@ class V4Orchestrator:
     def get_project(self, project_id: str) -> dict[str, Any] | None:
         return self.store.get_project(project_id)
 
+    def list_runs(self, project_id: str) -> list[dict[str, Any]]:
+        return self.store.list_runs(project_id)
+
     def create_run(self, project_id: str, requirements_text: str = "", tenant_id: str | None = None) -> dict[str, Any]:
         project = self._require_project(project_id)
         text = requirements_text or project.get("description") or project.get("title") or project.get("name")
@@ -124,7 +127,10 @@ class V4Orchestrator:
         return run
 
     def get_run(self, run_id: str) -> dict[str, Any] | None:
-        return self.store.get_run(run_id)
+        run = self.store.get_run(run_id)
+        if not run:
+            return None
+        return self._project_run_snapshot(run)
 
     def list_jobs(self, run_id: str) -> list[dict[str, Any]]:
         return self.store.list_jobs(run_id=run_id)
@@ -134,6 +140,15 @@ class V4Orchestrator:
 
     def continuation(self, run_id: str) -> dict[str, Any]:
         run = self._require_run(run_id)
+        return self._live_continuation(run)
+
+    def _project_run_snapshot(self, run: dict[str, Any]) -> dict[str, Any]:
+        projected = dict(run)
+        projected["continuation"] = self._live_continuation(run)
+        return projected
+
+    def _live_continuation(self, run: dict[str, Any]) -> dict[str, Any]:
+        run_id = run["id"]
         packages = self.store.list_work_packages(run_id)
         waves = self.store.list_waves(run_id)
         jobs = self.store.list_jobs(run_id=run_id)
@@ -256,10 +271,14 @@ class V4Orchestrator:
             role="chief",
             job=job,
             system_prompt=(
-                "You are the V4 chief planner. This is a bounded planning task, not a long "
-                "design session. Return strict compact JSON only with keys summary, "
-                "business_domains, delivery_risks, package_guidance, and quality_focus. "
-                "Each array must contain at most five short strings."
+                "You are the V5 chief planner. Return strict compact JSON only. "
+                "Your job is to understand the submitted requirements first, then propose "
+                "a solution graph. Return keys requirements_understanding, domain_model, "
+                "solution_graph, delivery_risks, and quality_focus. "
+                "requirements_understanding should include product_kind, summary, target_users, "
+                "primary_goal, entities, workflows, pages, and expected_terms. "
+                "domain_model should include entities with fields and seed_records. "
+                "solution_graph should include packages and waves. Keep arrays concise and domain-driven."
             ),
             user_payload={
                 "project": {
@@ -270,7 +289,7 @@ class V4Orchestrator:
                 "requirements_outline": _requirement_outline(requirement_text),
                 "requirements_excerpt": _compact_text(requirement_text, get_ai_task_budget("chief_plan").max_input_chars),
                 "task_contract": {
-                    "purpose": "Summarize planning risks and package guidance only.",
+                    "purpose": "Understand the requirement and design the product graph only.",
                     "do_not_generate_code": True,
                     "max_json_bytes": 2500,
                 },
@@ -278,8 +297,10 @@ class V4Orchestrator:
             required=True,
             task_kind="chief_plan",
         )
-        blueprint = build_blueprint(project, requirement_text)
+        blueprint = build_blueprint(project, requirement_text, chief_analysis)
         self._record_json(project, run, "stack_decision", "stack-decision.json", blueprint.get("stack_decision", {}))
+        self._record_json(project, run, "requirements_understanding", "requirements-understanding.json", blueprint.get("requirements_understanding", {}))
+        self._record_json(project, run, "solution_graph", "solution-graph.json", blueprint.get("solution_graph", {}))
         context_snapshot = build_context_snapshot_v2(requirements=blueprint.get("requirements", []), blueprint=blueprint, project_root=self.materializer.project_root(project))
         self._record_json(project, run, "context_snapshot", "context-snapshot.json", context_snapshot)
         if not blueprint.get("ok"):
@@ -314,6 +335,8 @@ class V4Orchestrator:
                 "chief_analysis": chief_analysis,
                 "product_contract": blueprint["product_contract"],
                 "stack_decision": blueprint["stack_decision"],
+                "requirements_understanding": blueprint.get("requirements_understanding", {}),
+                "solution_graph": blueprint.get("solution_graph", {}),
                 "context_snapshot": context_snapshot,
                 "context_snapshot_id": context_snapshot["index_hash"],
                 "durable_queue_state": "package_jobs_queued",
@@ -431,12 +454,17 @@ class V4Orchestrator:
             "wave_reports": [artifact for artifact in artifacts if artifact["kind"] == "wave_report"],
             "context_index_status": self._context_index_status(run),
             "effective_loc_target": (metadata.get("project_config") or {}).get("effective_loc_target", 0),
+            "requirements_text": metadata.get("requirements_text", ""),
+            "requirements_understanding": metadata.get("requirements_understanding", {}),
+            "solution_graph": metadata.get("solution_graph", {}),
         }
         quality_report = validate_release_structure(release_root, product_contract, product_contract.get("stack_pack", ""), run_context=run_context)
         deploy_guide = build_deploy_guide(product_contract, release_root, quality_report)
         quality_artifact = self._record_json(project, run, "quality_report", "quality-report.json", quality_report)
         release_structure_artifact = self._record_json(project, run, "release_structure_report", "release-structure-report.json", quality_report)
         deploy_artifact = self._record_json(project, run, "deploy_guide", "deploy-guide.json", deploy_guide)
+        if quality_report.get("template_leak_report"):
+            self._record_json(project, run, "template_leak_report", "template-leak-report.json", quality_report.get("template_leak_report"))
         metadata.update(
             {
                 "effective_loc_metrics": quality_report.get("effective_loc", {}),

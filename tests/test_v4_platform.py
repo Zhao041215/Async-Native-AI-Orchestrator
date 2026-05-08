@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import shutil
 import unittest
 import uuid
@@ -206,6 +207,20 @@ class V4DeliveryFlowTests(unittest.TestCase):
 
             self.assertGreaterEqual(len(results), 8)
             self.assertEqual(final_run["status"], "release_ready")
+            self.assertEqual((final_run["continuation"] or {}).get("completed_packages"), [
+                "WP-UNDERSTAND-010",
+                "WP-ARCH-020",
+                "WP-CONFIG-030",
+                "WP-DATA-040",
+                "WP-BACKEND-050",
+                "WP-UI-060",
+                "WP-SECURITY-070",
+                "WP-TEST-080",
+                "WP-RELEASE-090",
+                "WP-ENTITY-001",
+            ])
+            self.assertEqual((final_run["continuation"] or {}).get("pending_packages"), [])
+            self.assertEqual((final_run["continuation"] or {}).get("next_action"), "apply")
             self.assertTrue((release / "index.php").exists())
             self.assertTrue((release / ".env.example").exists())
             self.assertTrue((release / ".htaccess").exists())
@@ -215,6 +230,40 @@ class V4DeliveryFlowTests(unittest.TestCase):
 
             report = validate_release_structure(release, build_product_contract("php_mysql_single_dir"), "php_mysql_single_dir")
             self.assertTrue(report["ok"], report)
+
+    def test_knowledge_base_requirement_stays_domain_specific(self) -> None:
+        with WorkspaceSandbox() as root:
+            service = build_service(root)
+            project = service.create_project(
+                {
+                    "name": "knowledge-base-release",
+                    "title": "Knowledge Base Release",
+                    "description": "Baota PHP + MySQL knowledge base management system with articles, categories, tags, search, admin login, audit trail, and deployment docs.",
+                    "stack_pack": "auto",
+                    "effective_loc_target": 300,
+                }
+            )
+            run = service.create_run(project["id"])
+
+            drain_workers(service)
+
+            final_run = service.get_run(run["id"])
+            artifacts = service.list_artifacts(run["id"])
+            quality = next(item for item in artifacts if item["kind"] == "quality_report")["payload"]
+            release = root / "workspace" / "projects" / "knowledge-base-release" / "release"
+            release_text = "\n".join(
+                path.read_text(encoding="utf-8", errors="ignore")
+                for path in release.rglob("*")
+                if path.is_file() and path.suffix.lower() in {".php", ".sql", ".md", ".css", ".http"}
+            ).lower()
+
+            self.assertEqual(final_run["status"], "release_ready")
+            self.assertIn("knowledge_articles", release_text)
+            self.assertIn("knowledge_categories", release_text)
+            self.assertIn("knowledge_tags", release_text)
+            self.assertFalse(any(term in release_text for term in ["employee", "employees", "personnel", "department", "hire_date"]))
+            self.assertTrue(quality["template_leak_report"]["ok"])
+            self.assertTrue(any(gate["name"] == "anti_template_gate" and gate["ok"] for gate in quality["gates"]))
 
     def test_worker_pipeline_invokes_llm_for_real_run_jobs(self) -> None:
         with WorkspaceSandbox() as root:
@@ -316,6 +365,34 @@ class V4DeliveryFlowTests(unittest.TestCase):
             self.assertTrue((custom_root / "release" / "index.php").exists())
             self.assertTrue((custom_root / "release" / ".env.example").exists())
 
+    def test_windows_style_project_path_is_mapped_inside_workspace_on_non_windows(self) -> None:
+        with WorkspaceSandbox() as root:
+            service = build_service(root)
+            configured_path = "E:\\ProgramProjects\\V4_test03"
+            project = service.create_project(
+                {
+                    "name": "windows-path-project",
+                    "title": "Windows Path Project",
+                    "description": "Baota PHP MySQL knowledge base",
+                    "stack_pack": "php_mysql_single_dir",
+                    "project_path": configured_path,
+                }
+            )
+
+            materialized_root = service.materializer.project_root(project)
+
+            if os.name == "nt":
+                self.assertEqual(materialized_root, Path(configured_path).resolve())
+            else:
+                self.assertTrue(materialized_root.is_relative_to(root / "workspace" / "projects"))
+                self.assertNotIn("E:\\ProgramProjects\\V4_test03", str(materialized_root))
+
+            run = service.create_run(project["id"])
+            drain_workers(service)
+
+            self.assertTrue((materialized_root / "release" / "index.php").exists())
+            self.assertTrue((materialized_root / "release" / ".env.example").exists())
+
     def test_effective_loc_target_gate_blocks_under_target_release_and_creates_repair(self) -> None:
         with WorkspaceSandbox() as root:
             service = build_service(root)
@@ -373,6 +450,61 @@ class V4DeliveryFlowTests(unittest.TestCase):
             self.assertFalse(report["ok"])
             self.assertTrue(any(gate["name"] == "model_tier_gate" and not gate["ok"] for gate in report["gates"]))
 
+    def test_database_insert_arity_gate_blocks_bad_seed_sql(self) -> None:
+        with WorkspaceSandbox() as root:
+            release = root / "release"
+            (release / "database" / "seeders").mkdir(parents=True)
+            (release / "index.php").write_text("<?php echo 'ok'; ?><form></form>", encoding="utf-8")
+            (release / ".env.example").write_text("DB_NAME=demo\n", encoding="utf-8")
+            (release / ".htaccess").write_text("deny from all", encoding="utf-8")
+            (release / ".user.ini").write_text("display_errors=0", encoding="utf-8")
+            (release / "nginx.sample.conf").write_text("deny all;", encoding="utf-8")
+            (release / "README.md").write_text("Upload release and import database.", encoding="utf-8")
+            (release / "database" / "seeders" / "001_seed.sql").write_text(
+                "INSERT INTO admin_users (username, password_hash, display_name, active)\n"
+                "VALUES ('admin', 'hash', 1)\n"
+                "ON DUPLICATE KEY UPDATE display_name = VALUES(display_name), active = VALUES(active);\n",
+                encoding="utf-8",
+            )
+
+            report = validate_release_structure(
+                release,
+                build_product_contract("php_mysql_single_dir"),
+                "php_mysql_single_dir",
+            )
+
+            self.assertFalse(report["ok"])
+            self.assertTrue(any(gate["name"] == "database_insert_arity_gate" and not gate["ok"] for gate in report["gates"]))
+
+    def test_php_source_syntax_gate_blocks_unescaped_html_quotes(self) -> None:
+        with WorkspaceSandbox() as root:
+            release = root / "release"
+            (release / "app" / "Controllers").mkdir(parents=True)
+            (release / "index.php").write_text("<?php echo 'ok'; ?>", encoding="utf-8")
+            (release / ".env.example").write_text("DB_NAME=demo\n", encoding="utf-8")
+            (release / ".htaccess").write_text("deny from all", encoding="utf-8")
+            (release / ".user.ini").write_text("display_errors=0", encoding="utf-8")
+            (release / "nginx.sample.conf").write_text("deny all;", encoding="utf-8")
+            (release / "README.md").write_text("Upload release and import database.", encoding="utf-8")
+            (release / "app" / "Controllers" / "BadController.php").write_text(
+                "<?php\n"
+                "final class BadController {\n"
+                "    public function render(): void {\n"
+                "        $html = \"<a href=\"/broken\">Broken</a>\";\n"
+                "    }\n"
+                "}\n",
+                encoding="utf-8",
+            )
+
+            report = validate_release_structure(
+                release,
+                build_product_contract("php_mysql_single_dir"),
+                "php_mysql_single_dir",
+            )
+
+            self.assertFalse(report["ok"])
+            self.assertTrue(any(gate["name"] == "php_source_syntax_gate" and not gate["ok"] for gate in report["gates"]))
+
     def test_v45_observability_api_exposes_ai_waves_packages_and_context(self) -> None:
         if TestClient is None:
             self.skipTest("fastapi test client unavailable")
@@ -391,10 +523,40 @@ class V4DeliveryFlowTests(unittest.TestCase):
             app = build_app(service, load_config(root))
             client = TestClient(app)
 
+            self.assertEqual(client.get("/api/v5/health").json()["kernel"], "v5")
             self.assertEqual(client.get(f"/api/v4/runs/{run['id']}/ai-calls").status_code, 200)
+            self.assertEqual(client.get(f"/api/v5/runs/{run['id']}/agent-trace").status_code, 200)
+            self.assertEqual(client.get(f"/api/v5/runs/{run['id']}/template-leak-report").status_code, 200)
             self.assertEqual(client.get(f"/api/v4/runs/{run['id']}/waves").status_code, 200)
             self.assertEqual(client.get(f"/api/v4/runs/{run['id']}/packages").status_code, 200)
             self.assertEqual(client.get(f"/api/v4/runs/{run['id']}/context-index").status_code, 200)
+
+    def test_project_runs_endpoint_is_read_only_and_latest_first(self) -> None:
+        if TestClient is None:
+            self.skipTest("fastapi test client unavailable")
+        with WorkspaceSandbox() as root:
+            service = build_service(root)
+            project = service.create_project(
+                {
+                    "name": "run-history",
+                    "title": "Run History",
+                    "description": "Baota PHP MySQL admin",
+                    "stack_pack": "php_mysql_single_dir",
+                }
+            )
+            first_run = service.create_run(project["id"])
+            second_run = service.create_run(project["id"])
+            before = len(service.list_runs(project["id"]))
+            app = build_app(service, load_config(root))
+            client = TestClient(app)
+
+            response = client.get(f"/api/v4/projects/{project['id']}/runs")
+            after = len(service.list_runs(project["id"]))
+            items = response.json()["items"]
+
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(after, before)
+            self.assertEqual([item["id"] for item in items[:2]], [second_run["id"], first_run["id"]])
 
     def test_batch_delete_projects_removes_projects_and_runs(self) -> None:
         if TestClient is None:

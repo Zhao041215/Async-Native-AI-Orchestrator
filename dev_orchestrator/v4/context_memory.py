@@ -14,29 +14,55 @@ def build_context_snapshot_v2(
 ) -> dict[str, Any]:
     packages = blueprint.get("work_packages", [])
     product_contract = blueprint.get("product_contract") or {}
+    requirements_understanding = blueprint.get("requirements_understanding") or {}
+    solution_graph = blueprint.get("solution_graph") or {}
+    entities = solution_graph.get("entities") or requirements_understanding.get("entities") or []
+    pages = solution_graph.get("pages") or requirements_understanding.get("pages") or []
+    workflows = solution_graph.get("workflows") or requirements_understanding.get("workflows") or []
     boundary_rules = blueprint.get("boundary_rules") or []
     snapshot = {
-        "schema_version": "4.5",
+        "schema_version": "5.0",
         "requirements_index": {item["id"]: item.get("text", "") for item in requirements},
         "adr_index": [
             {
                 "id": "ADR-0001",
-                "decision": f"Use stack pack {product_contract.get('stack_pack', 'unknown')} with release root {product_contract.get('release_root', 'release')}.",
+                "decision": (
+                    f"Generate a demand-driven {requirements_understanding.get('product_kind', 'product')} "
+                    f"on stack substrate {product_contract.get('stack_pack', 'unknown')} "
+                    f"with release root {product_contract.get('release_root', 'release')}."
+                ),
             }
         ],
         "boundary_rules": boundary_rules,
+        "requirements_understanding": requirements_understanding,
+        "domain_model": {
+            "entities": entities,
+            "workflows": workflows,
+            "expected_terms": requirements_understanding.get("expected_terms", []),
+            "forbidden_leak_terms": requirements_understanding.get("forbidden_leak_terms", []),
+        },
+        "solution_graph": solution_graph,
         "interface_contract_index": {
             "home": product_contract.get("home_entry", "/"),
             "health": product_contract.get("health_entry", "/health"),
             "admin": product_contract.get("admin_entry", "/admin/login"),
+            "pages": pages,
         },
         "database_schema_index": {
             "strategy": product_contract.get("database_strategy", ""),
             "migration_files": ["database/migrations/001_init.sql"],
             "seed_files": ["database/seeders/001_seed.sql"],
+            "entities": [
+                {
+                    "key": entity.get("key", ""),
+                    "table": entity.get("table", ""),
+                    "fields": [field.get("name", "") for field in entity.get("fields", [])],
+                }
+                for entity in entities
+            ],
         },
-        "route_index": [product_contract.get("home_entry", "/"), product_contract.get("health_entry", "/health"), product_contract.get("admin_entry", "/admin/login")],
-        "ui_flow_index": ["home", "admin_login", "core_business_flow"],
+        "route_index": [page.get("route", "") for page in pages] or [product_contract.get("home_entry", "/"), product_contract.get("health_entry", "/health"), product_contract.get("admin_entry", "/admin/login")],
+        "ui_flow_index": workflows,
         "code_symbol_index": _code_index(project_root) if project_root else [],
         "test_index": ["browser_smoke", "release_structure", "quality_gate"],
         "failure_history": [],
@@ -54,7 +80,7 @@ def package_context(snapshot: dict[str, Any], package: dict[str, Any]) -> dict[s
     requirement_ids = payload.get("requirements", [])
     requirements = snapshot.get("requirements_index", {})
     return {
-        "schema_version": "4.5",
+        "schema_version": "5.0",
         "index_hash": snapshot.get("index_hash", ""),
         "package_contract": snapshot.get("package_index", {}).get(package_key, _package_context(payload)),
         "requirements": [{"id": req_id, "text": requirements.get(req_id, "")} for req_id in requirement_ids],
@@ -63,6 +89,8 @@ def package_context(snapshot: dict[str, Any], package: dict[str, Any]) -> dict[s
         "interface_contracts": snapshot.get("interface_contract_index", {}),
         "database_contracts": snapshot.get("database_schema_index", {}) if payload.get("database_contract_refs") else {},
         "ui_contracts": snapshot.get("ui_flow_index", []) if payload.get("ui_contract_refs") else [],
+        "domain_model": snapshot.get("domain_model", {}),
+        "solution_graph": snapshot.get("solution_graph", {}),
         "failure_history": snapshot.get("failure_history", [])[-5:],
     }
 
@@ -78,6 +106,8 @@ def validate_context_snapshot(snapshot: dict[str, Any] | None) -> dict[str, Any]
         "ui_flow_index",
         "code_symbol_index",
         "test_index",
+        "domain_model",
+        "solution_graph",
         "failure_history",
         "repair_history",
         "release_history",

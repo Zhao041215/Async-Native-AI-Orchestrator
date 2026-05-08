@@ -106,6 +106,18 @@ button:hover {
   background: var(--accent);
 }
 
+button.subtle {
+  background: #fff;
+  color: var(--ink);
+  border-color: var(--line);
+  box-shadow: none;
+}
+
+button.subtle:hover {
+  background: #eef5f2;
+  color: var(--ink);
+}
+
 button:disabled {
   background: #fff;
   color: var(--muted);
@@ -266,7 +278,7 @@ form button {
 
 .project-row {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
   column-gap: 10px;
 }
@@ -278,6 +290,11 @@ form button {
 .project-row .project-check {
   justify-self: center;
   align-self: center;
+}
+
+.project-row .project-run {
+  min-width: 64px;
+  justify-self: end;
 }
 
 .row.active {

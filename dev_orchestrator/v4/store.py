@@ -194,6 +194,9 @@ class V4Store:
     def get_project(self, project_id: str) -> dict[str, Any] | None:
         raise NotImplementedError
 
+    def list_runs(self, project_id: str) -> list[dict[str, Any]]:
+        raise NotImplementedError
+
     def delete_project(self, project_id: str) -> dict[str, Any]:
         raise NotImplementedError
 
@@ -349,6 +352,14 @@ class PostgresV4Store(V4Store):
         table = self.tables["projects"]
         with self.engine.begin() as conn:
             return self._row(conn.execute(select(table).where(table.c.id == project_id)).first())
+
+    def list_runs(self, project_id: str) -> list[dict[str, Any]]:
+        table = self.tables["runs"]
+        with self.engine.begin() as conn:
+            rows = conn.execute(
+                select(table).where(table.c.project_id == project_id).order_by(table.c.created_at.desc())
+            ).all()
+        return [self._row(row) or {} for row in rows]
 
     def delete_project(self, project_id: str) -> dict[str, Any]:
         return self.delete_projects([project_id])
@@ -769,6 +780,9 @@ class InMemoryV4Store(V4Store):
     def get_project(self, project_id: str) -> dict[str, Any] | None:
         project = self.projects.get(project_id)
         return self._copy(project) if project else None
+
+    def list_runs(self, project_id: str) -> list[dict[str, Any]]:
+        return [self._copy(run) for run in sorted(self.runs.values(), key=lambda item: item["created_at"], reverse=True) if run["project_id"] == project_id]
 
     def delete_project(self, project_id: str) -> dict[str, Any]:
         return self.delete_projects([project_id])

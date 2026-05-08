@@ -2,10 +2,13 @@ const state = {
   projects: [],
   selectedProjectId: "",
   selectedRunId: "",
+  selectedProject: null,
+  selectedProjectRuns: [],
   selectedProjectIds: new Set(),
   workers: [],
 };
 
+const API_BASE = "/api/v5";
 const $ = (id) => document.getElementById(id);
 
 const nodes = {
@@ -65,21 +68,101 @@ function statusClass(value) {
 
 async function refreshAll() {
   const [health, projects, workers] = await Promise.all([
-    fetchJson("/api/v4/health"),
-    fetchJson("/api/v4/projects"),
-    fetchJson("/api/v4/workers?limit=12"),
+    fetchJson(`${API_BASE}/health`),
+    fetchJson(`${API_BASE}/projects`),
+    fetchJson(`${API_BASE}/workers?limit=12`),
   ]);
   nodes.health.textContent = `${health.status} / ${health.kernel}`;
   nodes.health.className = "pill good";
   state.projects = projects.items || [];
   state.workers = workers.items || [];
   state.selectedProjectIds = new Set([...state.selectedProjectIds].filter((id) => state.projects.some((project) => project.id === id)));
+  if (state.selectedProjectId && !state.projects.some((project) => project.id === state.selectedProjectId)) {
+    state.selectedProjectId = "";
+    state.selectedRunId = "";
+    state.selectedProject = null;
+    state.selectedProjectRuns = [];
+  }
   nodes.workers.textContent = `workers ${state.workers.length}`;
   renderProjects();
   renderWorkers();
   if (state.selectedRunId) {
     await renderRun(state.selectedRunId);
+  } else if (state.selectedProject) {
+    renderProjectOverview();
+  } else {
+    clearDetailView();
   }
+}
+
+function clearDetailView() {
+  nodes.runTitle.textContent = "Select a Project";
+  nodes.runSummary.innerHTML = "";
+  nodes.v45Summary.innerHTML = "";
+  nodes.aiCallList.innerHTML = '<div class="empty">No project selected</div>';
+  nodes.waveList.innerHTML = '<div class="empty">No project selected</div>';
+  nodes.packageList.innerHTML = '<div class="empty">No project selected</div>';
+  nodes.qualityGateList.innerHTML = '<div class="empty">No project selected</div>';
+  nodes.repairList.innerHTML = '<div class="empty">No project selected</div>';
+  nodes.jobList.innerHTML = '<div class="empty">No project selected</div>';
+  nodes.contextIndex.textContent = "";
+  nodes.continuation.textContent = "";
+  nodes.artifactList.innerHTML = '<div class="empty">No project selected</div>';
+}
+
+function renderProjectOverview() {
+  const project = state.selectedProject;
+  if (!project) {
+    clearDetailView();
+    return;
+  }
+  const runs = state.selectedProjectRuns || [];
+  const latestRun = runs[0];
+  const stackPack = project.config?.stack_pack || "-";
+  const targetScale = project.config?.target_scale || "-";
+  const projectPath = project.project_path || "-";
+  nodes.runTitle.textContent = `${project.title || project.name} - Project view`;
+  nodes.runSummary.innerHTML = `
+    <div><strong>${esc(project.status || "-")}</strong><small>project status</small></div>
+    <div><strong>${esc(stackPack)}</strong><small>stack pack</small></div>
+    <div><strong>${esc(targetScale)}</strong><small>target scale</small></div>
+  `;
+  nodes.v45Summary.innerHTML = `
+    <div><strong>${esc(projectPath)}</strong><small>project path</small></div>
+    <div><strong>${esc(runs.length)}</strong><small>run count</small></div>
+    <div><strong>${esc(latestRun?.status || "none")}</strong><small>latest run</small></div>
+    <div><strong>${esc(latestRun?.checkpoint || "-")}</strong><small>latest checkpoint</small></div>
+  `;
+  nodes.aiCallList.innerHTML = '<div class="empty">No run selected</div>';
+  nodes.waveList.innerHTML = '<div class="empty">No run selected</div>';
+  nodes.packageList.innerHTML = '<div class="empty">No run selected</div>';
+  nodes.qualityGateList.innerHTML = '<div class="empty">No run selected</div>';
+  nodes.repairList.innerHTML = '<div class="empty">No run selected</div>';
+  nodes.jobList.innerHTML = '<div class="empty">No run selected</div>';
+  nodes.contextIndex.textContent = JSON.stringify(
+    {
+      project_id: project.id,
+      project_name: project.name,
+      project_title: project.title,
+      latest_run_id: latestRun?.id || "",
+      latest_run_status: latestRun?.status || "none",
+    },
+    null,
+    2,
+  );
+  nodes.continuation.textContent = JSON.stringify(
+    {
+      project_view: true,
+      project_id: project.id,
+      latest_run_id: latestRun?.id || "",
+      latest_run_status: latestRun?.status || "none",
+      latest_run_checkpoint: latestRun?.checkpoint || "",
+      next_action: latestRun?.id ? "open_latest_run" : "create_new_run",
+    },
+    null,
+    2,
+  );
+  nodes.artifactList.innerHTML = '<div class="empty">No run selected</div>';
 }
 
 function renderProjects() {
@@ -105,8 +188,10 @@ function renderProjects() {
         <small>${esc(project.name)} / ${shortId(project.id)}</small>
       </span>
       <span class="chip ${statusClass(project.status)}">${esc(project.status)}</span>
+      <button class="project-run subtle" type="button">Run</button>
     `;
     const projectCheck = row.querySelector(".project-check");
+    const projectRun = row.querySelector(".project-run");
     const syncSelection = () => {
       if (projectCheck.checked) {
         state.selectedProjectIds.add(project.id);
@@ -123,11 +208,24 @@ function renderProjects() {
       syncSelection();
     });
     const openProject = async () => {
+      const [projectPayload, runsPayload] = await Promise.all([
+        fetchJson(`${API_BASE}/projects/${project.id}`),
+        fetchJson(`${API_BASE}/projects/${project.id}/runs`).catch(() => ({ items: [] })),
+      ]);
       state.selectedProjectId = project.id;
-      const run = await fetchJson(`/api/v4/projects/${project.id}/runs`, {
+      state.selectedProject = projectPayload.project || project;
+      state.selectedProjectRuns = runsPayload.items || [];
+      state.selectedRunId = state.selectedProjectRuns[0]?.id || "";
+      await refreshAll();
+    };
+    const runProject = async () => {
+      const run = await fetchJson(`${API_BASE}/projects/${project.id}/runs`, {
         method: "POST",
         body: JSON.stringify({ requirements_text: project.description || project.title || project.name }),
       });
+      state.selectedProjectId = project.id;
+      state.selectedProject = project;
+      state.selectedProjectRuns = [run.run, ...(state.selectedProjectRuns || []).filter((item) => item.id !== run.run.id)];
       state.selectedRunId = run.run.id;
       await refreshAll();
     };
@@ -146,6 +244,13 @@ function renderProjects() {
         openProject();
       }
     });
+    projectRun.addEventListener("click", (event) => {
+      event.stopPropagation();
+      runProject().catch((error) => {
+        nodes.health.textContent = error.message;
+        nodes.health.className = "pill bad";
+      });
+    });
     nodes.projectList.appendChild(row);
   }
 }
@@ -161,25 +266,17 @@ async function deleteSelectedProjects() {
   if (!window.confirm(`Delete ${projectIds.length} project(s) from the control plane?\n\n${names}`)) {
     return;
   }
-  await fetchJson("/api/v4/projects/batch-delete", {
+  await fetchJson(`${API_BASE}/projects/batch-delete`, {
     method: "POST",
     body: JSON.stringify({ project_ids: projectIds }),
   });
   if (state.selectedProjectId && state.selectedProjectIds.has(state.selectedProjectId)) {
     state.selectedProjectId = "";
     state.selectedRunId = "";
+    state.selectedProject = null;
+    state.selectedProjectRuns = [];
     nodes.runTitle.textContent = "Select a Project";
-    nodes.runSummary.innerHTML = "";
-    nodes.v45Summary.innerHTML = "";
-    nodes.contextIndex.textContent = "";
-    nodes.continuation.textContent = "";
-    nodes.jobList.innerHTML = "";
-    nodes.artifactList.innerHTML = "";
-    nodes.aiCallList.innerHTML = "";
-    nodes.waveList.innerHTML = "";
-    nodes.packageList.innerHTML = "";
-    nodes.qualityGateList.innerHTML = "";
-    nodes.repairList.innerHTML = "";
+    clearDetailView();
   }
   state.selectedProjectIds.clear();
   await refreshAll();
@@ -207,16 +304,16 @@ function renderWorkers() {
 
 async function renderRun(runId) {
   const [run, jobs, continuation, artifacts, aiCalls, waves, packages, quality, contextIndex, repairs] = await Promise.all([
-    fetchJson(`/api/v4/runs/${runId}`),
-    fetchJson(`/api/v4/runs/${runId}/jobs`),
-    fetchJson(`/api/v4/runs/${runId}/continuation`),
-    fetchJson(`/api/v4/runs/${runId}/artifacts`),
-    fetchJson(`/api/v4/runs/${runId}/ai-calls`).catch(() => ({ items: [] })),
-    fetchJson(`/api/v4/runs/${runId}/waves`).catch(() => ({ items: [] })),
-    fetchJson(`/api/v4/runs/${runId}/packages`).catch(() => ({ items: [] })),
-    fetchJson(`/api/v4/runs/${runId}/quality-report`).catch(() => ({ report: null })),
-    fetchJson(`/api/v4/runs/${runId}/context-index`).catch(() => ({ snapshot: null })),
-    fetchJson(`/api/v4/runs/${runId}/repair-history`).catch(() => ({ items: [] })),
+    fetchJson(`${API_BASE}/runs/${runId}`),
+    fetchJson(`${API_BASE}/runs/${runId}/jobs`),
+    fetchJson(`${API_BASE}/runs/${runId}/continuation`),
+    fetchJson(`${API_BASE}/runs/${runId}/artifacts`),
+    fetchJson(`${API_BASE}/runs/${runId}/ai-calls`).catch(() => ({ items: [] })),
+    fetchJson(`${API_BASE}/runs/${runId}/waves`).catch(() => ({ items: [] })),
+    fetchJson(`${API_BASE}/runs/${runId}/packages`).catch(() => ({ items: [] })),
+    fetchJson(`${API_BASE}/runs/${runId}/quality-report`).catch(() => ({ report: null })),
+    fetchJson(`${API_BASE}/runs/${runId}/context-index`).catch(() => ({ snapshot: null })),
+    fetchJson(`${API_BASE}/runs/${runId}/repair-history`).catch(() => ({ items: [] })),
   ]);
   const current = run.run;
   const qualityReport = quality.report || {};
@@ -301,9 +398,9 @@ nodes.form.addEventListener("submit", async (event) => {
     target_scale: form.get("target_scale") || "small",
     effective_loc_target: Number.parseInt(form.get("effective_loc_target") || "1000", 10),
   };
-  const project = await fetchJson("/api/v4/projects", { method: "POST", body: JSON.stringify(payload) });
+  const project = await fetchJson(`${API_BASE}/projects`, { method: "POST", body: JSON.stringify(payload) });
   state.selectedProjectId = project.project.id;
-  const run = await fetchJson(`/api/v4/projects/${project.project.id}/runs`, {
+  const run = await fetchJson(`${API_BASE}/projects/${project.project.id}/runs`, {
     method: "POST",
     body: JSON.stringify({ requirements_text: payload.description }),
   });

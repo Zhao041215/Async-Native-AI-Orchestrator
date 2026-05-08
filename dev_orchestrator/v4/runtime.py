@@ -1,13 +1,18 @@
 from __future__ import annotations
 
+import os
+import re
 import json
 from pathlib import Path
 from typing import Any
 
+from dev_orchestrator.v5.release_generator import materialize_php_mysql_single_dir
 from dev_orchestrator.v4.models import slugify
 
 
 class PackageMaterializer:
+    _WINDOWS_ABSOLUTE_PATH = re.compile(r"^[A-Za-z]:[\\/]|^\\\\")
+
     def __init__(self, workspace_root: Path):
         self.workspace_root = workspace_root
 
@@ -23,7 +28,8 @@ class PackageMaterializer:
         release_root.mkdir(parents=True, exist_ok=True)
         stack_pack = product_contract["stack_pack"]
         if stack_pack == "php_mysql_single_dir":
-            self._ensure_php_mysql_single_dir(project, release_root)
+            solution_graph = (run.get("metadata") or {}).get("solution_graph") or {}
+            materialize_php_mysql_single_dir(self, project, run, product_contract, release_root, solution_graph)
         else:
             self._ensure_generic_release(project, release_root, product_contract)
 
@@ -71,8 +77,33 @@ class PackageMaterializer:
     def project_root(self, project: dict[str, Any]) -> Path:
         configured = str(project.get("project_path") or "").strip()
         if configured:
-            return Path(configured).resolve()
+            if self._can_use_configured_project_path(configured):
+                return Path(configured).expanduser().resolve()
+            if self._looks_like_windows_absolute_path(configured):
+                return self._fallback_project_root(project)
+            candidate = (self.workspace_root / Path(configured)).expanduser().resolve()
+            if self._is_within_workspace(candidate):
+                return candidate
+        return self._fallback_project_root(project)
+
+    def _fallback_project_root(self, project: dict[str, Any]) -> Path:
         return (self.workspace_root / slugify(project.get("name") or project.get("title") or project["id"])).resolve()
+
+    def _can_use_configured_project_path(self, configured: str) -> bool:
+        candidate = Path(configured)
+        if os.name == "nt":
+            return candidate.is_absolute()
+        return candidate.is_absolute() and not self._looks_like_windows_absolute_path(configured)
+
+    def _looks_like_windows_absolute_path(self, configured: str) -> bool:
+        return bool(self._WINDOWS_ABSOLUTE_PATH.match(configured))
+
+    def _is_within_workspace(self, candidate: Path) -> bool:
+        try:
+            return candidate.is_relative_to(self.workspace_root)
+        except AttributeError:  # pragma: no cover
+            workspace = str(self.workspace_root)
+            return str(candidate).startswith(workspace)
 
     def _write_once(self, path: Path, text: str) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -580,7 +611,7 @@ HTML);
         foreach ($cards as $card) {
             $label = htmlspecialchars((string) $card['label'], ENT_QUOTES, 'UTF-8');
             $value = htmlspecialchars((string) $card['value'], ENT_QUOTES, 'UTF-8');
-            $cardHtml .= "<article class=\"stat\"><span>{$label}</span><strong>{$value}</strong></article>";
+            $cardHtml .= '<article class="stat"><span>' . $label . '</span><strong>' . $value . '</strong></article>';
         }
         $name = htmlspecialchars((string) $admin['display_name'], ENT_QUOTES, 'UTF-8');
         $csrf = Csrf::field();
@@ -759,8 +790,14 @@ final class EmployeeController
             $position = htmlspecialchars((string) $employee['position'], ENT_QUOTES, 'UTF-8');
             $status = htmlspecialchars((string) $employee['status'], ENT_QUOTES, 'UTF-8');
             $csrf = Csrf::field();
-            $actions = Auth::user() ? "<a href=\"/admin/employees/{$id}/edit\">Edit</a><form action=\"/admin/employees/{$id}/delete\" method=\"post\" onsubmit=\"return confirm('Delete this employee?')\">{$csrf}<button type=\"submit\">Delete</button></form>" : '';
-            $rows .= "<tr><td>{$no}</td><td>{$name}</td><td>{$department}</td><td>{$position}</td><td>{$status}</td><td class=\"actions-cell\">{$actions}</td></tr>";
+            $actions = '';
+            if (Auth::user()) {
+                $actions = '<a href="/admin/employees/' . $id . '/edit">Edit</a>'
+                    . '<form action="/admin/employees/' . $id . '/delete" method="post" onsubmit="return confirm(&quot;Delete this employee?&quot;)">'
+                    . $csrf
+                    . '<button type="submit">Delete</button></form>';
+            }
+            $rows .= '<tr><td>' . $no . '</td><td>' . $name . '</td><td>' . $department . '</td><td>' . $position . '</td><td>' . $status . '</td><td class="actions-cell">' . $actions . '</td></tr>';
         }
         if ($rows === '') {
             $rows = '<tr><td colspan="6">No employees found.</td></tr>';
