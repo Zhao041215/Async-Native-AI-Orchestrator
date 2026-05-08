@@ -1,0 +1,113 @@
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 1319, in _checkout
+    raise exc.InvalidatePoolError()
+sqlalchemy.exc.InvalidatePoolError: ()
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 143, in __init__
+    self._dbapi_connection = engine.raw_connection()
+                             ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 3317, in raw_connection
+    return self.pool.connect()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 448, in connect
+    return _ConnectionFairy._checkout(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 1353, in _checkout
+    with util.safe_reraise():
+         ^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/util/langhelpers.py", line 121, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 1350, in _checkout
+    fairy._connection_record.get_connection()
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 837, in get_connection
+    self.__connect()
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 900, in __connect
+    with util.safe_reraise():
+         ^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/util/langhelpers.py", line 121, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 896, in __connect
+    self.dbapi_connection = connection = pool._invoke_creator(self)
+                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/create.py", line 667, in connect
+    return dialect.connect(*cargs_tup, **cparams)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 630, in connect
+    return self.loaded_dbapi.connect(*cargs, **cparams)  # type: ignore[no-any-return]  # NOQA: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/psycopg/connection.py", line 122, in connect
+    raise last_ex.with_traceback(None)
+psycopg.OperationalError: connection failed: connection to server at "172.19.0.2", port 5432 failed: Connection refused
+	Is the server running on that host and accepting TCP/IP connections?
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/app/run_server.py", line 125, in <module>
+    main()
+  File "/app/run_server.py", line 115, in main
+    run_worker_process(args.role, args.tenant, args.worker_id, args.once, args.poll_seconds, args.lease_seconds, args.max_jobs, memory_store=args.memory_store)
+  File "/app/run_server.py", line 56, in run_worker_process
+    print(json.dumps(worker.run_forever(max_jobs=max_jobs if max_jobs > 0 else None), indent=2, ensure_ascii=True))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/dev_orchestrator/v4/worker.py", line 132, in run_forever
+    result = self.run_once()
+             ^^^^^^^^^^^^^^^
+  File "/app/dev_orchestrator/v4/worker.py", line 88, in run_once
+    self.service.store.requeue_expired_jobs(self.tenant_id)
+  File "/app/dev_orchestrator/v4/store.py", line 569, in requeue_expired_jobs
+    with self.engine.begin() as conn:
+         ^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/contextlib.py", line 137, in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 3257, in begin
+    with self.connect() as conn:
+         ^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 3293, in connect
+    return self._connection_cls(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 145, in __init__
+    Connection._handle_dbapi_exception_noconnection(
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 2448, in _handle_dbapi_exception_noconnection
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 143, in __init__
+    self._dbapi_connection = engine.raw_connection()
+                             ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 3317, in raw_connection
+    return self.pool.connect()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 448, in connect
+    return _ConnectionFairy._checkout(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 1353, in _checkout
+    with util.safe_reraise():
+         ^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/util/langhelpers.py", line 121, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 1350, in _checkout
+    fairy._connection_record.get_connection()
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 837, in get_connection
+    self.__connect()
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 900, in __connect
+    with util.safe_reraise():
+         ^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/util/langhelpers.py", line 121, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/pool/base.py", line 896, in __connect
+    self.dbapi_connection = connection = pool._invoke_creator(self)
+                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/create.py", line 667, in connect
+    return dialect.connect(*cargs_tup, **cparams)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 630, in connect
+    return self.loaded_dbapi.connect(*cargs, **cparams)  # type: ignore[no-any-return]  # NOQA: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/psycopg/connection.py", line 122, in connect
+    raise last_ex.with_traceback(None)
+sqlalchemy.exc.OperationalError: (psycopg.OperationalError) connection failed: connection to server at "172.19.0.2", port 5432 failed: Connection refused
+	Is the server running on that host and accepting TCP/IP connections?
+(Background on this error at: https://sqlalche.me/e/20/e3q8)

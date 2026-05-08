@@ -4,7 +4,11 @@ from pathlib import Path
 import time
 from typing import Any
 
+from dev_orchestrator.v4.ai_scheduler import AICallScheduler
+from dev_orchestrator.llm_client import LLMError, OpenAICompatibleClient
 from dev_orchestrator.v4.artifacts import ArtifactWriter, build_manifest
+from dev_orchestrator.v4.context_memory import build_context_snapshot_v2, package_context, validate_context_snapshot
+from dev_orchestrator.v4.llm_policy import get_ai_task_budget
 from dev_orchestrator.v4.models import DEFAULT_TENANT, new_id, slugify
 from dev_orchestrator.v4.planner import build_blueprint
 from dev_orchestrator.v4.release_quality import build_deploy_guide, validate_release_structure
@@ -22,13 +26,31 @@ DEFAULT_PROJECT_CONFIG = {
 }
 
 
+def _compact_text(value: str, limit: int = 6000) -> str:
+    normalized = "\n".join(line.rstrip() for line in str(value or "").splitlines())
+    if len(normalized) <= limit:
+        return normalized
+    head = normalized[: int(limit * 0.72)].rstrip()
+    tail = normalized[-int(limit * 0.18) :].lstrip()
+    return f"{head}\n\n[...requirements truncated for bounded LLM task...]\n\n{tail}"
+
+
+def _requirement_outline(value: str, max_items: int = 24, item_limit: int = 220) -> list[str]:
+    lines = [line.strip(" -\t") for line in str(value or "").splitlines() if line.strip(" -\t")]
+    if not lines:
+        return []
+    return [line[:item_limit] for line in lines[:max_items]]
+
+
 class V4Orchestrator:
-    def __init__(self, store: V4Store, workspace_root: Path, tenant_id: str = DEFAULT_TENANT):
+    def __init__(self, store: V4Store, workspace_root: Path, tenant_id: str = DEFAULT_TENANT, llm_client: OpenAICompatibleClient | None = None):
         self.store = store
         self.workspace_root = workspace_root
         self.tenant_id = tenant_id or DEFAULT_TENANT
         self.artifacts = ArtifactWriter(workspace_root)
         self.materializer = PackageMaterializer(workspace_root / "projects")
+        self.llm_client = llm_client
+        self.ai_scheduler = AICallScheduler(llm_client)
 
     def bootstrap(self, attempts: int = 1, delay_seconds: float = 1.0) -> None:
         self.workspace_root.mkdir(parents=True, exist_ok=True)
@@ -136,6 +158,7 @@ class V4Orchestrator:
                     for job in jobs
                     if job.get("status") == "running"
                 ],
+                "context_index_status": self._context_index_status(run),
             }
         )
         preflight = self._artifact_preflight(run_id)
@@ -183,7 +206,7 @@ class V4Orchestrator:
         if job_type == "rollback":
             return self._execute_rollback(job)
         if job_type == "repair":
-            return {"status": "completed", "repair": "no-op"}
+            return self._execute_repair(job)
         raise RuntimeError(f"unsupported V4 job type: {job_type}")
 
     def enqueue_apply(self, candidate_id: str) -> dict[str, Any]:
@@ -227,9 +250,38 @@ class V4Orchestrator:
         run = self._require_run(job["run_id"])
         project = self._require_project(run["project_id"])
         requirement_text = (job.get("payload") or {}).get("requirements_text") or (run.get("metadata") or {}).get("requirements_text") or project.get("description", "")
+        chief_analysis = self._invoke_llm(
+            project,
+            run,
+            role="chief",
+            job=job,
+            system_prompt=(
+                "You are the V4 chief planner. This is a bounded planning task, not a long "
+                "design session. Return strict compact JSON only with keys summary, "
+                "business_domains, delivery_risks, package_guidance, and quality_focus. "
+                "Each array must contain at most five short strings."
+            ),
+            user_payload={
+                "project": {
+                    "name": project.get("name"),
+                    "title": project.get("title"),
+                    "config": project.get("config") or {},
+                },
+                "requirements_outline": _requirement_outline(requirement_text),
+                "requirements_excerpt": _compact_text(requirement_text, get_ai_task_budget("chief_plan").max_input_chars),
+                "task_contract": {
+                    "purpose": "Summarize planning risks and package guidance only.",
+                    "do_not_generate_code": True,
+                    "max_json_bytes": 2500,
+                },
+            },
+            required=True,
+            task_kind="chief_plan",
+        )
         blueprint = build_blueprint(project, requirement_text)
         self._record_json(project, run, "stack_decision", "stack-decision.json", blueprint.get("stack_decision", {}))
-        self._record_json(project, run, "context_snapshot", "context-snapshot.json", {"requirements": blueprint.get("requirements", []), "blueprint": blueprint})
+        context_snapshot = build_context_snapshot_v2(requirements=blueprint.get("requirements", []), blueprint=blueprint, project_root=self.materializer.project_root(project))
+        self._record_json(project, run, "context_snapshot", "context-snapshot.json", context_snapshot)
         if not blueprint.get("ok"):
             continuation = dict(run.get("continuation") or {})
             continuation.update({"checkpoint": "blueprint_complete", "failure_reason": blueprint.get("no_go_reason", "blueprint_no_go"), "next_action": "repair_requirements"})
@@ -244,9 +296,8 @@ class V4Orchestrator:
         for package in blueprint["work_packages"]:
             self.store.upsert_work_package(run["id"], wave_id_by_key[package["wave_key"]], package)
 
-        first_wave = min(blueprint["waves"], key=lambda item: item["sequence"])
-        self._enqueue_wave_packages(project, run, first_wave["wave_key"])
         continuation = dict(run.get("continuation") or {})
+        first_wave = min(blueprint["waves"], key=lambda item: item["sequence"])
         continuation.update(
             {
                 "checkpoint": "wave_queued",
@@ -260,12 +311,16 @@ class V4Orchestrator:
         metadata.update(
             {
                 "blueprint": blueprint,
+                "chief_analysis": chief_analysis,
                 "product_contract": blueprint["product_contract"],
                 "stack_decision": blueprint["stack_decision"],
+                "context_snapshot": context_snapshot,
+                "context_snapshot_id": context_snapshot["index_hash"],
                 "durable_queue_state": "package_jobs_queued",
             }
         )
-        self.store.update_run(run["id"], status="running", checkpoint="wave_queued", continuation=continuation, metadata=metadata)
+        updated_run = self.store.update_run(run["id"], status="running", checkpoint="wave_queued", continuation=continuation, metadata=metadata)
+        self._enqueue_wave_packages(project, updated_run, first_wave["wave_key"])
         self._write_manifest(project, run)
         return {"status": "completed", "wave_queued": first_wave["wave_key"], "package_count": len(blueprint["work_packages"])}
 
@@ -276,7 +331,41 @@ class V4Orchestrator:
         if not package:
             raise RuntimeError("work package not found")
         product_contract = (run.get("metadata") or {}).get("product_contract") or {}
+        package_plan = self._invoke_llm(
+            project,
+            run,
+            role=package["role"],
+            job=job,
+            system_prompt=(
+                "You are a V4 package worker. This is a bounded package planning task. "
+                "Return strict compact JSON with keys package_summary, "
+                "files_to_create_or_update, implementation_steps, acceptance_evidence, and risks. "
+                "Do not include markdown fences. Keep arrays to at most six short strings."
+            ),
+            user_payload={
+                "project": {
+                    "name": project.get("name"),
+                    "title": project.get("title"),
+                    "config": project.get("config") or {},
+                },
+                "run": {
+                    "id": run.get("id"),
+                    "requirements_outline": _requirement_outline((run.get("metadata") or {}).get("requirements_text", ""), 16),
+                    "product_contract": product_contract,
+                },
+                "work_package": package.get("payload") or {},
+                "context_memory": self._context_for_package(run, package),
+                "task_contract": {
+                    "purpose": "Plan this package only; file materialization is handled by deterministic stack-pack runtime.",
+                    "do_not_generate_full_project": True,
+                    "max_json_bytes": 2200,
+                },
+            },
+            required=True,
+            task_kind="package_plan",
+        )
         result = self.materializer.execute_package(project, run, package["payload"], product_contract)
+        result["llm_agent_run_id"] = package_plan.get("agent_run_id", "")
         self.store.update_work_package(package["id"], status="completed", result=result)
         self._record_json(project, run, "package_evidence", f"{package['package_key']}.json", result, {"work_package_id": package["id"]})
         self._advance_after_package(project, run, package)
@@ -287,15 +376,23 @@ class V4Orchestrator:
         project = self._require_project(run["project_id"])
         product_contract = (run.get("metadata") or {}).get("product_contract") or {}
         release_root = self.materializer.project_root(project) / product_contract.get("release_root", "release")
+        context_snapshot = build_context_snapshot_v2(
+            requirements=((run.get("metadata") or {}).get("blueprint") or {}).get("requirements", []),
+            blueprint=(run.get("metadata") or {}).get("blueprint") or {},
+            project_root=self.materializer.project_root(project),
+        )
         report = {
             "schema_version": "4.0",
             "status": "passed" if release_root.exists() else "failed",
             "release_root": str(release_root),
-            "checks": ["release directory exists"],
+            "checks": ["release directory exists", "context index refreshed"],
+            "context_index_hash": context_snapshot.get("index_hash", ""),
         }
+        self._record_json(project, run, "context_snapshot", "context-snapshot-integration.json", context_snapshot)
         self._record_json(project, run, "integration_report", "integration-report.json", report)
+        metadata = {**dict(run.get("metadata") or {}), "context_snapshot": context_snapshot, "context_snapshot_id": context_snapshot.get("index_hash", "")}
         continuation = {**dict(run.get("continuation") or {}), "checkpoint": "integration_completed", "integration_status": report["status"], "next_action": "test"}
-        self.store.update_run(run["id"], checkpoint="integration_completed", continuation=continuation)
+        self.store.update_run(run["id"], checkpoint="integration_completed", continuation=continuation, metadata=metadata)
         self.store.enqueue_job(run["tenant_id"], {"job_type": "test", "role": "qa", "run_id": run["id"], "resume_key": f"run:{run['id']}:test", "payload": {}, "max_attempts": 2})
         self._write_manifest(project, run)
         return report
@@ -327,7 +424,15 @@ class V4Orchestrator:
         metadata = dict(run.get("metadata") or {})
         product_contract = metadata.get("product_contract") or {}
         release_root = self.materializer.project_root(project) / product_contract.get("release_root", "release")
-        quality_report = validate_release_structure(release_root, product_contract, product_contract.get("stack_pack", ""))
+        artifacts = self.store.list_artifacts(run["id"])
+        run_context = {
+            "agent_runs": [artifact for artifact in artifacts if artifact["kind"] == "agent_run"],
+            "packages": self.store.list_work_packages(run["id"]),
+            "wave_reports": [artifact for artifact in artifacts if artifact["kind"] == "wave_report"],
+            "context_index_status": self._context_index_status(run),
+            "effective_loc_target": (metadata.get("project_config") or {}).get("effective_loc_target", 0),
+        }
+        quality_report = validate_release_structure(release_root, product_contract, product_contract.get("stack_pack", ""), run_context=run_context)
         deploy_guide = build_deploy_guide(product_contract, release_root, quality_report)
         quality_artifact = self._record_json(project, run, "quality_report", "quality-report.json", quality_report)
         release_structure_artifact = self._record_json(project, run, "release_structure_report", "release-structure-report.json", quality_report)
@@ -345,6 +450,8 @@ class V4Orchestrator:
         self.store.update_run(run["id"], status=status, checkpoint="quality_completed", continuation=continuation, metadata=metadata)
         if quality_report["ok"]:
             self.store.enqueue_job(run["tenant_id"], {"job_type": "release_candidate", "role": "release", "run_id": run["id"], "resume_key": f"run:{run['id']}:release_candidate", "payload": {}, "max_attempts": 2})
+        else:
+            self._enqueue_repair_job(project, run, "quality_gate_failed", quality_report)
         self._write_manifest(project, run)
         return quality_report
 
@@ -404,7 +511,60 @@ class V4Orchestrator:
         self._write_manifest(project, run)
         return report
 
+    def _execute_repair(self, job: dict[str, Any]) -> dict[str, Any]:
+        run = self._require_run(job["run_id"])
+        project = self._require_project(run["project_id"])
+        payload = job.get("payload") or {}
+        attempt = int(payload.get("repair_attempt") or 1)
+        report = {
+            "schema_version": "4.5",
+            "status": "blocked_for_human_review" if attempt >= 3 else "repair_recorded",
+            "run_id": run["id"],
+            "repair_attempt": attempt,
+            "failure_reason": payload.get("failure_reason", "repair_required"),
+            "failed_gate_report": payload.get("failed_gate_report", {}),
+            "allowed_paths": payload.get("allowed_paths", []),
+            "forbidden_paths": payload.get("forbidden_paths", []),
+            "next_action": "human_review" if attempt >= 3 else "rerun_failed_wave_or_quality",
+        }
+        self._record_json(project, run, "repair_report", f"repair-report-{attempt}.json", report)
+        continuation = {
+            **dict(run.get("continuation") or {}),
+            "failure_reason": report["failure_reason"],
+            "repair_attempt": attempt,
+            "next_action": report["next_action"],
+        }
+        self.store.update_run(run["id"], status=report["status"], continuation=continuation)
+        self._write_manifest(project, run)
+        return report
+
+    def _enqueue_repair_job(self, project: dict[str, Any], run: dict[str, Any], reason: str, failed_gate_report: dict[str, Any]) -> dict[str, Any]:
+        existing_repairs = [job for job in self.store.list_jobs(run_id=run["id"]) if job["job_type"] == "repair"]
+        attempt = len(existing_repairs) + 1
+        return self.store.enqueue_job(
+            run["tenant_id"],
+            {
+                "job_type": "repair",
+                "role": "planner",
+                "run_id": run["id"],
+                "resume_key": f"run:{run['id']}:repair:{reason}:{attempt}",
+                "payload": {
+                    "failure_reason": reason,
+                    "failed_gate_report": failed_gate_report,
+                    "repair_attempt": attempt,
+                    "allowed_paths": ["release/**", ".v4/**"],
+                    "forbidden_paths": [".git/**", "workspace/artifacts/**"],
+                },
+                "max_attempts": 1,
+            },
+        )
+
     def _enqueue_wave_packages(self, project: dict[str, Any], run: dict[str, Any], wave_key: str) -> None:
+        context_status = self._context_index_status(run)
+        if not context_status["ok"]:
+            continuation = {**dict(run.get("continuation") or {}), "failure_reason": "context_index_stale", "context_index_status": context_status, "next_action": "repair_context_index"}
+            self.store.update_run(run["id"], status="blocked", continuation=continuation)
+            return
         packages = [package for package in self.store.list_work_packages(run["id"]) if package["wave_key"] == wave_key]
         for package in packages:
             self.store.enqueue_job(
@@ -416,7 +576,15 @@ class V4Orchestrator:
                     "work_package_id": package["id"],
                     "wave_id": package["wave_id"],
                     "resume_key": f"run:{run['id']}:package:{package['id']}",
-                    "payload": {"package_key": package["package_key"], "project_id": project["id"]},
+                    "payload": {
+                        "package_key": package["package_key"],
+                        "project_id": project["id"],
+                        "subsystem": (package.get("payload") or {}).get("subsystem", package["domain"]),
+                        "depends_on": (package.get("payload") or {}).get("depends_on", []),
+                        "allowed_paths": (package.get("payload") or {}).get("allowed_paths", []),
+                        "forbidden_paths": (package.get("payload") or {}).get("forbidden_paths", []),
+                        "effective_loc_budget": (package.get("payload") or {}).get("effective_loc_budget", {}),
+                    },
                     "max_attempts": 3,
                 },
             )
@@ -431,6 +599,7 @@ class V4Orchestrator:
         wave = next((item for item in self.store.list_waves(run["id"]) if item["id"] == completed_package["wave_id"]), None)
         if wave:
             self.store.upsert_wave(run["id"], {**wave["payload"], "status": "completed"})
+            self._record_wave_report(project, run, wave["wave_key"], wave_packages)
         waves = self.store.list_waves(run["id"])
         next_wave = next((item for item in waves if item["status"] != "completed"), None)
         if next_wave:
@@ -442,10 +611,89 @@ class V4Orchestrator:
         continuation = {**dict(run.get("continuation") or {}), "checkpoint": "wave_completed", "current_wave": None, "next_action": "integration"}
         self.store.update_run(run["id"], checkpoint="wave_completed", continuation=continuation)
 
+    def _context_for_package(self, run: dict[str, Any], package: dict[str, Any]) -> dict[str, Any]:
+        snapshot = ((run.get("metadata") or {}).get("context_snapshot") or {})
+        return package_context(snapshot, package)
+
+    def _context_index_status(self, run: dict[str, Any]) -> dict[str, Any]:
+        return validate_context_snapshot((run.get("metadata") or {}).get("context_snapshot"))
+
+    def _record_wave_report(self, project: dict[str, Any], run: dict[str, Any], wave_key: str, packages: list[dict[str, Any]]) -> dict[str, Any]:
+        report = {
+            "schema_version": "4.5",
+            "run_id": run["id"],
+            "wave_key": wave_key,
+            "status": "passed" if all(package.get("status") == "completed" for package in packages) else "failed",
+            "completed_packages": [package["package_key"] for package in packages if package.get("status") == "completed"],
+            "failed_packages": [package["package_key"] for package in packages if package.get("status") not in {"completed"}],
+            "package_count": len(packages),
+            "interface_changes": [],
+            "test_evidence": [package.get("result", {}).get("evidence_path", "") for package in packages if package.get("result", {}).get("evidence_path")],
+            "risks": [],
+        }
+        return self._record_json(project, run, "wave_report", f"wave-report-{wave_key}.json", report, {"wave_key": wave_key})
+
     def _record_json(self, project: dict[str, Any], run: dict[str, Any], kind: str, filename: str, payload: Any, metadata: dict[str, Any] | None = None) -> dict[str, Any]:
         artifact = self.artifacts.write_json(run["tenant_id"], project["name"], run["id"], kind, filename, payload, metadata)
         artifact["payload"] = payload
         return self.store.add_artifact(run["tenant_id"], project["id"], artifact)
+
+    def _invoke_llm(
+        self,
+        project: dict[str, Any],
+        run: dict[str, Any],
+        *,
+        role: str,
+        job: dict[str, Any],
+        system_prompt: str,
+        user_payload: dict[str, Any],
+        required: bool,
+        task_kind: str = "package",
+    ) -> dict[str, Any]:
+        payload = self.ai_scheduler.call(
+            run_id=run["id"],
+            role=role,
+            job=job,
+            system_prompt=system_prompt,
+            user_payload=user_payload,
+            task_kind=task_kind,
+            required=required,
+        )
+        self._record_json(project, run, "agent_run", f"{payload['agent_run_id']}.json", payload, {"role": role, "job_id": job.get("id", ""), "task_kind": payload.get("task_kind", task_kind)})
+        if payload.get("ok"):
+            self.store.add_event(
+                run["tenant_id"],
+                project["id"],
+                run["id"],
+                "llm_call_completed",
+                {
+                    "agent_run_id": payload["agent_run_id"],
+                    "role": role,
+                    "job_id": job.get("id", ""),
+                    "task_kind": payload.get("task_kind", task_kind),
+                    "model_tier": payload.get("model_tier", ""),
+                    "elapsed_ms": payload.get("elapsed_ms", 0),
+                },
+            )
+            return payload
+        self.store.add_event(
+            run["tenant_id"],
+            project["id"],
+            run["id"],
+            "llm_call_failed",
+            {
+                "agent_run_id": payload["agent_run_id"],
+                "role": role,
+                "job_id": job.get("id", ""),
+                "task_kind": payload.get("task_kind", task_kind),
+                "error": str(payload.get("error", ""))[:1000],
+            },
+        )
+        if required:
+            continuation = {**dict(run.get("continuation") or {}), "failure_reason": "llm_call_failed", "next_action": "repair_llm_connection"}
+            self.store.update_run(run["id"], status="blocked", continuation=continuation)
+            raise LLMError(str(payload.get("error", "llm call failed")))
+        return payload
 
     def _write_manifest(self, project: dict[str, Any], run: dict[str, Any]) -> dict[str, Any]:
         latest_run = self._require_run(run["id"])

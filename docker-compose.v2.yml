@@ -1,6 +1,6 @@
 services:
   api:
-    image: python:3.12-slim
+    image: ${V4_PYTHON_IMAGE:-docker.1ms.run/library/python:3.12-slim}
     working_dir: /app
     command: sh -lc "pip install -r requirements-v4.txt && python run_server.py --api --host 0.0.0.0 --port 8787"
     environment:
@@ -8,6 +8,11 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_API_BASE: ${OPENAI_API_BASE:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-}
+      OPENAI_WIRE_API: ${OPENAI_WIRE_API:-}
+      OPENAI_PROVIDER_PROFILE: ${OPENAI_PROVIDER_PROFILE:-}
+      OPENAI_API_PATH: ${OPENAI_API_PATH:-}
+      OPENAI_REASONING_EFFORT: ${OPENAI_REASONING_EFFORT:-}
+      OPENAI_DISABLE_RESPONSE_STORAGE: ${OPENAI_DISABLE_RESPONSE_STORAGE:-}
     ports:
       - "8787:8787"
     volumes:
@@ -16,7 +21,7 @@ services:
       - postgres
 
   worker-supervisor:
-    image: python:3.12-slim
+    image: ${V4_PYTHON_IMAGE:-docker.1ms.run/library/python:3.12-slim}
     working_dir: /app
     command: sh -lc "pip install -r requirements-v4.txt && python run_server.py --worker-supervisor --tenant local-workspace --roles chief,planner,architect,frontend,backend,qa,security,integration,release"
     environment:
@@ -24,13 +29,18 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_API_BASE: ${OPENAI_API_BASE:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-}
+      OPENAI_WIRE_API: ${OPENAI_WIRE_API:-}
+      OPENAI_PROVIDER_PROFILE: ${OPENAI_PROVIDER_PROFILE:-}
+      OPENAI_API_PATH: ${OPENAI_API_PATH:-}
+      OPENAI_REASONING_EFFORT: ${OPENAI_REASONING_EFFORT:-}
+      OPENAI_DISABLE_RESPONSE_STORAGE: ${OPENAI_DISABLE_RESPONSE_STORAGE:-}
     volumes:
       - .:/app
     depends_on:
       - postgres
 
   postgres:
-    image: postgres:16-alpine
+    image: ${V4_POSTGRES_IMAGE:-docker.1ms.run/library/postgres:16-alpine}
     environment:
       POSTGRES_USER: orchestrator
       POSTGRES_PASSWORD: orchestrator

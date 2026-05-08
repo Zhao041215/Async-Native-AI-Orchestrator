@@ -21,7 +21,8 @@ def _build_v4(memory_store: bool = False) -> tuple[Path, V4Orchestrator]:
     root = _root()
     config = load_config(root)
     store = InMemoryV4Store() if memory_store else build_store(config.database_url)
-    service = V4Orchestrator(store=store, workspace_root=config.workspace_root, tenant_id=config.identity.default_tenant)
+    llm_client = None if memory_store else OpenAICompatibleClient(config.llm)
+    service = V4Orchestrator(store=store, workspace_root=config.workspace_root, tenant_id=config.identity.default_tenant, llm_client=llm_client)
     service.bootstrap(attempts=30, delay_seconds=1.0)
     return root, service
 
@@ -77,7 +78,8 @@ def run_api(host: str, port: int, memory_store: bool = False) -> None:
     root = _root()
     config = load_config(root)
     store = InMemoryV4Store() if memory_store else build_store(config.database_url)
-    service = V4Orchestrator(store=store, workspace_root=config.workspace_root, tenant_id=config.identity.default_tenant)
+    llm_client = None if memory_store else OpenAICompatibleClient(config.llm)
+    service = V4Orchestrator(store=store, workspace_root=config.workspace_root, tenant_id=config.identity.default_tenant, llm_client=llm_client)
     service.bootstrap(attempts=1 if memory_store else 30, delay_seconds=1.0)
     run_api_server(service, config, host=host or config.server.host, port=port or config.server.port)
 

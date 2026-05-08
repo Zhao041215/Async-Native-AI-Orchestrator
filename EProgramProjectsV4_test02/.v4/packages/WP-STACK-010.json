@@ -1,0 +1,31 @@
+{
+  "schema_version": "4.5",
+  "package_key": "WP-STACK-010",
+  "domain": "stack",
+  "role": "architect",
+  "subsystem": "stack",
+  "release_root": "release",
+  "allowed_paths": [
+    "release/index.*",
+    "release/README.md",
+    "release/.htaccess",
+    "release/.user.ini",
+    "release/nginx.sample.conf",
+    ".v4/**"
+  ],
+  "forbidden_paths": [],
+  "requirements": [
+    "REQ-0001",
+    "REQ-0002",
+    "REQ-0003",
+    "REQ-0004",
+    "REQ-0005",
+    "REQ-0006",
+    "REQ-0007",
+    "REQ-0008"
+  ],
+  "acceptance_evidence": [
+    "release materialized",
+    "package boundary recorded"
+  ]
+}

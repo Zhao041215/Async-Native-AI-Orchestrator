@@ -34,6 +34,27 @@ BASE_PACKAGES = (
 )
 
 
+DOMAIN_ALLOWED_PATHS = {
+    "stack": ["release/index.*", "release/README.md", "release/.htaccess", "release/.user.ini", "release/nginx.sample.conf", ".v4/**"],
+    "config": ["release/.env.example", "release/config/**", "release/app/Support/Env.php", ".v4/**"],
+    "data": ["release/database/**", "release/app/Support/Database.php", ".v4/**"],
+    "backend": ["release/app/**", "release/index.php", ".v4/**"],
+    "frontend": ["release/assets/**", "release/index.php", "release/app/Controllers/**", ".v4/**"],
+    "integration": ["release/**", ".v4/**"],
+    "test": ["release/tests/**", ".v4/**"],
+    "security": ["release/.htaccess", "release/.user.ini", "release/nginx.sample.conf", "release/app/**", ".v4/**"],
+    "release": ["release/README.md", "release/**", ".v4/**"],
+}
+
+DOMAIN_FORBIDDEN_PATHS = {
+    "frontend": ["release/database/**"],
+    "backend": ["release/assets/**"],
+    "data": ["release/assets/**"],
+    "test": ["release/database/migrations/**"],
+    "security": ["release/database/seeders/**"],
+}
+
+
 def _requirement_atoms(requirement_text: str) -> list[dict[str, str]]:
     lines = [line.strip(" -\t") for line in requirement_text.splitlines() if line.strip(" -\t")]
     if not lines:
@@ -65,6 +86,47 @@ def _feature_package_count(config: dict[str, Any]) -> int:
     if target_scale == "medium":
         return max(3, min(20, effective_loc_target // 600))
     return max(0, min(8, effective_loc_target // 700 - 1))
+
+
+def _package_contract(
+    *,
+    package_key: str,
+    title: str,
+    role: str,
+    domain: str,
+    wave_key: str,
+    requirement_ids: list[str],
+    stack_pack: str,
+    estimated_loc: int,
+    subsystem: str | None = None,
+    depends_on: list[str] | None = None,
+) -> dict[str, Any]:
+    return {
+        "id": new_id(),
+        "package_key": package_key,
+        "title": title,
+        "subsystem": subsystem or domain,
+        "role": role,
+        "domain": domain,
+        "wave_key": wave_key,
+        "wave_sequence": int(wave_key.split("-")[-1]),
+        "depends_on": depends_on or [],
+        "allowed_paths": DOMAIN_ALLOWED_PATHS.get(domain, ["release/**", ".v4/**"]),
+        "forbidden_paths": DOMAIN_FORBIDDEN_PATHS.get(domain, []),
+        "required_inputs": ["product_contract", "requirements_index", "boundary_rules"],
+        "expected_outputs": ["patch_manifest", "package_evidence", "requirements_mapping", "acceptance_evidence"],
+        "interface_contract_refs": ["product_contract"],
+        "database_contract_refs": ["database_schema_index"] if domain in {"data", "backend", "integration", "test"} else [],
+        "ui_contract_refs": ["ui_flow_index"] if domain in {"frontend", "integration", "test"} else [],
+        "test_requirements": ["package evidence exists", "wave gate remains green"],
+        "effective_loc_budget": {"target": estimated_loc, "min": max(20, int(estimated_loc * 0.5)), "max": max(80, int(estimated_loc * 1.6))},
+        "estimated_effective_loc": estimated_loc,
+        "status": "queued",
+        "requirements": requirement_ids,
+        "scope": [domain],
+        "stack_pack": stack_pack,
+        "acceptance_gates": ["package_contract_gate", "path_boundary_gate", "requirements_mapping_gate"],
+    }
 
 
 def build_blueprint(project: dict[str, Any], requirement_text: str) -> dict[str, Any]:
@@ -99,23 +161,24 @@ def build_blueprint(project: dict[str, Any], requirement_text: str) -> dict[str,
         api_only,
     )
     packages = []
+    previous_wave_contracts: list[str] = []
     for package_key, title, role, domain, wave_number, loc in BASE_PACKAGES:
-        packages.append(
-            {
-                "id": new_id(),
-                "package_key": package_key,
-                "title": title,
-                "role": role,
-                "domain": domain,
-                "wave_key": f"WAVE-{wave_number:03d}",
-                "wave_sequence": wave_number,
-                "estimated_effective_loc": loc,
-                "status": "queued",
-                "requirements": [item["id"] for item in atoms[: min(8, len(atoms))]],
-                "scope": [domain],
-                "stack_pack": contract["stack_pack"],
-            }
+        depends_on = previous_wave_contracts if wave_number > 1 else []
+        package = _package_contract(
+            package_key=package_key,
+            title=title,
+            role=role,
+            domain=domain,
+            wave_key=f"WAVE-{wave_number:03d}",
+            requirement_ids=[item["id"] for item in atoms[: min(8, len(atoms))]],
+            stack_pack=contract["stack_pack"],
+            estimated_loc=loc,
+            subsystem=domain,
+            depends_on=depends_on,
         )
+        packages.append(package)
+        if wave_number == 1:
+            previous_wave_contracts.append(package_key)
 
     feature_count = _feature_package_count(config)
     roles = ("backend", "frontend", "backend", "qa", "security", "integration")
@@ -125,20 +188,18 @@ def build_blueprint(project: dict[str, Any], requirement_text: str) -> dict[str,
         domain = domains[index % len(domains)]
         wave_number = 2 + (index // 8)
         packages.append(
-            {
-                "id": new_id(),
-                "package_key": f"WP-FEATURE-{index + 1:03d}",
-                "title": f"Scaled feature slice {index + 1}",
-                "role": role,
-                "domain": domain,
-                "wave_key": f"WAVE-{wave_number:03d}",
-                "wave_sequence": wave_number,
-                "estimated_effective_loc": 420,
-                "status": "queued",
-                "requirements": [atoms[index % len(atoms)]["id"]],
-                "scope": [domain],
-                "stack_pack": contract["stack_pack"],
-            }
+            _package_contract(
+                package_key=f"WP-FEATURE-{index + 1:03d}",
+                title=f"Scaled feature slice {index + 1}",
+                role=role,
+                domain=domain,
+                wave_key=f"WAVE-{wave_number:03d}",
+                requirement_ids=[atoms[index % len(atoms)]["id"]],
+                stack_pack=contract["stack_pack"],
+                estimated_loc=420,
+                subsystem=f"{domain}-features",
+                depends_on=["WP-STACK-010"],
+            )
         )
 
     wave_keys = sorted({package["wave_key"] for package in packages}, key=lambda item: int(item.split("-")[-1]))
@@ -166,5 +227,10 @@ def build_blueprint(project: dict[str, Any], requirement_text: str) -> dict[str,
             "Generated packages must remain single-domain and evidence-backed.",
             "Release is blocked unless clean release and deploy guide gates pass.",
         ],
+        "boundary_rules": [
+            "Workers may only modify paths listed in package allowed_paths.",
+            "Workers must not modify paths listed in package forbidden_paths.",
+            "Cross-domain changes require a contract package before implementation.",
+            "Core security, database, and interface contracts must not use degraded AI output.",
+        ],
     }
-

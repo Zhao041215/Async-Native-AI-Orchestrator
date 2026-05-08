@@ -1,0 +1,30 @@
+{
+  "schema_version": "4.5",
+  "package_key": "WP-DATA-030",
+  "domain": "data",
+  "role": "backend",
+  "subsystem": "data",
+  "release_root": "release",
+  "allowed_paths": [
+    "release/database/**",
+    "release/app/Support/Database.php",
+    ".v4/**"
+  ],
+  "forbidden_paths": [
+    "release/assets/**"
+  ],
+  "requirements": [
+    "REQ-0001",
+    "REQ-0002",
+    "REQ-0003",
+    "REQ-0004",
+    "REQ-0005",
+    "REQ-0006",
+    "REQ-0007",
+    "REQ-0008"
+  ],
+  "acceptance_evidence": [
+    "release materialized",
+    "package boundary recorded"
+  ]
+}

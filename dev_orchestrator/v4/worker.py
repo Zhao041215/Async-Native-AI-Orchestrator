@@ -5,6 +5,7 @@ import os
 import subprocess
 import sys
 import time
+from datetime import datetime, timezone
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -28,14 +29,25 @@ class WorkerStatusRegistry:
         payload["last_heartbeat"] = iso_now()
         path.write_text(json.dumps(payload, indent=2, ensure_ascii=True), encoding="utf-8")
 
-    def list(self) -> list[dict[str, Any]]:
+    def list(self, limit: int = 12) -> list[dict[str, Any]]:
         workers = []
         for path in sorted(self.root.glob("*.json")):
             try:
                 workers.append(json.loads(path.read_text(encoding="utf-8")))
             except (OSError, json.JSONDecodeError):
                 continue
-        return workers
+        workers.sort(key=self._heartbeat_sort_key, reverse=True)
+        return workers[: max(1, limit)]
+
+    def _heartbeat_sort_key(self, payload: dict[str, Any]) -> datetime:
+        raw = str(payload.get("last_heartbeat") or "")
+        try:
+            value = datetime.fromisoformat(raw)
+            if value.tzinfo is None:
+                value = value.replace(tzinfo=timezone.utc)
+            return value
+        except ValueError:
+            return datetime.min.replace(tzinfo=timezone.utc)
 
 
 @dataclass

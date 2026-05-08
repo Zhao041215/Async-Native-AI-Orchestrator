@@ -18,6 +18,7 @@ try:
         Table,
         Text,
         and_,
+        delete,
         create_engine,
         insert,
         select,
@@ -28,7 +29,7 @@ try:
     from sqlalchemy.engine import Engine
 except Exception:  # pragma: no cover - lets pure unit tests run without optional deps.
     Boolean = Column = DateTime = Integer = MetaData = String = Table = Text = None  # type: ignore[assignment]
-    and_ = create_engine = insert = select = text = update = None  # type: ignore[assignment]
+    and_ = create_engine = delete = insert = select = text = update = None  # type: ignore[assignment]
     JSONB = None  # type: ignore[assignment]
     Engine = object  # type: ignore[assignment,misc]
 
@@ -127,6 +128,12 @@ def _metadata() -> Any:
         Column("wave_id", String(36), nullable=True),
         Column("payload", _json_type(), nullable=False),
         Column("result", _json_type(), nullable=False),
+        Column("ai_budget", _json_type(), nullable=False, default={}),
+        Column("model_tier", String(80), nullable=False, default=""),
+        Column("degraded", Boolean, nullable=False, default=False),
+        Column("subsystem", String(160), nullable=False, default=""),
+        Column("depends_on", _json_type(), nullable=False, default=[]),
+        Column("allowed_paths", _json_type(), nullable=False, default=[]),
         Column("attempts", Integer, nullable=False),
         Column("max_attempts", Integer, nullable=False),
         Column("worker_id", String(255), nullable=False),
@@ -185,6 +192,12 @@ class V4Store:
         raise NotImplementedError
 
     def get_project(self, project_id: str) -> dict[str, Any] | None:
+        raise NotImplementedError
+
+    def delete_project(self, project_id: str) -> dict[str, Any]:
+        raise NotImplementedError
+
+    def delete_projects(self, project_ids: list[str]) -> dict[str, Any]:
         raise NotImplementedError
 
     def create_run(self, tenant_id: str, project_id: str, metadata: dict[str, Any]) -> dict[str, Any]:
@@ -263,7 +276,23 @@ class PostgresV4Store(V4Store):
 
     def bootstrap(self) -> None:
         self.metadata.create_all(self.engine)
+        self._migrate()
         self.get_or_create_tenant(DEFAULT_TENANT)
+
+    def _migrate(self) -> None:
+        if text is None:
+            return
+        statements = (
+            "ALTER TABLE durable_jobs ADD COLUMN IF NOT EXISTS ai_budget JSONB NOT NULL DEFAULT '{}'::jsonb",
+            "ALTER TABLE durable_jobs ADD COLUMN IF NOT EXISTS model_tier VARCHAR(80) NOT NULL DEFAULT ''",
+            "ALTER TABLE durable_jobs ADD COLUMN IF NOT EXISTS degraded BOOLEAN NOT NULL DEFAULT false",
+            "ALTER TABLE durable_jobs ADD COLUMN IF NOT EXISTS subsystem VARCHAR(160) NOT NULL DEFAULT ''",
+            "ALTER TABLE durable_jobs ADD COLUMN IF NOT EXISTS depends_on JSONB NOT NULL DEFAULT '[]'::jsonb",
+            "ALTER TABLE durable_jobs ADD COLUMN IF NOT EXISTS allowed_paths JSONB NOT NULL DEFAULT '[]'::jsonb",
+        )
+        with self.engine.begin() as conn:
+            for statement in statements:
+                conn.execute(text(statement))
 
     def _row(self, row: Any) -> dict[str, Any] | None:
         if row is None:
@@ -320,6 +349,50 @@ class PostgresV4Store(V4Store):
         table = self.tables["projects"]
         with self.engine.begin() as conn:
             return self._row(conn.execute(select(table).where(table.c.id == project_id)).first())
+
+    def delete_project(self, project_id: str) -> dict[str, Any]:
+        return self.delete_projects([project_id])
+
+    def delete_projects(self, project_ids: list[str]) -> dict[str, Any]:
+        unique_project_ids = [project_id for project_id in dict.fromkeys(project_ids) if project_id]
+        if not unique_project_ids:
+            return {"deleted_projects": [], "deleted_runs": 0, "deleted_jobs": 0, "deleted_artifacts": 0}
+        projects_table = self.tables["projects"]
+        runs_table = self.tables["runs"]
+        run_ids: list[str] = []
+        with self.engine.begin() as conn:
+            for project_id in unique_project_ids:
+                rows = conn.execute(select(runs_table.c.id).where(runs_table.c.project_id == project_id)).all()
+                run_ids.extend([str(row[0]) for row in rows if row and row[0]])
+            run_ids = list(dict.fromkeys(run_ids))
+            if run_ids:
+                for table_name in (
+                    "durable_jobs",
+                    "work_packages",
+                    "run_waves",
+                    "agent_runs",
+                    "patch_sets",
+                    "integration_steps",
+                    "test_runs",
+                    "quality_reports",
+                    "artifacts",
+                    "release_candidates",
+                    "rollbacks",
+                    "events",
+                    "context_snapshots",
+                    "code_index",
+                ):
+                    table = self.tables[table_name]
+                    if "run_id" in table.c:
+                        conn.execute(delete(table).where(table.c.run_id.in_(run_ids)))
+                conn.execute(delete(runs_table).where(runs_table.c.id.in_(run_ids)))
+            conn.execute(delete(projects_table).where(projects_table.c.id.in_(unique_project_ids)))
+        return {
+            "deleted_projects": unique_project_ids,
+            "deleted_runs": len(run_ids),
+            "deleted_jobs": 0,
+            "deleted_artifacts": 0,
+        }
 
     def create_run(self, tenant_id: str, project_id: str, metadata: dict[str, Any]) -> dict[str, Any]:
         table = self.tables["runs"]
@@ -460,6 +533,12 @@ class PostgresV4Store(V4Store):
             "wave_id": job.get("wave_id"),
             "payload": job.get("payload") or {},
             "result": job.get("result") or {},
+            "ai_budget": job.get("ai_budget") or {},
+            "model_tier": job.get("model_tier") or "",
+            "degraded": bool(job.get("degraded", False)),
+            "subsystem": job.get("subsystem") or (job.get("payload") or {}).get("subsystem", ""),
+            "depends_on": job.get("depends_on") or (job.get("payload") or {}).get("depends_on", []),
+            "allowed_paths": job.get("allowed_paths") or (job.get("payload") or {}).get("allowed_paths", []),
             "attempts": int(job.get("attempts") or 0),
             "max_attempts": int(job.get("max_attempts") or 3),
             "worker_id": "",
@@ -685,11 +764,37 @@ class InMemoryV4Store(V4Store):
         return self._copy(row)
 
     def list_projects(self, tenant_id: str) -> list[dict[str, Any]]:
-        return [self._copy(project) for project in self.projects.values() if project["tenant_id"] == tenant_id]
+        return [self._copy(project) for project in sorted(self.projects.values(), key=lambda item: item["created_at"], reverse=True) if project["tenant_id"] == tenant_id]
 
     def get_project(self, project_id: str) -> dict[str, Any] | None:
         project = self.projects.get(project_id)
         return self._copy(project) if project else None
+
+    def delete_project(self, project_id: str) -> dict[str, Any]:
+        return self.delete_projects([project_id])
+
+    def delete_projects(self, project_ids: list[str]) -> dict[str, Any]:
+        unique_project_ids = [project_id for project_id in dict.fromkeys(project_ids) if project_id]
+        deleted_runs = 0
+        if not unique_project_ids:
+            return {"deleted_projects": [], "deleted_runs": 0, "deleted_jobs": 0, "deleted_artifacts": 0}
+        run_ids = [run_id for run_id, run in self.runs.items() if run["project_id"] in unique_project_ids]
+        deleted_runs = len(run_ids)
+        for run_id in run_ids:
+            self.waves = {key: value for key, value in self.waves.items() if value["run_id"] != run_id}
+            self.packages = {key: value for key, value in self.packages.items() if value["run_id"] != run_id}
+            self.jobs = {key: value for key, value in self.jobs.items() if value["run_id"] != run_id}
+            self.artifacts = {key: value for key, value in self.artifacts.items() if value["run_id"] != run_id}
+            self.events = {key: value for key, value in self.events.items() if value["run_id"] != run_id}
+            del self.runs[run_id]
+        for project_id in unique_project_ids:
+            self.projects.pop(project_id, None)
+        return {
+            "deleted_projects": unique_project_ids,
+            "deleted_runs": deleted_runs,
+            "deleted_jobs": 0,
+            "deleted_artifacts": 0,
+        }
 
     def create_run(self, tenant_id: str, project_id: str, metadata: dict[str, Any]) -> dict[str, Any]:
         now = utc_now().isoformat()
@@ -804,6 +909,12 @@ class InMemoryV4Store(V4Store):
             "wave_id": job.get("wave_id"),
             "payload": job.get("payload") or {},
             "result": job.get("result") or {},
+            "ai_budget": job.get("ai_budget") or {},
+            "model_tier": job.get("model_tier") or "",
+            "degraded": bool(job.get("degraded", False)),
+            "subsystem": job.get("subsystem") or (job.get("payload") or {}).get("subsystem", ""),
+            "depends_on": job.get("depends_on") or (job.get("payload") or {}).get("depends_on", []),
+            "allowed_paths": job.get("allowed_paths") or (job.get("payload") or {}).get("allowed_paths", []),
             "attempts": int(job.get("attempts") or 0),
             "max_attempts": int(job.get("max_attempts") or 3),
             "worker_id": "",

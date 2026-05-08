@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import http.client
 import socket
 import time
 import urllib.error
@@ -145,17 +146,26 @@ def _build_payload(
     system_prompt: str,
     messages: list[dict],
     max_tokens: int,
+    reasoning_effort: str | None = None,
+    temperature: float | None = None,
 ) -> dict:
+    effective_temperature = config.temperature if temperature is None else temperature
+    effective_reasoning_effort = config.model_reasoning_effort if reasoning_effort is None else reasoning_effort
     if wire_api == "responses":
-        return {
+        payload = {
             "model": config.model,
             "input": [{"role": "system", "content": system_prompt}] + messages,
-            "temperature": config.temperature,
+            "temperature": effective_temperature,
             "max_output_tokens": max_tokens,
         }
+        if effective_reasoning_effort:
+            payload["reasoning"] = {"effort": effective_reasoning_effort}
+        if config.disable_response_storage:
+            payload["store"] = False
+        return payload
     return {
         "model": config.model,
-        "temperature": config.temperature,
+        "temperature": effective_temperature,
         "max_tokens": max_tokens,
         "messages": [{"role": "system", "content": system_prompt}] + messages,
     }
@@ -247,6 +257,9 @@ class OpenAICompatibleClient:
         *,
         max_tokens_override: int | None = None,
         timeout_override: int | None = None,
+        reasoning_effort_override: str | None = None,
+        temperature_override: float | None = None,
+        retry_attempts_override: int | None = None,
     ) -> str:
         if self.config.use_mock:
             raise LLMError("Mock mode is enabled; remote chat should not be called.")
@@ -265,13 +278,22 @@ class OpenAICompatibleClient:
         effective_max_tokens = max_tokens_override or self.config.max_tokens
         effective_timeout = timeout_override or self.config.timeout_seconds
 
-        payload = _build_payload(self.config, wire_api, system_prompt, messages, effective_max_tokens)
+        payload = _build_payload(
+            self.config,
+            wire_api,
+            system_prompt,
+            messages,
+            effective_max_tokens,
+            reasoning_effort=reasoning_effort_override,
+            temperature=temperature_override,
+        )
         url = _build_url(self.config, profile)
         headers = _build_headers(self.config)
 
         data = json.dumps(payload).encode("utf-8")
 
-        attempts = max(1, int(self.config.retry_attempts or 1))
+        attempts_source = retry_attempts_override if retry_attempts_override is not None else self.config.retry_attempts
+        attempts = max(1, int(attempts_source or 1))
         last_error: Exception | None = None
         for attempt in range(1, attempts + 1):
             try:
@@ -293,12 +315,16 @@ class OpenAICompatibleClient:
                 last_error = LLMError(f"HTTP {exc.code}: {body}")
             except urllib.error.URLError as exc:
                 last_error = LLMError(str(exc))
+            except http.client.RemoteDisconnected as exc:
+                last_error = LLMError(f"Remote disconnected without response: {exc}")
             except (TimeoutError, socket.timeout) as exc:
                 last_error = LLMError(f"Timed out after {effective_timeout} seconds.")
             except json.JSONDecodeError:
                 last_error = LLMError("Model endpoint returned non-JSON response.")
             except LLMError as exc:
                 last_error = exc
+            except OSError as exc:
+                last_error = LLMError(str(exc))
 
             if attempt < attempts:
                 time.sleep(max(0, int(self.config.retry_backoff_seconds or 0)))
@@ -312,11 +338,19 @@ class OpenAICompatibleClient:
         messages: list[dict] | None = None,
         *,
         max_tokens_override: int | None = None,
+        reasoning_effort_override: str | None = None,
     ) -> dict:
         profile = resolve_provider_profile(self.config)
         wire_api = _effective_wire_api(self.config, profile)
         max_tokens = max_tokens_override or self.config.max_tokens
-        payload = _build_payload(self.config, wire_api, system_prompt, messages or [], max_tokens)
+        payload = _build_payload(
+            self.config,
+            wire_api,
+            system_prompt,
+            messages or [],
+            max_tokens,
+            reasoning_effort=reasoning_effort_override,
+        )
         headers = _build_headers(self.config)
         masked_headers = {
             key: "***" if key.lower() in {"authorization", "x-api-key", "api-key"} else value

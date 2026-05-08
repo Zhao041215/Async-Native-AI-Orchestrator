@@ -1,22 +1,22 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>V4 自治交付控制台</title>
-  <link rel="stylesheet" href="/static/styles.css">
+  <title>V4.5 Autonomous Delivery Workbench</title>
+  <link rel="stylesheet" href="/static/styles.css?v=20260508a">
 </head>
 <body>
   <main class="v4-shell">
     <header class="topbar">
       <div>
-        <p class="eyebrow">Dev Orchestrator V4</p>
-        <h1>多进程自治交付控制台</h1>
+        <p class="eyebrow">Dev Orchestrator V4.5</p>
+        <h1>Autonomous Delivery Workbench</h1>
       </div>
       <div class="status-strip">
         <span id="health-pill" class="pill">checking</span>
         <span id="worker-count" class="pill">workers 0</span>
-        <button id="refresh" type="button">刷新</button>
+        <button id="refresh" type="button">Refresh</button>
       </div>
     </header>
 
@@ -24,11 +24,12 @@
       <form id="project-form" class="panel">
         <div class="panel-title">
           <p class="eyebrow">Create</p>
-          <h2>创建并派发项目</h2>
+          <h2>Create and Dispatch</h2>
         </div>
-        <label>项目名称<input name="name" placeholder="notification-admin"></label>
-        <label>项目标题<input name="title" placeholder="企业后台系统"></label>
-        <label>技术栈
+        <label>Project name<input name="name" placeholder="personnel-admin"></label>
+        <label>Project title<input name="title" placeholder="Enterprise admin system"></label>
+        <label>Project path<input name="project_path" placeholder="E:\ProgramProjects\YourProject"></label>
+        <label>Stack pack
           <select name="stack_pack">
             <option value="auto">auto</option>
             <option value="php_mysql_single_dir">php_mysql_single_dir</option>
@@ -40,7 +41,7 @@
             <option value="static_spa_api">static_spa_api</option>
           </select>
         </label>
-        <label>目标规模
+        <label>Target scale
           <select name="target_scale">
             <option value="small">small</option>
             <option value="medium">medium</option>
@@ -48,15 +49,19 @@
             <option value="xlarge_100k">xlarge_100k</option>
           </select>
         </label>
-        <label>有效 LOC 目标<input name="effective_loc_target" type="number" value="1000" min="100"></label>
-        <label>需求描述<textarea name="description" rows="8" placeholder="例如：宝塔部署，PHP + MySQL，包含管理员登录、审计、报表和健康检查。"></textarea></label>
-        <button id="create-run" type="submit">创建并运行</button>
+        <label>Effective LOC target<input name="effective_loc_target" type="number" value="1000" min="100"></label>
+        <label>Requirements<textarea name="description" rows="8" placeholder="For example: Baota deployment, PHP + MySQL, admin login, CRUD, audit, reports, health check."></textarea></label>
+        <button id="create-run" type="submit">Create and Run</button>
       </form>
 
       <section class="panel">
         <div class="panel-title">
           <p class="eyebrow">Projects</p>
-          <h2>项目队列</h2>
+          <h2>Project Queue</h2>
+        </div>
+        <div class="project-toolbar">
+          <label class="checkline"><input id="select-all-projects" type="checkbox"> Select all</label>
+          <button id="delete-selected-projects" type="button" class="danger subtle" disabled>Delete selected</button>
         </div>
         <div id="project-list" class="list"></div>
       </section>
@@ -64,13 +69,37 @@
       <section class="panel detail">
         <div class="panel-title">
           <p class="eyebrow">Run</p>
-          <h2 id="run-title">选择一个项目</h2>
+          <h2 id="run-title">Select a Project</h2>
         </div>
         <div id="run-summary" class="summary"></div>
+
+        <h3>V4.5 Control Plane</h3>
+        <div id="v45-summary" class="summary wide"></div>
+
+        <h3>AI Calls</h3>
+        <div id="ai-call-list" class="list compact"></div>
+
+        <h3>Waves</h3>
+        <div id="wave-list" class="list compact"></div>
+
+        <h3>Packages</h3>
+        <div id="package-list" class="list compact"></div>
+
+        <h3>Quality Gates</h3>
+        <div id="quality-gate-list" class="list compact"></div>
+
+        <h3>Repair History</h3>
+        <div id="repair-list" class="list compact"></div>
+
         <h3>Jobs</h3>
         <div id="job-list" class="list compact"></div>
+
+        <h3>Context Index</h3>
+        <pre id="context-index"></pre>
+
         <h3>Continuation</h3>
         <pre id="continuation"></pre>
+
         <h3>Artifacts</h3>
         <div id="artifact-list" class="list compact"></div>
       </section>
@@ -78,12 +107,12 @@
       <section class="panel">
         <div class="panel-title">
           <p class="eyebrow">Workers</p>
-          <h2>进程状态</h2>
+          <h2>Worker Processes</h2>
         </div>
         <div id="worker-list" class="list compact"></div>
       </section>
     </section>
   </main>
-  <script src="/static/app.js"></script>
+  <script src="/static/app.js?v=20260508a"></script>
 </body>
 </html>

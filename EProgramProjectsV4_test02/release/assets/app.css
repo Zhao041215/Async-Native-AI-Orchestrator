@@ -1,0 +1,62 @@
+body {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  color: #1f2937;
+  background: #f6f7fb;
+}
+.shell, .login-shell {
+  width: min(920px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 48px 0;
+}
+.hero, .panel, .login-card {
+  background: #fff;
+  border: 1px solid #d9dee8;
+  border-radius: 8px;
+  padding: 28px;
+  box-shadow: 0 12px 30px rgba(16, 24, 40, 0.08);
+}
+.panel {
+  margin-top: 18px;
+}
+.eyebrow {
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 12px;
+}
+.actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.button, button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 6px;
+  border: 1px solid #1f2937;
+  background: #1f2937;
+  color: #fff;
+  text-decoration: none;
+  cursor: pointer;
+}
+.button.secondary {
+  background: #fff;
+  color: #1f2937;
+}
+label {
+  display: grid;
+  gap: 6px;
+  margin: 14px 0;
+}
+input {
+  min-height: 38px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 0 10px;
+}
+.error {
+  color: #b42318;
+}

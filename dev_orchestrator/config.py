@@ -19,6 +19,8 @@ class LLMConfig:
     api_base: str = ""
     api_key: str = ""
     model: str = "gpt-4.1"
+    model_reasoning_effort: str = ""
+    disable_response_storage: bool = False
     wire_api: str = "chat_completions"
     provider_profile: str = ""
     api_path: str = ""
@@ -345,6 +347,8 @@ def load_config(root_dir: Path) -> AppConfig:
     env_wire_api = os.environ.get("DEV_ORCHESTRATOR_WIRE_API") or os.environ.get("OPENAI_WIRE_API")
     env_provider_profile = os.environ.get("DEV_ORCHESTRATOR_PROVIDER_PROFILE") or os.environ.get("OPENAI_PROVIDER_PROFILE")
     env_api_path = os.environ.get("DEV_ORCHESTRATOR_API_PATH") or os.environ.get("OPENAI_API_PATH")
+    env_reasoning_effort = os.environ.get("DEV_ORCHESTRATOR_REASONING_EFFORT") or os.environ.get("OPENAI_REASONING_EFFORT") or os.environ.get("MODEL_REASONING_EFFORT")
+    env_disable_response_storage = _env_bool(os.environ.get("DEV_ORCHESTRATOR_DISABLE_RESPONSE_STORAGE") or os.environ.get("OPENAI_DISABLE_RESPONSE_STORAGE"))
     env_auth_header = os.environ.get("DEV_ORCHESTRATOR_AUTH_HEADER")
     env_auth_scheme = os.environ.get("DEV_ORCHESTRATOR_AUTH_SCHEME")
     env_extra_headers = _env_json_object(os.environ.get("DEV_ORCHESTRATOR_EXTRA_HEADERS"))
@@ -355,14 +359,18 @@ def load_config(root_dir: Path) -> AppConfig:
     env_supports_responses = _env_bool(os.environ.get("DEV_ORCHESTRATOR_SUPPORTS_RESPONSES"))
     env_supports_chat = _env_bool(os.environ.get("DEV_ORCHESTRATOR_SUPPORTS_CHAT_COMPLETIONS"))
     local_secrets = _load_local_llm_secrets(root_dir)
-    if local_secrets.get("api_key"):
-        llm.api_key = local_secrets["api_key"]
-    elif env_api_key:
+    if env_api_key:
         llm.api_key = env_api_key
+    elif local_secrets.get("api_key"):
+        llm.api_key = local_secrets["api_key"]
     if env_api_base:
         llm.api_base = env_api_base
     if env_model:
         llm.model = env_model
+    if env_reasoning_effort:
+        llm.model_reasoning_effort = env_reasoning_effort
+    if env_disable_response_storage is not None:
+        llm.disable_response_storage = env_disable_response_storage
     if env_wire_api:
         llm.wire_api = env_wire_api
     if env_provider_profile:
