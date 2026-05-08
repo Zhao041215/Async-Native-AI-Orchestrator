@@ -8,18 +8,18 @@ from pathlib import Path
 
 from dev_orchestrator.config import load_config
 from dev_orchestrator.llm_client import LLMError
-from dev_orchestrator.v5 import api as v5_api
-from dev_orchestrator.v5.agent_contracts import validate_agent_contract
-from dev_orchestrator.v5.api import build_app
-from dev_orchestrator.v5.code_indexer import build_code_index
-from dev_orchestrator.v5.contract_store import build_contract_index
-from dev_orchestrator.v5.patch_runtime import TransactionalPatchRuntime
-from dev_orchestrator.v5.release_quality import validate_ai_native_project
-from dev_orchestrator.v5.runtime import AgentFileRuntime, PatchValidationError
-from dev_orchestrator.v5.service import V5Orchestrator
-from dev_orchestrator.v5.store import InMemoryV5Store
-from dev_orchestrator.v5.test_runner import command_safety, run_validation_commands
-from dev_orchestrator.v5.worker import DurableWorker, WorkerStatusRegistry
+from dev_orchestrator.v6 import api as v6_api
+from dev_orchestrator.v6.agent_contracts import validate_agent_contract
+from dev_orchestrator.v6.api import build_app
+from dev_orchestrator.v6.code_indexer import build_code_index
+from dev_orchestrator.v6.contract_store import build_contract_index
+from dev_orchestrator.v6.patch_runtime import TransactionalPatchRuntime
+from dev_orchestrator.v6.release_quality import validate_ai_native_project
+from dev_orchestrator.v6.runtime import AgentFileRuntime, PatchValidationError
+from dev_orchestrator.v6.service import V6Orchestrator
+from dev_orchestrator.v6.store import InMemoryV6Store
+from dev_orchestrator.v6.test_runner import command_safety, run_validation_commands
+from dev_orchestrator.v6.worker import DurableWorker, WorkerStatusRegistry
 
 try:
     from fastapi.testclient import TestClient
@@ -29,7 +29,7 @@ except Exception:  # pragma: no cover
 
 class WorkspaceSandbox:
     def __init__(self) -> None:
-        self.path = (Path(__file__).resolve().parent.parent / "workspace" / "v5-test-scratch" / uuid.uuid4().hex).resolve()
+        self.path = (Path(__file__).resolve().parent.parent / "workspace" / "v6-test-scratch" / uuid.uuid4().hex).resolve()
 
     def __enter__(self) -> Path:
         self.path.mkdir(parents=True, exist_ok=True)
@@ -119,7 +119,7 @@ class NativeFakeLLMClient:
 
 class FailingLLMClient:
     class Config:
-        model = "failing-v5-model"
+        model = "failing-v6-model"
 
     def __init__(self) -> None:
         self.config = self.Config()
@@ -157,14 +157,14 @@ class AlwaysInvalidLLMClient(NativeFakeLLMClient):
         return super().chat(system_prompt, messages, **kwargs)
 
 
-def build_service(root: Path, llm_client=None) -> V5Orchestrator:
-    store = InMemoryV5Store()
-    service = V5Orchestrator(store=store, workspace_root=root / "workspace", tenant_id="local-workspace", llm_client=llm_client)
+def build_service(root: Path, llm_client=None) -> V6Orchestrator:
+    store = InMemoryV6Store()
+    service = V6Orchestrator(store=store, workspace_root=root / "workspace", tenant_id="local-workspace", llm_client=llm_client)
     service.bootstrap()
     return service
 
 
-def drain_workers(service: V5Orchestrator, limit: int = 120) -> list[dict]:
+def drain_workers(service: V6Orchestrator, limit: int = 120) -> list[dict]:
     roles = ["requirements", "architect", "planner", "db", "backend", "frontend", "qa", "security", "integration", "review", "repair", "release", "docs"]
     results: list[dict] = []
     for _ in range(limit):
@@ -179,7 +179,7 @@ def drain_workers(service: V5Orchestrator, limit: int = 120) -> list[dict]:
     raise AssertionError("workers did not drain within limit")
 
 
-class V5AgentNativeTests(unittest.TestCase):
+class V6AgentNativeTests(unittest.TestCase):
     def test_ai_native_pipeline_generates_layout_files_patch_sets_and_release(self) -> None:
         with WorkspaceSandbox() as root:
             fake = NativeFakeLLMClient()
@@ -455,8 +455,8 @@ class V5AgentNativeTests(unittest.TestCase):
             run = service.create_run(project["id"])
             drain_workers(service)
             project_root = service.runtime.project_root(project)
-            (project_root / ".v5" / "rollback").mkdir(parents=True)
-            (project_root / ".v5" / "rollback" / "internal.txt").write_text("internal", encoding="utf-8")
+            (project_root / ".v6" / "rollback").mkdir(parents=True)
+            (project_root / ".v6" / "rollback" / "internal.txt").write_text("internal", encoding="utf-8")
             (project_root / ".agent").mkdir(parents=True)
             (project_root / ".agent" / "trace.json").write_text("{}", encoding="utf-8")
             (project_root / "reports").mkdir(parents=True)
@@ -468,7 +468,7 @@ class V5AgentNativeTests(unittest.TestCase):
             self.assertTrue(report["ok"])
             self.assertGreater(report["copied_count"], 0)
             self.assertTrue((target / "web" / "index.html").exists())
-            self.assertFalse((target / ".v5").exists())
+            self.assertFalse((target / ".v6").exists())
             self.assertFalse((target / ".agent").exists())
             self.assertFalse((target / "reports").exists())
             artifacts = service.list_artifacts(run["id"])
@@ -485,7 +485,7 @@ class V5AgentNativeTests(unittest.TestCase):
             client = TestClient(build_app(service, load_config(root)))
             target = root / "exports-api" / "export-api"
 
-            response = client.post(f"/api/v5/runs/{run['id']}/export-delivery", json={"target_path": str(target), "overwrite": False})
+            response = client.post(f"/api/v6/runs/{run['id']}/export-delivery", json={"target_path": str(target), "overwrite": False})
 
             self.assertEqual(response.status_code, 200)
             self.assertTrue(response.json()["ok"])
@@ -515,18 +515,24 @@ class V5AgentNativeTests(unittest.TestCase):
             drain_workers(service)
             client = TestClient(build_app(service, load_config(root)))
 
-            self.assertEqual(client.get("/api/v5/health").json()["kernel"], "v5")
+            self.assertEqual(client.get("/api/v6/health").json()["kernel"], "v6")
             self.assertEqual(client.get("/api/" + "v4/health").status_code, 404)
-            self.assertEqual(client.get(f"/api/v5/runs/{run['id']}/agent-runs").status_code, 200)
-            self.assertEqual(client.get(f"/api/v5/runs/{run['id']}/patch-sets").status_code, 200)
-            self.assertEqual(client.get(f"/api/v5/runs/{run['id']}/agent-contract-report").status_code, 200)
-            self.assertEqual(client.get(f"/api/v5/runs/{run['id']}/patch-transactions").status_code, 200)
-            self.assertEqual(client.get(f"/api/v5/runs/{run['id']}/test-execution").status_code, 200)
-            self.assertEqual(client.get(f"/api/v5/runs/{run['id']}/code-index").status_code, 200)
-            self.assertEqual(client.get(f"/api/v5/runs/{run['id']}/contract-index").status_code, 200)
-            self.assertEqual(client.get(f"/api/v5/runs/{run['id']}/project-layout").status_code, 200)
-            self.assertEqual(client.get(f"/api/v5/runs/{run['id']}/dag").status_code, 200)
-            self.assertEqual(client.get(f"/api/v5/runs/{run['id']}/code-review").status_code, 200)
+            self.assertEqual(client.get(f"/api/v6/runs/{run['id']}/agent-runs").status_code, 200)
+            self.assertEqual(client.get(f"/api/v6/runs/{run['id']}/patch-sets").status_code, 200)
+            self.assertEqual(client.get(f"/api/v6/runs/{run['id']}/agent-contract-report").status_code, 200)
+            self.assertEqual(client.get(f"/api/v6/runs/{run['id']}/patch-transactions").status_code, 200)
+            self.assertEqual(client.get(f"/api/v6/runs/{run['id']}/test-execution").status_code, 200)
+            self.assertEqual(client.get(f"/api/v6/runs/{run['id']}/code-index").status_code, 200)
+            self.assertEqual(client.get(f"/api/v6/runs/{run['id']}/contract-index").status_code, 200)
+            self.assertEqual(client.get(f"/api/v6/runs/{run['id']}/project-layout").status_code, 200)
+            self.assertEqual(client.get(f"/api/v6/runs/{run['id']}/dag").status_code, 200)
+            self.assertEqual(client.get(f"/api/v6/runs/{run['id']}/code-review").status_code, 200)
+            self.assertEqual(client.get(f"/api/v6/runs/{run['id']}/mission-state").status_code, 200)
+            self.assertEqual(client.get(f"/api/v6/runs/{run['id']}/mission-graph").status_code, 200)
+            self.assertEqual(client.get(f"/api/v6/runs/{run['id']}/recovery-trace").status_code, 200)
+            self.assertEqual(client.get(f"/api/v6/runs/{run['id']}/events").status_code, 200)
+            self.assertEqual(client.get(f"/api/v6/runs/{run['id']}/replay-projection").status_code, 200)
+            self.assertEqual(client.get(f"/api/v6/runs/{run['id']}/checkpoint-resume").status_code, 200)
 
     def test_model_settings_api_maps_custom_responses_preset(self) -> None:
         if TestClient is None:
@@ -536,7 +542,7 @@ class V5AgentNativeTests(unittest.TestCase):
             client = TestClient(build_app(service, load_config(root)))
 
             response = client.put(
-                "/api/v5/model-settings",
+                "/api/v6/model-settings",
                 json={
                     "model_provider": "custom",
                     "model": "gpt-5.3-codex",
@@ -572,7 +578,7 @@ class V5AgentNativeTests(unittest.TestCase):
             client = TestClient(build_app(service, load_config(root)))
 
             response = client.put(
-                "/api/v5/model-settings",
+                "/api/v6/model-settings",
                 json={
                     "model_provider": "custom",
                     "model": "not-a-preset-model",
@@ -605,15 +611,15 @@ class V5AgentNativeTests(unittest.TestCase):
     def test_model_settings_test_connection_uses_current_payload(self) -> None:
         if TestClient is None:
             self.skipTest("fastapi test client unavailable")
-        original_client = v5_api.OpenAICompatibleClient
+        original_client = v6_api.OpenAICompatibleClient
         try:
-            v5_api.OpenAICompatibleClient = ContractCheckLLMClient
+            v6_api.OpenAICompatibleClient = ContractCheckLLMClient
             with WorkspaceSandbox() as root:
                 service = build_service(root, NativeFakeLLMClient())
                 client = TestClient(build_app(service, load_config(root)))
 
                 response = client.post(
-                    "/api/v5/model-settings/test",
+                    "/api/v6/model-settings/test",
                     json={
                         "model_provider": "custom",
                         "model": "probe-model",
@@ -636,10 +642,10 @@ class V5AgentNativeTests(unittest.TestCase):
                 self.assertEqual(payload["llm"]["model"], "probe-model")
                 self.assertEqual(payload["llm"]["api_base"], "https://probe.test/v1")
         finally:
-            v5_api.OpenAICompatibleClient = original_client
+            v6_api.OpenAICompatibleClient = original_client
 
     def test_durable_claim_is_role_scoped_and_idempotent(self) -> None:
-        store = InMemoryV5Store()
+        store = InMemoryV6Store()
         store.bootstrap()
         first = store.enqueue_job("local-workspace", {"job_type": "code_generation", "role": "backend", "run_id": "run-1", "resume_key": "run:run-1:package:1", "payload": {}})
         duplicate = store.enqueue_job("local-workspace", {"job_type": "code_generation", "role": "backend", "run_id": "run-1", "resume_key": "run:run-1:package:1", "payload": {}})

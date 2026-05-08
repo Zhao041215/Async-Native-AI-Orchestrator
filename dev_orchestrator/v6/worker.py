@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 import os
@@ -12,8 +12,8 @@ from typing import Any
 
 from dev_orchestrator.config import load_config
 from dev_orchestrator.llm_client import OpenAICompatibleClient
-from dev_orchestrator.v5.models import DEFAULT_TENANT, ROLES, iso_now, new_id
-from dev_orchestrator.v5.service import V5Orchestrator
+from dev_orchestrator.v6.models import DEFAULT_TENANT, ROLES, iso_now, new_id
+from dev_orchestrator.v6.service import V6Orchestrator
 
 
 DEFAULT_WORKER_ROLES = tuple(ROLES)
@@ -79,7 +79,7 @@ class WorkerRunResult:
 class DurableWorker:
     def __init__(
         self,
-        service: V5Orchestrator,
+        service: V6Orchestrator,
         role: str,
         tenant_id: str = DEFAULT_TENANT,
         worker_id: str = "",
@@ -235,7 +235,7 @@ class WorkerSupervisor:
     def _start_role(self, role: str) -> subprocess.Popen[Any]:
         if role not in ROLES:
             raise ValueError(f"unknown supervisor role: {role}")
-        logs_root = self.root_dir / "logs" / "v5-workers"
+        logs_root = self.root_dir / "logs" / "v6-workers"
         logs_root.mkdir(parents=True, exist_ok=True)
         log_path = logs_root / f"{role}.log"
         handle = log_path.open("ab")

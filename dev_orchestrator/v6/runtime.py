@@ -8,7 +8,7 @@ from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any
 
-from dev_orchestrator.v5.models import sha256_bytes, sha256_file, slugify
+from dev_orchestrator.v6.models import sha256_bytes, sha256_file, slugify
 
 
 class PatchValidationError(RuntimeError):
@@ -25,7 +25,7 @@ class AppliedFile:
 
 class AgentFileRuntime:
     _WINDOWS_ABSOLUTE_PATH = re.compile(r"^[A-Za-z]:[\\/]|^\\\\")
-    _FORBIDDEN_PARTS = {".git", "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache", ".v5"}
+    _FORBIDDEN_PARTS = {".git", "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache", ".v6"}
 
     def __init__(self, workspace_root: Path):
         self.workspace_root = workspace_root.resolve()
@@ -39,7 +39,7 @@ class AgentFileRuntime:
     def project_path_status(self, project: dict[str, Any]) -> dict[str, Any]:
         configured = str(project.get("project_path") or "").strip()
         if not configured:
-            root = self._fallback_project_root(project)
+            root = self._default_project_root(project)
             return {"ok": True, "source": "default_workspace", "configured": "", "project_root": str(root), "reason": ""}
         if self._can_use_configured_project_path(configured):
             root = Path(configured).expanduser().resolve()
@@ -59,7 +59,7 @@ class AgentFileRuntime:
                 "source": "unsupported_windows_absolute_path",
                 "configured": configured,
                 "project_root": "",
-                "reason": "This Windows path is outside the mounted workspace visible to the API runtime. Use a relative path such as v5-test01, a path under E:\\...\\workspace\\projects\\..., or an in-container path under /app/workspace/projects.",
+                "reason": "This Windows path is outside the mounted workspace visible to the API runtime. Use a relative path such as v6-test01, a path under E:\\...\\workspace\\projects\\..., or an in-container path under /app/workspace/projects.",
             }
         candidate = (self.workspace_root / Path(configured)).expanduser().resolve()
         if self._is_within(candidate, self.workspace_root):
@@ -212,7 +212,7 @@ class AgentFileRuntime:
             raw += "**"
         return raw
 
-    def _fallback_project_root(self, project: dict[str, Any]) -> Path:
+    def _default_project_root(self, project: dict[str, Any]) -> Path:
         return (self.workspace_root / slugify(project.get("name") or project.get("title") or project["id"])).resolve()
 
     def _can_use_configured_project_path(self, configured: str) -> bool:

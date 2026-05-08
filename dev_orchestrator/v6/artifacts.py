@@ -1,10 +1,10 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 from pathlib import Path
 from typing import Any
 
-from dev_orchestrator.v5.models import new_id, sha256_file, slugify
+from dev_orchestrator.v6.models import new_id, sha256_file, slugify
 
 
 class ArtifactWriter:
@@ -59,7 +59,7 @@ class ArtifactWriter:
 
 def build_manifest(artifacts: list[dict[str, Any]]) -> dict[str, Any]:
     return {
-        "schema_version": "5.0",
+        "schema_version": "6.0",
         "artifact_count": len(artifacts),
         "items": [
             {

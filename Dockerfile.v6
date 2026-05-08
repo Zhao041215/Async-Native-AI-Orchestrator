@@ -2,8 +2,8 @@ FROM docker.1ms.run/library/python:3.12-slim
 
 WORKDIR /app
 
-COPY requirements-v5.txt /app/requirements-v5.txt
-RUN pip install --no-cache-dir -r requirements-v5.txt
+COPY requirements-v6.txt /app/requirements-v6.txt
+RUN pip install --no-cache-dir -r requirements-v6.txt
 
 COPY . /app
 

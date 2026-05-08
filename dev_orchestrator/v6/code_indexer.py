@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from dev_orchestrator.v5.models import sha256_bytes, sha256_file, source_line_count
+from dev_orchestrator.v6.models import sha256_bytes, sha256_file, source_line_count
 
 
 LANG_BY_SUFFIX = {
@@ -27,7 +27,7 @@ def build_code_index(project_root: Path, limit: int = 1000) -> dict[str, Any]:
     files = []
     if project_root.exists():
         for path in sorted(project_root.rglob("*")):
-            if path.is_dir() or ".v5" in path.relative_to(project_root).parts:
+            if path.is_dir() or ".v6" in path.relative_to(project_root).parts:
                 continue
             suffix = path.suffix.lower()
             if suffix not in LANG_BY_SUFFIX:
@@ -47,7 +47,7 @@ def build_code_index(project_root: Path, limit: int = 1000) -> dict[str, Any]:
             )
             if len(files) >= limit:
                 break
-    index = {"schema_version": "5.0", "project_root": str(project_root), "files": files}
+    index = {"schema_version": "6.0", "project_root": str(project_root), "files": files}
     index["index_hash"] = sha256_bytes(str(files).encode("utf-8"))
     return index
 

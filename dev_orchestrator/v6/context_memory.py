@@ -3,10 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from dev_orchestrator.v5.models import sha256_bytes, source_line_count
+from dev_orchestrator.v6.models import sha256_bytes, source_line_count
 
 
-def build_context_snapshot_v2(
+def build_context_snapshot(
     *,
     requirements: dict[str, Any],
     architecture: dict[str, Any],
@@ -16,10 +16,10 @@ def build_context_snapshot_v2(
     contract_index: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     packages = package_plan.get("packages") or []
-    effective_code_index = code_index or {"schema_version": "5.0", "files": _code_index(project_root) if project_root else [], "index_hash": ""}
-    effective_contract_index = contract_index or {"schema_version": "5.0", "contracts": [], "missing_consumers": [], "index_hash": ""}
+    effective_code_index = code_index or {"schema_version": "6.0", "files": _code_index(project_root) if project_root else [], "index_hash": ""}
+    effective_contract_index = contract_index or {"schema_version": "6.0", "contracts": [], "missing_consumers": [], "index_hash": ""}
     snapshot = {
-        "schema_version": "5.0",
+        "schema_version": "6.0",
         "requirements_analysis": requirements,
         "architecture_design": architecture,
         "project_layout": architecture.get("project_layout") or architecture.get("layout") or {},
@@ -47,7 +47,7 @@ def package_context(snapshot: dict[str, Any], package: dict[str, Any]) -> dict[s
     payload = package.get("payload") or package
     package_key = payload.get("package_key", package.get("package_key", ""))
     return {
-        "schema_version": "5.0",
+        "schema_version": "6.0",
         "index_hash": snapshot.get("index_hash", ""),
         "requirements_analysis": snapshot.get("requirements_analysis", {}),
         "project_layout": snapshot.get("project_layout", {}),
@@ -104,7 +104,7 @@ def _code_index(root: Path | None) -> list[dict[str, Any]]:
         return []
     indexed: list[dict[str, Any]] = []
     for path in sorted(root.rglob("*")):
-        if path.is_dir() or ".v5" in path.relative_to(root).parts:
+        if path.is_dir() or ".v6" in path.relative_to(root).parts:
             continue
         if path.suffix.lower() not in {".php", ".py", ".js", ".jsx", ".ts", ".tsx", ".css", ".sql", ".html", ".md", ".json"}:
             continue

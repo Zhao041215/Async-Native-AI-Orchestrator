@@ -1,11 +1,12 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import copy
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from dev_orchestrator.v5.models import DEFAULT_TENANT, new_id, normalize_database_url, utc_now
+from dev_orchestrator.v6.kernel import build_state_transition_event
+from dev_orchestrator.v6.models import DEFAULT_TENANT, new_id, normalize_database_url, utc_now
 
 try:
     from sqlalchemy import (
@@ -178,7 +179,7 @@ class StoreError(RuntimeError):
     pass
 
 
-class V5Store:
+class V6Store:
     def bootstrap(self) -> None:
         raise NotImplementedError
 
@@ -263,13 +264,16 @@ class V5Store:
     def add_event(self, tenant_id: str, project_id: str | None, run_id: str | None, event_type: str, payload: dict[str, Any]) -> dict[str, Any]:
         raise NotImplementedError
 
+    def list_events(self, run_id: str | None = None, event_type: str | None = None) -> list[dict[str, Any]]:
+        raise NotImplementedError
 
-class PostgresV5Store(V5Store):
+
+class PostgresV6Store(V6Store):
     def __init__(self, database_url: str):
         if not database_url:
-            raise StoreError("V5_DATABASE_URL is required")
+            raise StoreError("V6_DATABASE_URL is required")
         if not database_url.startswith(("postgresql://", "postgresql+psycopg://")):
-            raise StoreError("V5 requires a Postgres database URL")
+            raise StoreError("V6 requires a Postgres database URL")
         self.database_url = normalize_database_url(database_url)
         if create_engine is None:
             raise StoreError("SQLAlchemy/psycopg dependencies are not installed")
@@ -311,6 +315,16 @@ class PostgresV5Store(V5Store):
             return [self._clean(item) for item in value]
         return value
 
+    def _run_identity(self, run_id: str | None) -> dict[str, Any]:
+        if not run_id:
+            return {"tenant_id": DEFAULT_TENANT, "project_id": None}
+        table = self.tables["runs"]
+        with self.engine.begin() as conn:
+            row = conn.execute(select(table.c.tenant_id, table.c.project_id).where(table.c.id == run_id)).first()
+        if not row:
+            return {"tenant_id": DEFAULT_TENANT, "project_id": None}
+        return {"tenant_id": row[0] or DEFAULT_TENANT, "project_id": row[1]}
+
     def get_or_create_tenant(self, tenant_id: str = DEFAULT_TENANT) -> dict[str, Any]:
         tenant_id = tenant_id or DEFAULT_TENANT
         table = self.tables["tenants"]
@@ -340,7 +354,9 @@ class PostgresV5Store(V5Store):
         }
         with self.engine.begin() as conn:
             conn.execute(insert(table).values(**row))
-        return self._clean(row)
+        current = self._clean(row)
+        self.add_event(current.get("tenant_id", DEFAULT_TENANT), current.get("project_id"), current.get("id"), "run_created", {"run_id": current.get("id", ""), "initial_projection": current})
+        return current
 
     def list_projects(self, tenant_id: str) -> list[dict[str, Any]]:
         table = self.tables["projects"]
@@ -410,7 +426,7 @@ class PostgresV5Store(V5Store):
         now = utc_now()
         run_id = new_id()
         continuation = {
-            "schema_version": "5.0",
+            "schema_version": "6.0",
             "run_id": run_id,
             "checkpoint": "run_created",
             "current_wave": None,
@@ -449,12 +465,20 @@ class PostgresV5Store(V5Store):
     def update_run(self, run_id: str, **fields: Any) -> dict[str, Any]:
         table = self.tables["runs"]
         fields["updated_at"] = utc_now()
+        previous: dict[str, Any] | None = None
         with self.engine.begin() as conn:
+            previous = self._row(conn.execute(select(table).where(table.c.id == run_id)).first())
+            if previous is None:
+                raise StoreError(f"run not found: {run_id}")
             conn.execute(update(table).where(table.c.id == run_id).values(**fields))
             row = conn.execute(select(table).where(table.c.id == run_id)).first()
         if not row:
             raise StoreError(f"run not found: {run_id}")
-        return self._row(row) or {}
+        current = self._row(row) or {}
+        event = build_state_transition_event(previous, current)
+        if event:
+            self.add_event(current.get("tenant_id", DEFAULT_TENANT), current.get("project_id"), run_id, event["event_type"], event)
+        return current
 
     def upsert_wave(self, run_id: str, wave: dict[str, Any]) -> dict[str, Any]:
         table = self.tables["run_waves"]
@@ -475,7 +499,10 @@ class PostgresV5Store(V5Store):
                 conn.execute(update(table).where(table.c.id == wave["id"]).values(status=row["status"], payload=row["payload"], updated_at=now))
             else:
                 conn.execute(insert(table).values(**row))
-        return self._clean(row)
+        current = self._clean(row)
+        identity = self._run_identity(run_id)
+        self.add_event(identity["tenant_id"], identity["project_id"], run_id, "wave.projected", {"wave_id": current.get("id", ""), "wave_key": current.get("wave_key", ""), "sequence": current.get("sequence", 0), "status": current.get("status", ""), "upserted": True})
+        return current
 
     def list_waves(self, run_id: str) -> list[dict[str, Any]]:
         table = self.tables["run_waves"]
@@ -506,7 +533,10 @@ class PostgresV5Store(V5Store):
                 conn.execute(update(table).where(table.c.id == package["id"]).values(status=row["status"], payload=row["payload"], result=row["result"], updated_at=now))
             else:
                 conn.execute(insert(table).values(**row))
-        return self._clean(row)
+        current = self._clean(row)
+        identity = self._run_identity(run_id)
+        self.add_event(identity["tenant_id"], identity["project_id"], run_id, "work_package.projected", {"work_package_id": current.get("id", ""), "wave_id": current.get("wave_id", ""), "package_key": current.get("package_key", ""), "role": current.get("role", ""), "status": current.get("status", "")})
+        return current
 
     def get_work_package(self, package_id: str) -> dict[str, Any] | None:
         table = self.tables["work_packages"]
@@ -527,7 +557,10 @@ class PostgresV5Store(V5Store):
             row = conn.execute(select(table).where(table.c.id == package_id)).first()
         if not row:
             raise StoreError(f"work package not found: {package_id}")
-        return self._row(row) or {}
+        current = self._row(row) or {}
+        identity = self._run_identity(current.get("run_id"))
+        self.add_event(identity["tenant_id"], identity["project_id"], current.get("run_id"), "work_package.updated", {"work_package_id": current.get("id", ""), "package_key": current.get("package_key", ""), "status": current.get("status", ""), "updated_fields": sorted(fields.keys())})
+        return current
 
     def enqueue_job(self, tenant_id: str, job: dict[str, Any]) -> dict[str, Any]:
         table = self.tables["durable_jobs"]
@@ -562,9 +595,13 @@ class PostgresV5Store(V5Store):
         with self.engine.begin() as conn:
             existing = conn.execute(select(table).where(table.c.resume_key == row["resume_key"])).first()
             if existing:
-                return self._row(existing) or {}
+                current = self._row(existing) or {}
+                self.add_event(current.get("tenant_id", DEFAULT_TENANT), None, current.get("run_id"), "job.enqueue_idempotent_hit", {"job_id": current.get("id", ""), "job_type": current.get("job_type", ""), "role": current.get("role", ""), "resume_key": current.get("resume_key", "")})
+                return current
             conn.execute(insert(table).values(**row))
-        return self._clean(row)
+        current = self._clean(row)
+        self.add_event(current.get("tenant_id", DEFAULT_TENANT), None, current.get("run_id"), "job.enqueued", {"job_id": current.get("id", ""), "job_type": current.get("job_type", ""), "role": current.get("role", ""), "resume_key": current.get("resume_key", ""), "work_package_id": current.get("work_package_id", ""), "wave_id": current.get("wave_id", ""), "max_attempts": current.get("max_attempts", 0)})
+        return current
 
     def claim_job(self, tenant_id: str, role: str, worker_id: str, lease_seconds: int) -> dict[str, Any] | None:
         if text is None:
@@ -596,7 +633,10 @@ class PostgresV5Store(V5Store):
         )
         with self.engine.begin() as conn:
             row = conn.execute(sql, {"tenant_id": tenant_id, "role": role, "worker_id": worker_id, "lease_until": lease_until, "now": now}).first()
-        return self._row(row)
+        current = self._row(row)
+        if current:
+            self.add_event(current.get("tenant_id", DEFAULT_TENANT), None, current.get("run_id"), "job.leased", {"job_id": current.get("id", ""), "job_type": current.get("job_type", ""), "role": current.get("role", ""), "worker_id": current.get("worker_id", ""), "attempts": current.get("attempts", 0), "lease_until": current.get("lease_until", "")})
+        return current
 
     def heartbeat_job(self, job_id: str, worker_id: str, lease_seconds: int) -> dict[str, Any] | None:
         table = self.tables["durable_jobs"]
@@ -608,7 +648,10 @@ class PostgresV5Store(V5Store):
                 .values(heartbeat_at=now, lease_until=now + timedelta(seconds=lease_seconds), updated_at=now)
             )
             row = conn.execute(select(table).where(table.c.id == job_id)).first()
-        return self._row(row)
+        current = self._row(row)
+        if current:
+            self.add_event(current.get("tenant_id", DEFAULT_TENANT), None, current.get("run_id"), "job.heartbeat", {"job_id": current.get("id", ""), "job_type": current.get("job_type", ""), "role": current.get("role", ""), "worker_id": current.get("worker_id", ""), "lease_until": current.get("lease_until", "")})
+        return current
 
     def start_job(self, job_id: str, worker_id: str, lease_seconds: int) -> dict[str, Any] | None:
         table = self.tables["durable_jobs"]
@@ -620,7 +663,10 @@ class PostgresV5Store(V5Store):
                 .values(status="running", heartbeat_at=now, lease_until=now + timedelta(seconds=lease_seconds), updated_at=now)
             )
             row = conn.execute(select(table).where(table.c.id == job_id)).first()
-        return self._row(row)
+        current = self._row(row)
+        if current:
+            self.add_event(current.get("tenant_id", DEFAULT_TENANT), None, current.get("run_id"), "job.started", {"job_id": current.get("id", ""), "job_type": current.get("job_type", ""), "role": current.get("role", ""), "worker_id": current.get("worker_id", ""), "lease_until": current.get("lease_until", "")})
+        return current
 
     def finish_job(self, job_id: str, worker_id: str, result: dict[str, Any]) -> dict[str, Any]:
         table = self.tables["durable_jobs"]
@@ -634,7 +680,9 @@ class PostgresV5Store(V5Store):
             row = conn.execute(select(table).where(table.c.id == job_id)).first()
         if not row:
             raise StoreError(f"job not found: {job_id}")
-        return self._row(row) or {}
+        current = self._row(row) or {}
+        self.add_event(current.get("tenant_id", DEFAULT_TENANT), None, current.get("run_id"), "job.completed", {"job_id": current.get("id", ""), "job_type": current.get("job_type", ""), "role": current.get("role", ""), "worker_id": current.get("worker_id", ""), "result_keys": sorted((result or {}).keys())})
+        return current
 
     def fail_job(self, job_id: str, worker_id: str, error: str, retryable: bool = True) -> dict[str, Any]:
         table = self.tables["durable_jobs"]
@@ -651,19 +699,26 @@ class PostgresV5Store(V5Store):
                 .values(status=status, last_error=error[:2000], worker_id="", lease_until=None, heartbeat_at=now, updated_at=now)
             )
             updated_row = conn.execute(select(table).where(table.c.id == job_id)).first()
-        return self._row(updated_row) or {}
+        current = self._row(updated_row) or {}
+        self.add_event(current.get("tenant_id", DEFAULT_TENANT), None, current.get("run_id"), "job.failed", {"job_id": current.get("id", ""), "job_type": current.get("job_type", ""), "role": current.get("role", ""), "worker_id": worker_id, "status": current.get("status", ""), "retryable": bool(retryable), "error": error[:2000]})
+        return current
 
     def requeue_expired_jobs(self, tenant_id: str) -> int:
         table = self.tables["durable_jobs"]
         now = utc_now()
+        recovered: list[dict[str, Any]] = []
         with self.engine.begin() as conn:
             rows = conn.execute(select(table).where(and_(table.c.tenant_id == tenant_id, table.c.status.in_(("leased", "running")), table.c.lease_until < now))).all()
             count = 0
             for row in rows:
                 item = self._row(row) or {}
+                previous_status = item.get("status", "")
                 status = "retry" if item["attempts"] < item["max_attempts"] else "dead_letter"
                 conn.execute(update(table).where(table.c.id == item["id"]).values(status=status, worker_id="", lease_until=None, updated_at=now))
+                recovered.append({**item, "status": status, "previous_status": previous_status})
                 count += 1
+        for item in recovered:
+            self.add_event(item.get("tenant_id", DEFAULT_TENANT), None, item.get("run_id"), "job.requeued_after_expiry" if item.get("status") == "retry" else "job.dead_lettered_after_expiry", {"job_id": item.get("id", ""), "job_type": item.get("job_type", ""), "role": item.get("role", ""), "previous_status": item.get("previous_status", ""), "attempts": item.get("attempts", 0), "max_attempts": item.get("max_attempts", 0)})
         return count
 
     def list_jobs(self, run_id: str | None = None, status: str | None = None) -> list[dict[str, Any]]:
@@ -673,6 +728,17 @@ class PostgresV5Store(V5Store):
             statement = statement.where(table.c.run_id == run_id)
         if status:
             statement = statement.where(table.c.status == status)
+        with self.engine.begin() as conn:
+            rows = conn.execute(statement).all()
+        return [self._row(row) or {} for row in rows]
+
+    def list_events(self, run_id: str | None = None, event_type: str | None = None) -> list[dict[str, Any]]:
+        table = self.tables["events"]
+        statement = select(table).order_by(table.c.created_at.asc())
+        if run_id:
+            statement = statement.where(table.c.run_id == run_id)
+        if event_type:
+            statement = statement.where(table.c.kind == event_type)
         with self.engine.begin() as conn:
             rows = conn.execute(statement).all()
         return [self._row(row) or {} for row in rows]
@@ -695,7 +761,9 @@ class PostgresV5Store(V5Store):
         }
         with self.engine.begin() as conn:
             conn.execute(insert(table).values(**row))
-        return self._clean(row)
+        current = self._clean(row)
+        self.add_event(current.get("tenant_id", DEFAULT_TENANT), current.get("project_id"), current.get("run_id"), "artifact.recorded", {"artifact_id": current.get("id", ""), "kind": current.get("kind", ""), "path": current.get("path", ""), "sha256": current.get("sha256", ""), "size": current.get("size", 0)})
+        return current
 
     def list_artifacts(self, run_id: str) -> list[dict[str, Any]]:
         table = self.tables["artifacts"]
@@ -712,7 +780,7 @@ class PostgresV5Store(V5Store):
             "sha256": "",
             "size": 0,
             "payload": payload,
-            "metadata": {"event_type": event_type},
+            "metadata": {"event_type": event_type, "schema_version": "6.0"},
         }
         table = self.tables["events"]
         now = utc_now()
@@ -734,7 +802,7 @@ class PostgresV5Store(V5Store):
         return self._clean(row)
 
 
-class InMemoryV5Store(V5Store):
+class InMemoryV6Store(V6Store):
     def __init__(self):
         self.tenants: dict[str, dict[str, Any]] = {}
         self.projects: dict[str, dict[str, Any]] = {}
@@ -750,6 +818,12 @@ class InMemoryV5Store(V5Store):
 
     def _copy(self, value: Any) -> Any:
         return copy.deepcopy(value)
+
+    def _run_identity(self, run_id: str | None) -> dict[str, Any]:
+        run = self.runs.get(run_id or "")
+        if not run:
+            return {"tenant_id": DEFAULT_TENANT, "project_id": None}
+        return {"tenant_id": run.get("tenant_id") or DEFAULT_TENANT, "project_id": run.get("project_id")}
 
     def get_or_create_tenant(self, tenant_id: str = DEFAULT_TENANT) -> dict[str, Any]:
         tenant_id = tenant_id or DEFAULT_TENANT
@@ -814,7 +888,7 @@ class InMemoryV5Store(V5Store):
         now = utc_now().isoformat()
         run_id = new_id()
         continuation = {
-            "schema_version": "5.0",
+            "schema_version": "6.0",
             "run_id": run_id,
             "checkpoint": "run_created",
             "current_wave": None,
@@ -842,7 +916,9 @@ class InMemoryV5Store(V5Store):
             "updated_at": now,
         }
         self.runs[run_id] = row
-        return self._copy(row)
+        current = self._copy(row)
+        self.add_event(current.get("tenant_id", DEFAULT_TENANT), current.get("project_id"), current.get("id"), "run_created", {"run_id": current.get("id", ""), "initial_projection": current})
+        return current
 
     def get_run(self, run_id: str) -> dict[str, Any] | None:
         run = self.runs.get(run_id)
@@ -851,9 +927,14 @@ class InMemoryV5Store(V5Store):
     def update_run(self, run_id: str, **fields: Any) -> dict[str, Any]:
         if run_id not in self.runs:
             raise StoreError(f"run not found: {run_id}")
+        previous = self._copy(self.runs[run_id])
         self.runs[run_id].update(fields)
         self.runs[run_id]["updated_at"] = utc_now().isoformat()
-        return self._copy(self.runs[run_id])
+        current = self._copy(self.runs[run_id])
+        event = build_state_transition_event(previous, current)
+        if event:
+            self.add_event(current.get("tenant_id", DEFAULT_TENANT), current.get("project_id"), run_id, event["event_type"], event)
+        return current
 
     def upsert_wave(self, run_id: str, wave: dict[str, Any]) -> dict[str, Any]:
         now = utc_now().isoformat()
@@ -868,7 +949,10 @@ class InMemoryV5Store(V5Store):
             "updated_at": now,
         }
         self.waves[row["id"]] = row
-        return self._copy(row)
+        current = self._copy(row)
+        identity = self._run_identity(run_id)
+        self.add_event(identity["tenant_id"], identity["project_id"], run_id, "wave.projected", {"wave_id": current.get("id", ""), "wave_key": current.get("wave_key", ""), "sequence": current.get("sequence", 0), "status": current.get("status", ""), "upserted": True})
+        return current
 
     def list_waves(self, run_id: str) -> list[dict[str, Any]]:
         return [self._copy(wave) for wave in sorted(self.waves.values(), key=lambda item: item["sequence"]) if wave["run_id"] == run_id]
@@ -890,7 +974,10 @@ class InMemoryV5Store(V5Store):
             "updated_at": now,
         }
         self.packages[row["id"]] = row
-        return self._copy(row)
+        current = self._copy(row)
+        identity = self._run_identity(run_id)
+        self.add_event(identity["tenant_id"], identity["project_id"], run_id, "work_package.projected", {"work_package_id": current.get("id", ""), "wave_id": current.get("wave_id", ""), "package_key": current.get("package_key", ""), "role": current.get("role", ""), "status": current.get("status", "")})
+        return current
 
     def get_work_package(self, package_id: str) -> dict[str, Any] | None:
         package = self.packages.get(package_id)
@@ -904,12 +991,17 @@ class InMemoryV5Store(V5Store):
             raise StoreError(f"work package not found: {package_id}")
         self.packages[package_id].update(fields)
         self.packages[package_id]["updated_at"] = utc_now().isoformat()
-        return self._copy(self.packages[package_id])
+        current = self._copy(self.packages[package_id])
+        identity = self._run_identity(current.get("run_id"))
+        self.add_event(identity["tenant_id"], identity["project_id"], current.get("run_id"), "work_package.updated", {"work_package_id": current.get("id", ""), "package_key": current.get("package_key", ""), "status": current.get("status", ""), "updated_fields": sorted(fields.keys())})
+        return current
 
     def enqueue_job(self, tenant_id: str, job: dict[str, Any]) -> dict[str, Any]:
         for existing in self.jobs.values():
             if existing["resume_key"] == job["resume_key"]:
-                return self._copy(existing)
+                current = self._copy(existing)
+                self.add_event(current.get("tenant_id", DEFAULT_TENANT), None, current.get("run_id"), "job.enqueue_idempotent_hit", {"job_id": current.get("id", ""), "job_type": current.get("job_type", ""), "role": current.get("role", ""), "resume_key": current.get("resume_key", "")})
+                return current
         now = utc_now().isoformat()
         row = {
             "id": job.get("id") or new_id(),
@@ -939,7 +1031,9 @@ class InMemoryV5Store(V5Store):
             "updated_at": now,
         }
         self.jobs[row["id"]] = row
-        return self._copy(row)
+        current = self._copy(row)
+        self.add_event(current.get("tenant_id", DEFAULT_TENANT), None, current.get("run_id"), "job.enqueued", {"job_id": current.get("id", ""), "job_type": current.get("job_type", ""), "role": current.get("role", ""), "resume_key": current.get("resume_key", ""), "work_package_id": current.get("work_package_id", ""), "wave_id": current.get("wave_id", ""), "max_attempts": current.get("max_attempts", 0)})
+        return current
 
     def claim_job(self, tenant_id: str, role: str, worker_id: str, lease_seconds: int) -> dict[str, Any] | None:
         for job in sorted(self.jobs.values(), key=lambda item: item["created_at"]):
@@ -951,7 +1045,9 @@ class InMemoryV5Store(V5Store):
                 job["lease_until"] = lease_until.isoformat()
                 job["heartbeat_at"] = utc_now().isoformat()
                 job["updated_at"] = utc_now().isoformat()
-                return self._copy(job)
+                current = self._copy(job)
+                self.add_event(current.get("tenant_id", DEFAULT_TENANT), None, current.get("run_id"), "job.leased", {"job_id": current.get("id", ""), "job_type": current.get("job_type", ""), "role": current.get("role", ""), "worker_id": current.get("worker_id", ""), "attempts": current.get("attempts", 0), "lease_until": current.get("lease_until", "")})
+                return current
         return None
 
     def heartbeat_job(self, job_id: str, worker_id: str, lease_seconds: int) -> dict[str, Any] | None:
@@ -961,7 +1057,9 @@ class InMemoryV5Store(V5Store):
         job["heartbeat_at"] = utc_now().isoformat()
         job["lease_until"] = (datetime.now(timezone.utc) + timedelta(seconds=lease_seconds)).isoformat()
         job["updated_at"] = utc_now().isoformat()
-        return self._copy(job)
+        current = self._copy(job)
+        self.add_event(current.get("tenant_id", DEFAULT_TENANT), None, current.get("run_id"), "job.heartbeat", {"job_id": current.get("id", ""), "job_type": current.get("job_type", ""), "role": current.get("role", ""), "worker_id": current.get("worker_id", ""), "lease_until": current.get("lease_until", "")})
+        return current
 
     def start_job(self, job_id: str, worker_id: str, lease_seconds: int) -> dict[str, Any] | None:
         job = self.jobs.get(job_id)
@@ -971,7 +1069,9 @@ class InMemoryV5Store(V5Store):
         job["heartbeat_at"] = utc_now().isoformat()
         job["lease_until"] = (datetime.now(timezone.utc) + timedelta(seconds=lease_seconds)).isoformat()
         job["updated_at"] = utc_now().isoformat()
-        return self._copy(job)
+        current = self._copy(job)
+        self.add_event(current.get("tenant_id", DEFAULT_TENANT), None, current.get("run_id"), "job.started", {"job_id": current.get("id", ""), "job_type": current.get("job_type", ""), "role": current.get("role", ""), "worker_id": current.get("worker_id", ""), "lease_until": current.get("lease_until", "")})
+        return current
 
     def finish_job(self, job_id: str, worker_id: str, result: dict[str, Any]) -> dict[str, Any]:
         job = self.jobs[job_id]
@@ -981,7 +1081,9 @@ class InMemoryV5Store(V5Store):
         job["result"] = result
         job["lease_until"] = None
         job["updated_at"] = utc_now().isoformat()
-        return self._copy(job)
+        current = self._copy(job)
+        self.add_event(current.get("tenant_id", DEFAULT_TENANT), None, current.get("run_id"), "job.completed", {"job_id": current.get("id", ""), "job_type": current.get("job_type", ""), "role": current.get("role", ""), "worker_id": current.get("worker_id", ""), "result_keys": sorted((result or {}).keys())})
+        return current
 
     def fail_job(self, job_id: str, worker_id: str, error: str, retryable: bool = True) -> dict[str, Any]:
         job = self.jobs[job_id]
@@ -992,21 +1094,28 @@ class InMemoryV5Store(V5Store):
         job["lease_until"] = None
         job["last_error"] = error[:2000]
         job["updated_at"] = utc_now().isoformat()
-        return self._copy(job)
+        current = self._copy(job)
+        self.add_event(current.get("tenant_id", DEFAULT_TENANT), None, current.get("run_id"), "job.failed", {"job_id": current.get("id", ""), "job_type": current.get("job_type", ""), "role": current.get("role", ""), "worker_id": worker_id, "status": current.get("status", ""), "retryable": bool(retryable), "error": error[:2000]})
+        return current
 
     def requeue_expired_jobs(self, tenant_id: str) -> int:
         now = datetime.now(timezone.utc)
         count = 0
+        recovered: list[dict[str, Any]] = []
         for job in self.jobs.values():
             lease_until = job.get("lease_until")
             if not lease_until:
                 continue
             if job["tenant_id"] == tenant_id and job["status"] in {"leased", "running"} and datetime.fromisoformat(lease_until) < now:
+                previous_status = job["status"]
                 job["status"] = "retry" if job["attempts"] < job["max_attempts"] else "dead_letter"
                 job["worker_id"] = ""
                 job["lease_until"] = None
                 job["updated_at"] = utc_now().isoformat()
+                recovered.append({**self._copy(job), "previous_status": previous_status})
                 count += 1
+        for item in recovered:
+            self.add_event(item.get("tenant_id", DEFAULT_TENANT), None, item.get("run_id"), "job.requeued_after_expiry" if item.get("status") == "retry" else "job.dead_lettered_after_expiry", {"job_id": item.get("id", ""), "job_type": item.get("job_type", ""), "role": item.get("role", ""), "previous_status": item.get("previous_status", ""), "attempts": item.get("attempts", 0), "max_attempts": item.get("max_attempts", 0)})
         return count
 
     def list_jobs(self, run_id: str | None = None, status: str | None = None) -> list[dict[str, Any]]:
@@ -1016,6 +1125,14 @@ class InMemoryV5Store(V5Store):
         if status:
             jobs = [job for job in jobs if job["status"] == status]
         return [self._copy(job) for job in sorted(jobs, key=lambda item: item["created_at"])]
+
+    def list_events(self, run_id: str | None = None, event_type: str | None = None) -> list[dict[str, Any]]:
+        events = list(self.events.values())
+        if run_id:
+            events = [event for event in events if event["run_id"] == run_id]
+        if event_type:
+            events = [event for event in events if event["kind"] == event_type]
+        return [self._copy(event) for event in sorted(events, key=lambda item: item["created_at"])]
 
     def add_artifact(self, tenant_id: str, project_id: str | None, artifact: dict[str, Any]) -> dict[str, Any]:
         row = {
@@ -1032,7 +1149,9 @@ class InMemoryV5Store(V5Store):
             "created_at": utc_now().isoformat(),
         }
         self.artifacts[row["id"]] = row
-        return self._copy(row)
+        current = self._copy(row)
+        self.add_event(current.get("tenant_id", DEFAULT_TENANT), current.get("project_id"), current.get("run_id"), "artifact.recorded", {"artifact_id": current.get("id", ""), "kind": current.get("kind", ""), "path": current.get("path", ""), "sha256": current.get("sha256", ""), "size": current.get("size", 0)})
+        return current
 
     def list_artifacts(self, run_id: str) -> list[dict[str, Any]]:
         return [self._copy(artifact) for artifact in self.artifacts.values() if artifact["run_id"] == run_id]
@@ -1048,13 +1167,13 @@ class InMemoryV5Store(V5Store):
             "sha256": "",
             "size": 0,
             "payload": payload,
-            "metadata": {"event_type": event_type},
+            "metadata": {"event_type": event_type, "schema_version": "6.0"},
             "created_at": utc_now().isoformat(),
         }
         self.events[row["id"]] = row
         return self._copy(row)
 
 
-def build_store(database_url: str) -> V5Store:
-    return PostgresV5Store(database_url)
+def build_store(database_url: str) -> V6Store:
+    return PostgresV6Store(database_url)
 

@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import hashlib
 import threading
@@ -7,8 +7,10 @@ from dataclasses import dataclass
 from typing import Any
 
 from dev_orchestrator.llm_client import LLMError, OpenAICompatibleClient
-from dev_orchestrator.v5.llm_policy import AITaskBudget, get_ai_task_budget
-from dev_orchestrator.v5.models import new_id, stable_json
+from dev_orchestrator.v6.llm_policy import AITaskBudget, get_ai_task_budget
+from dev_orchestrator.v6.models import new_id, stable_json
+from dev_orchestrator.v6.profiles import resolve_scale_profile
+from dev_orchestrator.v6.provider_resilience import ProviderHealthMap, classify_provider_error, provider_identity
 
 
 @dataclass
@@ -26,6 +28,7 @@ class AICallScheduler:
         self._provider = threading.BoundedSemaphore(self.limits.provider_concurrency)
         self._run_locks: dict[str, threading.BoundedSemaphore] = {}
         self._lock = threading.Lock()
+        self.provider_health = ProviderHealthMap()
 
     def call(
         self,
@@ -38,7 +41,7 @@ class AICallScheduler:
         task_kind: str,
         required: bool,
     ) -> dict[str, Any]:
-        budget = get_ai_task_budget(task_kind)
+        budget = self._budget_for_job(task_kind, job)
         agent_run_id = new_id()
         prompt_text = stable_json(user_payload)
         context_hash = hashlib.sha256(prompt_text.encode("utf-8")).hexdigest()
@@ -59,11 +62,15 @@ class AICallScheduler:
                 )
             except LLMError as exc:
                 elapsed_ms = round((time.time() - started) * 1000)
-                return self._failed(agent_run_id, run_id, role, job, budget, context_hash, elapsed_ms, str(exc))
+                provider = provider_identity(self.llm_client)
+                classification = classify_provider_error(exc)
+                health = self.provider_health.record_failure(provider, str(exc), classification)
+                return self._failed(agent_run_id, run_id, role, job, budget, context_hash, elapsed_ms, str(exc), classification, health)
 
         elapsed_ms = round((time.time() - started) * 1000)
+        provider_health = self.provider_health.record_success(provider_identity(self.llm_client))
         return {
-            "schema_version": "5.0",
+            "schema_version": "6.0",
             "ok": True,
             "agent_run_id": agent_run_id,
             "role": role,
@@ -84,7 +91,14 @@ class AICallScheduler:
             "prompt_summary": self._summary(user_payload),
             "raw_response": raw,
             "output_hash": hashlib.sha256(str(raw).encode("utf-8")).hexdigest(),
+            "provider_health": provider_health,
         }
+
+    def _budget_for_job(self, task_kind: str, job: dict[str, Any]) -> AITaskBudget:
+        budget = get_ai_task_budget(task_kind)
+        profile_payload = (job.get("payload") or {}).get("scale_profile") or job.get("scale_profile") or {}
+        profile = resolve_scale_profile(profile_payload)
+        return budget.with_retry_attempts(max(budget.retry_attempts, int(profile.get("ai_retry_attempts") or budget.retry_attempts)))
 
     def _run_semaphore(self, run_id: str) -> threading.BoundedSemaphore:
         with self._lock:
@@ -103,7 +117,7 @@ class AICallScheduler:
         required: bool,
     ) -> dict[str, Any]:
         return {
-            "schema_version": "5.0",
+            "schema_version": "6.0",
             "ok": True,
             "skipped": True,
             "reason": "llm_client_not_configured_for_local_test",
@@ -132,9 +146,12 @@ class AICallScheduler:
         context_hash: str,
         elapsed_ms: int,
         error: str,
+        classification: dict[str, Any] | None = None,
+        provider_health: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
+        classification = classification or classify_provider_error(error)
         return {
-            "schema_version": "5.0",
+            "schema_version": "6.0",
             "ok": False,
             "agent_run_id": agent_run_id,
             "role": role,
@@ -153,6 +170,11 @@ class AICallScheduler:
             "budget": budget.to_dict(),
             "context_hash": context_hash,
             "error": error,
+            "error_kind": classification.get("error_kind", "provider_unknown"),
+            "retryable": bool(classification.get("retryable")),
+            "retry_reason": classification.get("reason", ""),
+            "retry_after_seconds": int(classification.get("backoff_seconds") or 0),
+            "provider_health": provider_health or {},
         }
 
     def _summary(self, payload: dict[str, Any]) -> dict[str, Any]:

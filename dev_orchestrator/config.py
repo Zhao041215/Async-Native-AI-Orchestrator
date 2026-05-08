@@ -49,7 +49,7 @@ class RuntimeConfig:
     max_conflicts_per_task: int = 8
     max_resume_attempts_per_task: int = 6
     max_failures_per_task: int = 8
-    deployment_mode: str = "docker-compose-v5"
+    deployment_mode: str = "docker-compose-v6"
     queue_mode: str = "postgres-durable"
     sandbox_mode: str = "tenant-governed-worktree"
 
@@ -70,7 +70,7 @@ class IdentityConfig:
 class ProductionScaffoldConfig:
     queue_backend: str = "postgres-durable"
     worker_model: str = "multi-process-worker"
-    deployment_target: str = "docker-compose-v5"
+    deployment_target: str = "docker-compose-v6"
     diagnostics_enabled: bool = True
     future_auth_enabled: bool = True
 
@@ -246,8 +246,8 @@ def _normalize_production_payload(payload: dict) -> dict:
         "hosted-worker": "multi-process-worker",
     }
     deployment_aliases = {
-        "local-dev": "docker-compose-v5",
-        "local": "docker-compose-v5",
+        "local-dev": "docker-compose-v6",
+        "local": "docker-compose-v6",
     }
     normalized["queue_backend"] = queue_aliases.get(
         str(normalized.get("queue_backend", "")).strip().lower(),
@@ -396,7 +396,7 @@ def load_config(root_dir: Path) -> AppConfig:
     if env_supports_chat is not None:
         llm.supports_chat_completions = env_supports_chat
     runtime = RuntimeConfig(**_normalize_runtime_payload(_deep_get(payload, "runtime", {})))
-    env_database_url = os.environ.get("V5_DATABASE_URL") or os.environ.get("DATABASE_URL")
+    env_database_url = os.environ.get("V6_DATABASE_URL") or os.environ.get("DATABASE_URL")
     if env_database_url:
         runtime.database_url = env_database_url
     identity = IdentityConfig(**_normalize_identity_payload(_deep_get(payload, "identity", {})))

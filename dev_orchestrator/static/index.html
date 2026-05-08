@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>V5 AI-Agent Workbench</title>
-  <link rel="stylesheet" href="/static/styles.css?v=20260508g">
+  <title>V6 AI-Agent Workbench</title>
+  <link rel="stylesheet" href="/static/styles.css?v=20260508h">
 </head>
 <body>
-  <main class="v5-shell">
+  <main class="v6-shell">
     <header class="topbar">
       <div>
-        <p class="eyebrow">Dev Orchestrator V5</p>
+        <p class="eyebrow">Dev Orchestrator V6</p>
         <h1>AI-Agent Delivery Workbench</h1>
       </div>
       <div class="status-strip">
@@ -64,14 +64,17 @@
         <div id="run-summary" class="summary"></div>
         <div id="run-actions" class="action-strip"></div>
         <form id="delivery-export-form" class="export-strip">
-          <label>Export delivery path<input name="target_path" placeholder="exports/v5-test01 or E:\ProgramProjects\AI_Agent\deliveries\v5-test01"></label>
+          <label>Export delivery path<input name="target_path" placeholder="exports/v6-test01 or E:\ProgramProjects\AI_Agent\deliveries\v6-test01"></label>
           <label class="checkline export-overwrite"><input name="overwrite" type="checkbox"> Overwrite target</label>
           <button id="export-delivery" type="submit" class="subtle">Export delivery</button>
           <div id="delivery-export-status" class="form-status" role="status" aria-live="polite"></div>
         </form>
 
-        <h3>V5 Control Plane</h3>
-        <div id="v5-summary" class="summary wide"></div>
+        <h3>V6 Control Plane</h3>
+        <div id="v6-summary" class="summary wide"></div>
+
+        <h3>V6 Mission Kernel</h3>
+        <div id="v6-mission" class="summary wide"></div>
 
         <h3>Contract Validation</h3>
         <div id="contract-validation" class="summary wide"></div>
@@ -156,6 +159,6 @@
       </section>
     </section>
   </main>
-  <script src="/static/app.js?v=20260508g"></script>
+  <script src="/static/app.js?v=20260508h"></script>
 </body>
 </html>

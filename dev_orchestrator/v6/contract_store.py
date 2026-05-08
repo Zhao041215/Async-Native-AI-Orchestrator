@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from dev_orchestrator.v5.models import sha256_bytes
+from dev_orchestrator.v6.models import sha256_bytes
 
 
 def build_contract_index(
@@ -37,7 +37,7 @@ def build_contract_index(
         deduped.append(contract)
     missing_consumers = _assign_consumers(package_plan.get("packages") or [], deduped)
     result = {
-        "schema_version": "5.0",
+        "schema_version": "6.0",
         "contracts": deduped,
         "missing_consumers": missing_consumers,
         "patch_set_count": len(patch_sets),

@@ -4,7 +4,8 @@ from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any
 
-from dev_orchestrator.v5.models import FORBIDDEN_RELEASE_NAMES, effective_loc
+from dev_orchestrator.v6.models import FORBIDDEN_RELEASE_NAMES, effective_loc
+from dev_orchestrator.v6.quality import augment_quality_report
 
 
 HR_FORBIDDEN_TERMS = ("employee", "employees", "personnel", "department", "hire_date")
@@ -106,8 +107,8 @@ def validate_ai_native_project(
     gates.append(_gate("effective_loc_gate", loc["total"] > 0, details={"effective_loc": loc["total"]}, severity="major"))
 
     critical_failures = [gate for gate in gates if not gate["ok"] and gate["severity"] == "critical"]
-    return {
-        "schema_version": "5.0",
+    report = {
+        "schema_version": "6.0",
         "ok": not critical_failures,
         "status": "GO" if not critical_failures else "NO_GO",
         "project_root": str(project_root),
@@ -116,11 +117,12 @@ def validate_ai_native_project(
         "effective_loc": loc,
         "template_leak_report": template_report,
     }
+    return augment_quality_report(report, run_context)
 
 
 def build_deploy_guide(layout: dict[str, Any], release_notes: dict[str, Any], quality_report: dict[str, Any]) -> dict[str, Any]:
     return {
-        "schema_version": "5.0",
+        "schema_version": "6.0",
         "generated_by": "release_agent",
         "delivery_root": layout.get("delivery_root", ""),
         "entrypoints": layout.get("entrypoints", []),
@@ -143,7 +145,7 @@ def build_template_leak_report(project_root: Path, requirements_text: str) -> di
     if not hr_allowed:
         leaks = [term for term in HR_FORBIDDEN_TERMS if term in text]
     return {
-        "schema_version": "5.0",
+        "schema_version": "6.0",
         "ok": not leaks,
         "leaks": leaks,
         "hr_allowed": hr_allowed,
@@ -216,7 +218,7 @@ def _project_files(project_root: Path) -> list[str]:
         if path.is_dir():
             continue
         relative = str(path.relative_to(project_root)).replace("\\", "/")
-        if relative.startswith(".v5/"):
+        if relative.startswith(".v6/"):
             continue
         files.append(relative)
     return files

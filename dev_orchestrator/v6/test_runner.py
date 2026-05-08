@@ -57,7 +57,7 @@ def run_validation_commands(project_root: Path, commands: list[str], timeout_sec
     executed = [item for item in results if item["status"] not in {"blocked"}]
     ok = bool(commands) and not safety_failures and all(item["status"] == "passed" for item in executed) and len(executed) == len(commands)
     return {
-        "schema_version": "5.0",
+        "schema_version": "6.0",
         "ok": ok,
         "status": "passed" if ok else "failed",
         "command_count": len(commands),

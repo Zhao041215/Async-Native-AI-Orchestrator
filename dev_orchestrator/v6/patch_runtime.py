@@ -6,8 +6,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from dev_orchestrator.v5.models import new_id, sha256_file
-from dev_orchestrator.v5.runtime import AgentFileRuntime, PatchValidationError
+from dev_orchestrator.v6.models import new_id, sha256_file
+from dev_orchestrator.v6.runtime import AgentFileRuntime, PatchValidationError
 
 
 _GLOBAL_LOCK = threading.Lock()
@@ -54,7 +54,7 @@ class TransactionalPatchRuntime:
             raise PatchValidationError("agent output contains no files")
 
         transaction_id = new_id()
-        staging_root = project_root / ".v5" / "patch-staging" / transaction_id
+        staging_root = project_root / ".v6" / "patch-staging" / transaction_id
         staging_root.mkdir(parents=True, exist_ok=True)
         targets: list[PatchTarget] = []
         conflicts: list[dict[str, Any]] = []
@@ -100,7 +100,7 @@ class TransactionalPatchRuntime:
                     target.staging.write_text(target.content, encoding="utf-8")
             rollback_files: list[dict[str, Any]] = []
             applied_files: list[dict[str, Any]] = []
-            rollback_root = project_root / ".v5" / "rollback" / transaction_id
+            rollback_root = project_root / ".v6" / "rollback" / transaction_id
             for target in targets:
                 rollback_entry = {"path": target.relative_path, "base_sha256": target.base_sha256, "existed": target.target.exists()}
                 if target.target.exists() and target.target.is_file():

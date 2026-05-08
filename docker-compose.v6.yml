@@ -2,12 +2,12 @@ services:
   api:
     build:
       context: .
-      dockerfile: Dockerfile.v5
-    image: ai-agent-v5:local
+      dockerfile: Dockerfile.v6
+    image: ai-agent-v6:local
     working_dir: /app
     command: python run_server.py --api --host 0.0.0.0 --port 8787
     environment:
-      V5_DATABASE_URL: postgresql+psycopg://orchestrator:orchestrator@postgres:5432/orchestrator
+      V6_DATABASE_URL: postgresql+psycopg://orchestrator:orchestrator@postgres:5432/orchestrator
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_API_BASE: ${OPENAI_API_BASE:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-}
@@ -26,12 +26,12 @@ services:
   worker-supervisor:
     build:
       context: .
-      dockerfile: Dockerfile.v5
-    image: ai-agent-v5:local
+      dockerfile: Dockerfile.v6
+    image: ai-agent-v6:local
     working_dir: /app
     command: python run_server.py --worker-supervisor --tenant local-workspace --roles requirements,architect,planner,db,backend,frontend,qa,security,integration,review,repair,release,docs
     environment:
-      V5_DATABASE_URL: postgresql+psycopg://orchestrator:orchestrator@postgres:5432/orchestrator
+      V6_DATABASE_URL: postgresql+psycopg://orchestrator:orchestrator@postgres:5432/orchestrator
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_API_BASE: ${OPENAI_API_BASE:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-}
@@ -46,13 +46,13 @@ services:
       - postgres
 
   postgres:
-    image: ${V5_POSTGRES_IMAGE:-docker.1ms.run/library/postgres:16-alpine}
+    image: ${V6_POSTGRES_IMAGE:-docker.1ms.run/library/postgres:16-alpine}
     environment:
       POSTGRES_USER: orchestrator
       POSTGRES_PASSWORD: orchestrator
       POSTGRES_DB: orchestrator
     volumes:
-      - v5-postgres:/var/lib/postgresql/data
+      - v6-postgres:/var/lib/postgresql/data
 
 volumes:
-  v5-postgres:
+  v6-postgres:

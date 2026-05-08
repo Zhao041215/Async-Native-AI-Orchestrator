@@ -10,7 +10,7 @@ const state = {
   modelSettingsDirty: false,
 };
 
-let API_BASE = "/api/v5";
+let API_BASE = "/api/v6";
 const $ = (id) => document.getElementById(id);
 
 const nodes = {
@@ -34,7 +34,8 @@ const nodes = {
   runTitle: $("run-title"),
   runSummary: $("run-summary"),
   runActions: $("run-actions"),
-  v5Summary: $("v5-summary"),
+  v6Summary: $("v6-summary"),
+  v6Mission: $("v6-mission"),
   contractValidation: $("contract-validation"),
   patchTransactions: $("patch-transactions"),
   testExecution: $("test-execution"),
@@ -69,7 +70,7 @@ const recommendedModelSettings = {
 async function fetchJson(path, options = {}) {
   const pathText = String(path || "");
   let candidate = pathText;
-  if (pathText.startsWith("/api/v5/")) {
+  if (pathText.startsWith("/api/")) {
     candidate = pathText;
   } else if (pathText.startsWith("/")) {
     candidate = `${API_BASE}${pathText}`;
@@ -101,7 +102,7 @@ function statusClass(value) {
   const item = String(value || "").toLowerCase();
   if (["completed", "release_ready", "go", "passed", "running", "ok", "pass"].includes(item)) return "good";
   if (["no_go", "dead_letter", "blocked", "failed", "rollback_failed", "fail", "blocked_for_human_review"].includes(item)) return "bad";
-  if (["queued", "retry", "paused", "leased"].includes(item)) return "live";
+  if (["queued", "retry", "paused", "leased", "recovering", "retry_ai_call"].includes(item)) return "live";
   return "neutral";
 }
 
@@ -296,7 +297,8 @@ function clearDetailView() {
     nodes.exportForm.classList.add("hidden");
   }
   setDeliveryExportStatus("");
-  nodes.v5Summary.innerHTML = "";
+  nodes.v6Summary.innerHTML = "";
+  if (nodes.v6Mission) nodes.v6Mission.innerHTML = "";
   nodes.contractValidation.innerHTML = "";
   nodes.patchTransactions.innerHTML = "";
   nodes.testExecution.innerHTML = "";
@@ -334,12 +336,20 @@ function renderProjectOverview() {
     nodes.exportForm.classList.add("hidden");
   }
   setDeliveryExportStatus("");
-  nodes.v5Summary.innerHTML = `
+  nodes.v6Summary.innerHTML = `
     <div><strong>${esc(projectPath)}</strong><small>project path</small></div>
     <div><strong>${esc(runs.length)}</strong><small>run count</small></div>
     <div><strong>${esc(latestRun?.status || "none")}</strong><small>latest run</small></div>
     <div><strong>${esc(latestRun?.checkpoint || "-")}</strong><small>latest checkpoint</small></div>
   `;
+  if (nodes.v6Mission) {
+    nodes.v6Mission.innerHTML = `
+      <div><strong>${esc(project.scale_profile?.name || project.config?.target_scale || "-")}</strong><small>scale profile</small></div>
+      <div><strong>${esc(project.scale_profile?.kernel_generation || project.config?.kernel_generation || "-")}</strong><small>kernel</small></div>
+      <div><strong>${esc(project.scale_profile?.wave_parallelism || "-")}</strong><small>wave parallelism</small></div>
+      <div><strong>${esc(project.scale_profile?.recovery_policy || "-")}</strong><small>recovery policy</small></div>
+    `;
+  }
   nodes.contractValidation.innerHTML = '<div class="empty">No run selected</div>';
   nodes.patchTransactions.innerHTML = '<div class="empty">No run selected</div>';
   nodes.testExecution.innerHTML = '<div class="empty">No run selected</div>';
@@ -653,7 +663,7 @@ function renderWorkers() {
 }
 
 async function renderRun(runId) {
-  const [run, jobs, continuation, artifacts, aiCalls, waves, packages, quality, contextIndex, repairs, layout, patchSets, contractReport, patchTransactions, testExecution, codeIndex, contractIndex] = await Promise.all([
+  const [run, jobs, continuation, artifacts, aiCalls, waves, packages, quality, contextIndex, repairs, layout, patchSets, contractReport, patchTransactions, testExecution, codeIndex, contractIndex, mission] = await Promise.all([
     fetchJson(`${API_BASE}/runs/${runId}`),
     fetchJson(`${API_BASE}/runs/${runId}/jobs`),
     fetchJson(`${API_BASE}/runs/${runId}/continuation`),
@@ -671,6 +681,7 @@ async function renderRun(runId) {
     fetchJson(`${API_BASE}/runs/${runId}/test-execution`).catch(() => ({ report: null })),
     fetchJson(`${API_BASE}/runs/${runId}/code-index`).catch(() => ({ index: null })),
     fetchJson(`${API_BASE}/runs/${runId}/contract-index`).catch(() => ({ index: null })),
+    fetchJson(`/api/v6/runs/${runId}/mission-state`).catch(() => ({ mission_state: null })),
   ]);
   const current = run.run;
   const qualityReport = quality.report || {};
@@ -688,12 +699,28 @@ async function renderRun(runId) {
   `;
   renderRunActions(current, continuation, artifacts);
   renderDeliveryExport(current);
-  nodes.v5Summary.innerHTML = `
+  nodes.v6Summary.innerHTML = `
     <div><strong>${esc(currentWave)}</strong><small>current wave</small></div>
     <div><strong>${esc(effectiveLoc)} / ${esc(targetLoc)}</strong><small>effective LOC</small></div>
     <div><strong>${esc(aiCalls.items?.length || 0)}</strong><small>agent runs</small></div>
     <div><strong>${esc(patchSets.items?.length || 0)}</strong><small>patch sets</small></div>
   `;
+  const missionState = mission.mission_state || {};
+  const profile = missionState.scale_profile || current.metadata?.scale_profile || {};
+  const recovery = missionState.recovery || {};
+  const provider = missionState.provider_health || {};
+  if (nodes.v6Mission) {
+    nodes.v6Mission.innerHTML = `
+      <div><strong>${esc(profile.name || "-")}</strong><small>scale profile</small></div>
+      <div><strong>${esc(profile.wave_parallelism || "-")}</strong><small>wave width</small></div>
+      <div><strong class="${statusClass(missionState.next_action)}">${esc(missionState.next_action || "-")}</strong><small>mission next</small></div>
+      <div><strong class="${recovery.dead_letter_count ? "bad" : "good"}">${esc(recovery.dead_letter_count || 0)}</strong><small>dead letters</small></div>
+      <div><strong>${esc(recovery.retryable_provider_failures || 0)}</strong><small>retryable provider failures</small></div>
+      <div><strong class="${provider.degraded_count ? "bad" : "good"}">${esc(provider.degraded_count || 0)}</strong><small>degraded providers</small></div>
+      <div><strong>${esc(shortId(missionState.context?.mission_memory_hash || ""))}</strong><small>memory hash</small></div>
+      <div><strong>${esc(profile.recovery_policy || "-")}</strong><small>recovery policy</small></div>
+    `;
+  }
   const contractPayload = contractReport.report || {};
   const patchPayload = patchTransactions.report || {};
   const testPayload = testExecution.report || {};
