@@ -108,7 +108,7 @@ def validate_ai_native_project(
 
     critical_failures = [gate for gate in gates if not gate["ok"] and gate["severity"] == "critical"]
     report = {
-        "schema_version": "6.0",
+        "schema_version": "6.1",
         "ok": not critical_failures,
         "status": "GO" if not critical_failures else "NO_GO",
         "project_root": str(project_root),
@@ -122,7 +122,7 @@ def validate_ai_native_project(
 
 def build_deploy_guide(layout: dict[str, Any], release_notes: dict[str, Any], quality_report: dict[str, Any]) -> dict[str, Any]:
     return {
-        "schema_version": "6.0",
+        "schema_version": "6.1",
         "generated_by": "release_agent",
         "delivery_root": layout.get("delivery_root", ""),
         "entrypoints": layout.get("entrypoints", []),
@@ -145,7 +145,7 @@ def build_template_leak_report(project_root: Path, requirements_text: str) -> di
     if not hr_allowed:
         leaks = [term for term in HR_FORBIDDEN_TERMS if term in text]
     return {
-        "schema_version": "6.0",
+        "schema_version": "6.1",
         "ok": not leaks,
         "leaks": leaks,
         "hr_allowed": hr_allowed,

@@ -18,6 +18,7 @@ from dev_orchestrator.v6.release_quality import validate_ai_native_project
 from dev_orchestrator.v6.runtime import AgentFileRuntime, PatchValidationError
 from dev_orchestrator.v6.service import V6Orchestrator
 from dev_orchestrator.v6.store import InMemoryV6Store
+from dev_orchestrator.v6.system_check import build_v6_system_check
 from dev_orchestrator.v6.test_runner import command_safety, run_validation_commands
 from dev_orchestrator.v6.worker import DurableWorker, WorkerStatusRegistry
 
@@ -516,6 +517,9 @@ class V6AgentNativeTests(unittest.TestCase):
             client = TestClient(build_app(service, load_config(root)))
 
             self.assertEqual(client.get("/api/v6/health").json()["kernel"], "v6")
+            self.assertIn("payload_limits", client.get("/api/v6/ai-policy").json())
+            self.assertIn("parallel_policy", client.get("/api/v6/ai-policy").json())
+            self.assertEqual(client.get("/api/v6/ai-slots").status_code, 200)
             self.assertEqual(client.get("/api/" + "v4/health").status_code, 404)
             self.assertEqual(client.get(f"/api/v6/runs/{run['id']}/agent-runs").status_code, 200)
             self.assertEqual(client.get(f"/api/v6/runs/{run['id']}/patch-sets").status_code, 200)
@@ -533,6 +537,7 @@ class V6AgentNativeTests(unittest.TestCase):
             self.assertEqual(client.get(f"/api/v6/runs/{run['id']}/events").status_code, 200)
             self.assertEqual(client.get(f"/api/v6/runs/{run['id']}/replay-projection").status_code, 200)
             self.assertEqual(client.get(f"/api/v6/runs/{run['id']}/checkpoint-resume").status_code, 200)
+            self.assertEqual(client.get(f"/api/v6/runs/{run['id']}/context-index").status_code, 200)
 
     def test_model_settings_api_maps_custom_responses_preset(self) -> None:
         if TestClient is None:
@@ -670,6 +675,22 @@ class V6AgentNativeTests(unittest.TestCase):
 
             self.assertEqual(workers[0]["role"], "backend")
             self.assertEqual(workers[0]["processed_job_count"], 2)
+
+    def test_system_check_reports_retired_generation_purge_gate(self) -> None:
+        with WorkspaceSandbox() as root:
+            (root / "workspace" / "projects").mkdir(parents=True)
+            (root / "logs").mkdir(parents=True)
+            config = {
+                "runtime": {
+                    "workspace_root": "workspace/projects",
+                    "logs_path": "logs",
+                }
+            }
+
+            report = build_v6_system_check(root, config, strict_db=False)
+
+            self.assertIn("retired_generation_purge", report["checks"])
+            self.assertTrue(report["checks"]["retired_generation_purge"]["ok"])
 
 
 if __name__ == "__main__":

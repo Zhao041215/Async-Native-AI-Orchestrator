@@ -32,10 +32,10 @@ def build_mission_state(
     ]
     mission_graph = build_mission_graph(run=run, project=project, jobs=jobs, waves=waves, packages=packages, artifacts=artifacts, events=events)
     return {
-        "schema_version": "6.0",
+        "schema_version": "6.1",
         "kernel": "v6",
         "kernel_generation": "100k_ai_native",
-        "mission_contract_version": profile.get("mission_contract_version", "6.0"),
+        "mission_contract_version": profile.get("mission_contract_version", "6.1"),
         "tenant_id": run.get("tenant_id", ""),
         "project_id": project.get("id", ""),
         "project_name": project.get("name", ""),

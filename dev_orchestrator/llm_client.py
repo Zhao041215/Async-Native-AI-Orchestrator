@@ -291,6 +291,9 @@ class OpenAICompatibleClient:
         headers = _build_headers(self.config)
 
         data = json.dumps(payload).encode("utf-8")
+        max_body = int(getattr(self.config, "max_request_body_bytes", 0) or 0)
+        if max_body > 0 and len(data) > max_body:
+            raise LLMError(f"Request body too large: {len(data)} bytes exceeds configured limit {max_body} bytes.")
 
         attempts_source = retry_attempts_override if retry_attempts_override is not None else self.config.retry_attempts
         attempts = max(1, int(attempts_source or 1))

@@ -34,6 +34,7 @@ class LLMConfig:
     timeout_seconds: int = 90
     retry_attempts: int = 2
     retry_backoff_seconds: int = 3
+    max_request_body_bytes: int = 950000
 
 
 @dataclass
@@ -355,6 +356,7 @@ def load_config(root_dir: Path) -> AppConfig:
     env_timeout = _env_int(os.environ.get("DEV_ORCHESTRATOR_TIMEOUT_SECONDS"))
     env_retries = _env_int(os.environ.get("DEV_ORCHESTRATOR_RETRY_ATTEMPTS"))
     env_max_tokens = _env_int(os.environ.get("DEV_ORCHESTRATOR_MAX_TOKENS"))
+    env_max_body = _env_int(os.environ.get("DEV_ORCHESTRATOR_MAX_REQUEST_BODY_BYTES"))
     env_temperature = _env_float(os.environ.get("DEV_ORCHESTRATOR_TEMPERATURE"))
     env_supports_responses = _env_bool(os.environ.get("DEV_ORCHESTRATOR_SUPPORTS_RESPONSES"))
     env_supports_chat = _env_bool(os.environ.get("DEV_ORCHESTRATOR_SUPPORTS_CHAT_COMPLETIONS"))
@@ -389,6 +391,8 @@ def load_config(root_dir: Path) -> AppConfig:
         llm.retry_attempts = env_retries
     if env_max_tokens is not None:
         llm.max_tokens = env_max_tokens
+    if env_max_body is not None:
+        llm.max_request_body_bytes = env_max_body
     if env_temperature is not None:
         llm.temperature = env_temperature
     if env_supports_responses is not None:

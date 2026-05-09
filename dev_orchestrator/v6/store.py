@@ -1,20 +1,23 @@
 from __future__ import annotations
 
 import copy
+from time import time as time_time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
 from dev_orchestrator.v6.kernel import build_state_transition_event
-from dev_orchestrator.v6.models import DEFAULT_TENANT, new_id, normalize_database_url, utc_now
+from dev_orchestrator.v6.models import DEFAULT_TENANT, new_id, normalize_database_url, sha256_bytes, stable_json, utc_now
 
 try:
     from sqlalchemy import (
         Boolean,
         Column,
         DateTime,
+        Float,
         Integer,
         MetaData,
+        func,
         String,
         Table,
         Text,
@@ -26,12 +29,13 @@ try:
         text,
         update,
     )
-    from sqlalchemy.dialects.postgresql import JSONB
+    from sqlalchemy.dialects.postgresql import JSONB, insert as pg_insert
     from sqlalchemy.engine import Engine
 except Exception:  # pragma: no cover - lets pure unit tests run without optional deps.
-    Boolean = Column = DateTime = Integer = MetaData = String = Table = Text = None  # type: ignore[assignment]
+    Boolean = Column = DateTime = Float = Integer = MetaData = String = Table = Text = None  # type: ignore[assignment]
     and_ = create_engine = delete = insert = select = text = update = None  # type: ignore[assignment]
     JSONB = None  # type: ignore[assignment]
+    pg_insert = None  # type: ignore[assignment]
     Engine = object  # type: ignore[assignment,misc]
 
 
@@ -172,6 +176,43 @@ def _metadata() -> Any:
             Column("metadata", _json_type(), nullable=False),
             Column("created_at", DateTime(timezone=True), nullable=False),
         )
+    Table(
+        "event_counters",
+        metadata,
+        Column("aggregate_type", String(32), primary_key=True),
+        Column("aggregate_id", String(120), primary_key=True),
+        Column("sequence", Integer, nullable=False),
+        Column("updated_at", DateTime(timezone=True), nullable=False),
+    )
+    Table(
+        "provider_health",
+        metadata,
+        Column("provider", String(500), primary_key=True),
+        Column("status", String(80), nullable=False),
+        Column("success_count", Integer, nullable=False),
+        Column("failure_count", Integer, nullable=False),
+        Column("failure_streak", Integer, nullable=False),
+        Column("last_error_kind", String(120), nullable=False),
+        Column("last_error", Text, nullable=False),
+        Column("last_event_at", Float, nullable=False),
+        Column("retry_after_seconds", Integer, nullable=False),
+        Column("circuit_open_until", Float, nullable=False),
+        Column("updated_at", DateTime(timezone=True), nullable=False),
+    )
+    Table(
+        "ai_call_slots",
+        metadata,
+        Column("id", String(36), primary_key=True),
+        Column("tenant_id", String(120), nullable=False),
+        Column("run_id", String(36), nullable=False),
+        Column("provider", String(500), nullable=False),
+        Column("agent_run_id", String(36), nullable=False),
+        Column("task_kind", String(120), nullable=False),
+        Column("status", String(60), nullable=False),
+        Column("acquired_at", DateTime(timezone=True), nullable=False),
+        Column("lease_until", DateTime(timezone=True), nullable=False),
+        Column("released_at", DateTime(timezone=True), nullable=True),
+    )
     return metadata
 
 
@@ -267,6 +308,39 @@ class V6Store:
     def list_events(self, run_id: str | None = None, event_type: str | None = None) -> list[dict[str, Any]]:
         raise NotImplementedError
 
+    def record_provider_success(self, provider: str) -> dict[str, Any]:
+        raise NotImplementedError
+
+    def record_provider_failure(self, provider: str, error: str, classification: dict[str, Any]) -> dict[str, Any]:
+        raise NotImplementedError
+
+    def provider_health_snapshot(self) -> dict[str, Any]:
+        raise NotImplementedError
+
+    def acquire_ai_slot(
+        self,
+        *,
+        tenant_id: str,
+        run_id: str,
+        provider: str,
+        agent_run_id: str,
+        task_kind: str,
+        provider_limit: int,
+        run_limit: int,
+        wait_seconds: int,
+        lease_seconds: int,
+    ) -> dict[str, Any]:
+        raise NotImplementedError
+
+    def release_ai_slot(self, slot_id: str) -> dict[str, Any]:
+        raise NotImplementedError
+
+    def ai_slot_snapshot(self, run_id: str | None = None) -> dict[str, Any]:
+        raise NotImplementedError
+
+    def purge_retired_generation_records(self) -> dict[str, Any]:
+        raise NotImplementedError
+
 
 class PostgresV6Store(V6Store):
     def __init__(self, database_url: str):
@@ -275,7 +349,7 @@ class PostgresV6Store(V6Store):
         if not database_url.startswith(("postgresql://", "postgresql+psycopg://")):
             raise StoreError("V6 requires a Postgres database URL")
         self.database_url = normalize_database_url(database_url)
-        if create_engine is None:
+        if create_engine is None or pg_insert is None:
             raise StoreError("SQLAlchemy/psycopg dependencies are not installed")
         self.engine: Engine = create_engine(self.database_url, pool_pre_ping=True)
         self.metadata = _metadata()
@@ -296,6 +370,7 @@ class PostgresV6Store(V6Store):
             "ALTER TABLE durable_jobs ADD COLUMN IF NOT EXISTS subsystem VARCHAR(160) NOT NULL DEFAULT ''",
             "ALTER TABLE durable_jobs ADD COLUMN IF NOT EXISTS depends_on JSONB NOT NULL DEFAULT '[]'::jsonb",
             "ALTER TABLE durable_jobs ADD COLUMN IF NOT EXISTS allowed_paths JSONB NOT NULL DEFAULT '[]'::jsonb",
+            "ALTER TABLE provider_health ADD COLUMN IF NOT EXISTS circuit_open_until DOUBLE PRECISION NOT NULL DEFAULT 0",
         )
         with self.engine.begin() as conn:
             for statement in statements:
@@ -324,6 +399,54 @@ class PostgresV6Store(V6Store):
         if not row:
             return {"tenant_id": DEFAULT_TENANT, "project_id": None}
         return {"tenant_id": row[0] or DEFAULT_TENANT, "project_id": row[1]}
+
+    def _event_envelope(
+        self,
+        *,
+        tenant_id: str,
+        project_id: str | None,
+        run_id: str | None,
+        event_type: str,
+        payload: dict[str, Any],
+        metadata: dict[str, Any] | None = None,
+        conn=None,
+    ) -> dict[str, Any]:
+        event_metadata = dict(metadata or {})
+        event_metadata.setdefault("schema_version", "6.1")
+        event_metadata.setdefault("event_type", event_type)
+        aggregate_type = "run" if run_id else ("project" if project_id else "tenant")
+        aggregate_id = run_id or project_id or tenant_id
+        event_metadata.setdefault("aggregate_type", aggregate_type)
+        event_metadata.setdefault("aggregate_id", aggregate_id)
+        event_metadata.setdefault("payload_hash", sha256_bytes(stable_json(payload).encode("utf-8")))
+        event_metadata.setdefault("idempotency_key", str(payload.get("idempotency_key") or payload.get("resume_key") or payload.get("job_id") or ""))
+        if "sequence" in event_metadata and event_metadata["sequence"] not in (None, ""):
+            sequence = max(int(event_metadata["sequence"]) - 1, 0)
+        elif conn is not None:
+            table = self.tables["events"]
+            statement = select(func.count()).select_from(table).where(table.c.run_id == run_id) if run_id else select(func.count()).select_from(table).where(table.c.project_id == project_id) if project_id else select(func.count()).select_from(table).where(table.c.tenant_id == tenant_id)
+            sequence = int(conn.execute(statement).scalar_one())
+        else:
+            sequence = 0
+            table = self.tables["events"]
+            with self.engine.begin() as inner:
+                statement = select(func.count()).select_from(table).where(table.c.run_id == run_id) if run_id else select(func.count()).select_from(table).where(table.c.project_id == project_id) if project_id else select(func.count()).select_from(table).where(table.c.tenant_id == tenant_id)
+                sequence = int(inner.execute(statement).scalar_one())
+        event_metadata["sequence"] = sequence + 1
+        row = {
+            "id": new_id(),
+            "tenant_id": tenant_id or DEFAULT_TENANT,
+            "project_id": project_id,
+            "run_id": run_id,
+            "kind": event_type,
+            "path": "",
+            "sha256": event_metadata["payload_hash"],
+            "size": len(stable_json(payload).encode("utf-8")),
+            "payload": payload,
+            "metadata": event_metadata,
+            "created_at": utc_now(),
+        }
+        return row
 
     def get_or_create_tenant(self, tenant_id: str = DEFAULT_TENANT) -> dict[str, Any]:
         tenant_id = tenant_id or DEFAULT_TENANT
@@ -355,7 +478,7 @@ class PostgresV6Store(V6Store):
         with self.engine.begin() as conn:
             conn.execute(insert(table).values(**row))
         current = self._clean(row)
-        self.add_event(current.get("tenant_id", DEFAULT_TENANT), current.get("project_id"), current.get("id"), "run_created", {"run_id": current.get("id", ""), "initial_projection": current})
+        self.add_event(current.get("tenant_id", DEFAULT_TENANT), current.get("id"), None, "project.created", {"project_id": current.get("id", ""), "name": current.get("name", "")})
         return current
 
     def list_projects(self, tenant_id: str) -> list[dict[str, Any]]:
@@ -426,7 +549,7 @@ class PostgresV6Store(V6Store):
         now = utc_now()
         run_id = new_id()
         continuation = {
-            "schema_version": "6.0",
+            "schema_version": "6.1",
             "run_id": run_id,
             "checkpoint": "run_created",
             "current_wave": None,
@@ -455,7 +578,9 @@ class PostgresV6Store(V6Store):
         }
         with self.engine.begin() as conn:
             conn.execute(insert(table).values(**row))
-        return self._clean(row)
+        current = self._clean(row)
+        self.add_event(current.get("tenant_id", DEFAULT_TENANT), current.get("project_id"), current.get("id"), "run_created", {"run_id": current.get("id", ""), "initial_projection": current})
+        return current
 
     def get_run(self, run_id: str) -> dict[str, Any] | None:
         table = self.tables["runs"]
@@ -743,6 +868,160 @@ class PostgresV6Store(V6Store):
             rows = conn.execute(statement).all()
         return [self._row(row) or {} for row in rows]
 
+    def record_provider_success(self, provider: str) -> dict[str, Any]:
+        provider = provider or "unknown-provider"
+        table = self.tables["provider_health"]
+        now = utc_now()
+        with self.engine.begin() as conn:
+            existing = self._row(conn.execute(select(table).where(table.c.provider == provider)).first())
+            row = {
+                "provider": provider,
+                "status": "healthy",
+                "success_count": int((existing or {}).get("success_count") or 0) + 1,
+                "failure_count": int((existing or {}).get("failure_count") or 0),
+                "failure_streak": 0,
+                "last_error_kind": "",
+                "last_error": str((existing or {}).get("last_error") or ""),
+                "last_event_at": now.timestamp(),
+                "retry_after_seconds": 0,
+                "circuit_open_until": 0.0,
+                "updated_at": now,
+            }
+            if existing:
+                conn.execute(update(table).where(table.c.provider == provider).values(**{key: value for key, value in row.items() if key != "provider"}))
+            else:
+                conn.execute(insert(table).values(**row))
+        return self._clean(row)
+
+    def record_provider_failure(self, provider: str, error: str, classification: dict[str, Any]) -> dict[str, Any]:
+        provider = provider or "unknown-provider"
+        table = self.tables["provider_health"]
+        now = utc_now()
+        with self.engine.begin() as conn:
+            existing = self._row(conn.execute(select(table).where(table.c.provider == provider)).first()) or {}
+            failure_streak = int(existing.get("failure_streak") or 0) + 1
+            retry_after = int(classification.get("backoff_seconds") or 0)
+            retryable = bool(classification.get("retryable"))
+            status = "circuit_open" if retryable and failure_streak >= 5 else "degraded" if retryable else "blocked"
+            row = {
+                "provider": provider,
+                "status": status,
+                "success_count": int(existing.get("success_count") or 0),
+                "failure_count": int(existing.get("failure_count") or 0) + 1,
+                "failure_streak": failure_streak,
+                "last_error_kind": str(classification.get("error_kind") or "provider_unknown"),
+                "last_error": str(error or "")[:1000],
+                "last_event_at": now.timestamp(),
+                "retry_after_seconds": retry_after,
+                "circuit_open_until": now.timestamp() + retry_after if retryable and retry_after else 0.0,
+                "updated_at": now,
+            }
+            if existing:
+                conn.execute(update(table).where(table.c.provider == provider).values(**{key: value for key, value in row.items() if key != "provider"}))
+            else:
+                conn.execute(insert(table).values(**row))
+        return self._clean(row)
+
+    def provider_health_snapshot(self) -> dict[str, Any]:
+        table = self.tables["provider_health"]
+        with self.engine.begin() as conn:
+            rows = conn.execute(select(table).order_by(table.c.updated_at.desc())).all()
+        items = [self._row(row) or {} for row in rows]
+        degraded = [item for item in items if item.get("status") in {"degraded", "circuit_open", "blocked"}]
+        return {
+            "schema_version": "6.2",
+            "ok": not any(item.get("status") == "blocked" for item in items),
+            "provider_count": len(items),
+            "degraded_count": len(degraded),
+            "items": items,
+        }
+
+    def acquire_ai_slot(
+        self,
+        *,
+        tenant_id: str,
+        run_id: str,
+        provider: str,
+        agent_run_id: str,
+        task_kind: str,
+        provider_limit: int,
+        run_limit: int,
+        wait_seconds: int,
+        lease_seconds: int,
+    ) -> dict[str, Any]:
+        table = self.tables["ai_call_slots"]
+        started = utc_now()
+        deadline = started + timedelta(seconds=max(0, int(wait_seconds)))
+        provider = provider or "unknown-provider"
+        provider_limit = max(1, int(provider_limit or 1))
+        run_limit = max(1, int(run_limit or 1))
+        while True:
+            now = utc_now()
+            lease_until = now + timedelta(seconds=max(30, int(lease_seconds or 30)))
+            acquired: dict[str, Any] | None = None
+            with self.engine.begin() as conn:
+                conn.execute(text("LOCK TABLE ai_call_slots IN SHARE ROW EXCLUSIVE MODE"))
+                conn.execute(update(table).where(and_(table.c.status == "active", table.c.lease_until < now)).values(status="expired", released_at=now))
+                provider_active = int(conn.execute(select(func.count()).select_from(table).where(and_(table.c.provider == provider, table.c.status == "active", table.c.lease_until >= now))).scalar_one())
+                run_active = int(conn.execute(select(func.count()).select_from(table).where(and_(table.c.run_id == run_id, table.c.status == "active", table.c.lease_until >= now))).scalar_one())
+                if provider_active < provider_limit and run_active < run_limit:
+                    row = {
+                        "id": new_id(),
+                        "tenant_id": tenant_id or DEFAULT_TENANT,
+                        "run_id": run_id,
+                        "provider": provider or "unknown-provider",
+                        "agent_run_id": agent_run_id,
+                        "task_kind": task_kind,
+                        "status": "active",
+                        "acquired_at": now,
+                        "lease_until": lease_until,
+                        "released_at": None,
+                    }
+                    conn.execute(insert(table).values(**row))
+                    acquired = {**self._clean(row), "wait_ms": round((utc_now() - started).total_seconds() * 1000)}
+            if acquired:
+                self.add_event(tenant_id or DEFAULT_TENANT, None, run_id, "ai_slot.acquired", {"slot_id": acquired["id"], "provider": provider, "agent_run_id": agent_run_id, "task_kind": task_kind, "provider_limit": provider_limit, "run_limit": run_limit, "wait_ms": acquired["wait_ms"]})
+                return acquired
+            if utc_now() >= deadline:
+                self.add_event(tenant_id or DEFAULT_TENANT, None, run_id, "ai_slot.wait_timeout", {"provider": provider, "agent_run_id": agent_run_id, "task_kind": task_kind, "provider_limit": provider_limit, "run_limit": run_limit})
+                raise StoreError("AI concurrency slot wait timed out")
+            import time as _time
+
+            _time.sleep(0.2)
+
+    def release_ai_slot(self, slot_id: str) -> dict[str, Any]:
+        table = self.tables["ai_call_slots"]
+        now = utc_now()
+        with self.engine.begin() as conn:
+            conn.execute(update(table).where(table.c.id == slot_id).values(status="released", released_at=now))
+            row = conn.execute(select(table).where(table.c.id == slot_id)).first()
+        current = self._row(row) or {}
+        if current:
+            self.add_event(current.get("tenant_id", DEFAULT_TENANT), None, current.get("run_id"), "ai_slot.released", {"slot_id": current.get("id", ""), "provider": current.get("provider", ""), "agent_run_id": current.get("agent_run_id", ""), "task_kind": current.get("task_kind", "")})
+        return current
+
+    def ai_slot_snapshot(self, run_id: str | None = None) -> dict[str, Any]:
+        table = self.tables["ai_call_slots"]
+        statement = select(table).order_by(table.c.acquired_at.desc())
+        if run_id:
+            statement = statement.where(table.c.run_id == run_id)
+        with self.engine.begin() as conn:
+            rows = conn.execute(statement).all()
+        items = [self._row(row) or {} for row in rows]
+        active = [item for item in items if item.get("status") == "active"]
+        return {"schema_version": "6.2", "active_count": len(active), "slot_count": len(items), "items": items[:200]}
+
+    def purge_retired_generation_records(self) -> dict[str, Any]:
+        patterns = ("v" + "5", "V" + "5")
+        projects = [
+            project
+            for project in self.list_projects(DEFAULT_TENANT)
+            if any(pattern in stable_json(project) for pattern in patterns)
+        ]
+        project_ids = [project["id"] for project in projects]
+        result = self.delete_projects(project_ids) if project_ids else {"deleted_projects": [], "deleted_runs": 0}
+        return {"ok": True, "deleted_project_count": len(project_ids), **result}
+
     def add_artifact(self, tenant_id: str, project_id: str | None, artifact: dict[str, Any]) -> dict[str, Any]:
         table = self.tables["artifacts"]
         now = utc_now()
@@ -772,32 +1051,20 @@ class PostgresV6Store(V6Store):
         return [self._row(row) or {} for row in rows]
 
     def add_event(self, tenant_id: str, project_id: str | None, run_id: str | None, event_type: str, payload: dict[str, Any]) -> dict[str, Any]:
-        artifact = {
-            "id": new_id(),
-            "run_id": run_id,
-            "kind": event_type,
-            "path": "",
-            "sha256": "",
-            "size": 0,
-            "payload": payload,
-            "metadata": {"event_type": event_type, "schema_version": "6.0"},
-        }
         table = self.tables["events"]
+        counter_table = self.tables["event_counters"]
         now = utc_now()
-        row = {
-            "id": artifact["id"],
-            "tenant_id": tenant_id or DEFAULT_TENANT,
-            "project_id": project_id,
-            "run_id": run_id,
-            "kind": event_type,
-            "path": "",
-            "sha256": "",
-            "size": 0,
-            "payload": payload,
-            "metadata": artifact["metadata"],
-            "created_at": now,
-        }
         with self.engine.begin() as conn:
+            aggregate_type = "run" if run_id else ("project" if project_id else "tenant")
+            aggregate_id = run_id or project_id or tenant_id
+            sequence_stmt = pg_insert(counter_table).values(aggregate_type=aggregate_type, aggregate_id=aggregate_id, sequence=1, updated_at=now)
+            sequence_stmt = sequence_stmt.on_conflict_do_update(
+                index_elements=[counter_table.c.aggregate_type, counter_table.c.aggregate_id],
+                set_={"sequence": counter_table.c.sequence + 1, "updated_at": now},
+            ).returning(counter_table.c.sequence)
+            sequence = int(conn.execute(sequence_stmt).scalar_one())
+            row = self._event_envelope(tenant_id=tenant_id, project_id=project_id, run_id=run_id, event_type=event_type, payload=payload, metadata={"sequence": sequence}, conn=conn)
+            row["created_at"] = now
             conn.execute(insert(table).values(**row))
         return self._clean(row)
 
@@ -812,6 +1079,8 @@ class InMemoryV6Store(V6Store):
         self.jobs: dict[str, dict[str, Any]] = {}
         self.artifacts: dict[str, dict[str, Any]] = {}
         self.events: dict[str, dict[str, Any]] = {}
+        self.provider_states: dict[str, dict[str, Any]] = {}
+        self.ai_slots: dict[str, dict[str, Any]] = {}
 
     def bootstrap(self) -> None:
         self.get_or_create_tenant(DEFAULT_TENANT)
@@ -824,6 +1093,31 @@ class InMemoryV6Store(V6Store):
         if not run:
             return {"tenant_id": DEFAULT_TENANT, "project_id": None}
         return {"tenant_id": run.get("tenant_id") or DEFAULT_TENANT, "project_id": run.get("project_id")}
+
+    def _event_envelope(self, tenant_id: str, project_id: str | None, run_id: str | None, event_type: str, payload: dict[str, Any]) -> dict[str, Any]:
+        existing = [event for event in self.events.values() if event.get("run_id") == run_id] if run_id else [event for event in self.events.values() if event.get("project_id") == project_id] if project_id else [event for event in self.events.values() if event.get("tenant_id") == tenant_id]
+        payload_hash = sha256_bytes(stable_json(payload).encode("utf-8"))
+        return {
+            "id": new_id(),
+            "tenant_id": tenant_id or DEFAULT_TENANT,
+            "project_id": project_id,
+            "run_id": run_id,
+            "kind": event_type,
+            "path": "",
+            "sha256": payload_hash,
+            "size": len(stable_json(payload).encode("utf-8")),
+            "payload": payload,
+            "metadata": {
+                "event_type": event_type,
+                "schema_version": "6.1",
+                "aggregate_type": "run" if run_id else ("project" if project_id else "tenant"),
+                "aggregate_id": run_id or project_id or tenant_id,
+                "payload_hash": payload_hash,
+                "sequence": len(existing) + 1,
+                "idempotency_key": str(payload.get("idempotency_key") or payload.get("resume_key") or payload.get("job_id") or ""),
+            },
+            "created_at": utc_now().isoformat(),
+        }
 
     def get_or_create_tenant(self, tenant_id: str = DEFAULT_TENANT) -> dict[str, Any]:
         tenant_id = tenant_id or DEFAULT_TENANT
@@ -846,7 +1140,9 @@ class InMemoryV6Store(V6Store):
             "updated_at": now,
         }
         self.projects[row["id"]] = row
-        return self._copy(row)
+        current = self._copy(row)
+        self.add_event(current.get("tenant_id", DEFAULT_TENANT), current.get("id"), None, "project.created", {"project_id": current.get("id", ""), "name": current.get("name", "")})
+        return current
 
     def list_projects(self, tenant_id: str) -> list[dict[str, Any]]:
         return [self._copy(project) for project in sorted(self.projects.values(), key=lambda item: item["created_at"], reverse=True) if project["tenant_id"] == tenant_id]
@@ -888,7 +1184,7 @@ class InMemoryV6Store(V6Store):
         now = utc_now().isoformat()
         run_id = new_id()
         continuation = {
-            "schema_version": "6.0",
+            "schema_version": "6.1",
             "run_id": run_id,
             "checkpoint": "run_created",
             "current_wave": None,
@@ -1157,21 +1453,144 @@ class InMemoryV6Store(V6Store):
         return [self._copy(artifact) for artifact in self.artifacts.values() if artifact["run_id"] == run_id]
 
     def add_event(self, tenant_id: str, project_id: str | None, run_id: str | None, event_type: str, payload: dict[str, Any]) -> dict[str, Any]:
-        row = {
-            "id": new_id(),
-            "tenant_id": tenant_id or DEFAULT_TENANT,
-            "project_id": project_id,
-            "run_id": run_id,
-            "kind": event_type,
-            "path": "",
-            "sha256": "",
-            "size": 0,
-            "payload": payload,
-            "metadata": {"event_type": event_type, "schema_version": "6.0"},
-            "created_at": utc_now().isoformat(),
-        }
+        row = self._event_envelope(tenant_id, project_id, run_id, event_type, payload)
         self.events[row["id"]] = row
         return self._copy(row)
+
+    def record_provider_success(self, provider: str) -> dict[str, Any]:
+        provider = provider or "unknown-provider"
+        now = time_time()
+        existing = self.provider_states.get(provider, {})
+        row = {
+            "provider": provider,
+            "status": "healthy",
+            "success_count": int(existing.get("success_count") or 0) + 1,
+            "failure_count": int(existing.get("failure_count") or 0),
+            "failure_streak": 0,
+            "last_error_kind": "",
+            "last_error": str(existing.get("last_error") or ""),
+            "last_event_at": now,
+            "retry_after_seconds": 0,
+            "circuit_open_until": 0.0,
+            "updated_at": utc_now().isoformat(),
+        }
+        self.provider_states[provider] = row
+        return self._copy(row)
+
+    def record_provider_failure(self, provider: str, error: str, classification: dict[str, Any]) -> dict[str, Any]:
+        provider = provider or "unknown-provider"
+        now = time_time()
+        existing = self.provider_states.get(provider, {})
+        failure_streak = int(existing.get("failure_streak") or 0) + 1
+        retry_after = int(classification.get("backoff_seconds") or 0)
+        retryable = bool(classification.get("retryable"))
+        status = "circuit_open" if retryable and failure_streak >= 5 else "degraded" if retryable else "blocked"
+        row = {
+            "provider": provider,
+            "status": status,
+            "success_count": int(existing.get("success_count") or 0),
+            "failure_count": int(existing.get("failure_count") or 0) + 1,
+            "failure_streak": failure_streak,
+            "last_error_kind": str(classification.get("error_kind") or "provider_unknown"),
+            "last_error": str(error or "")[:1000],
+            "last_event_at": now,
+            "retry_after_seconds": retry_after,
+            "circuit_open_until": now + retry_after if retryable and retry_after else 0.0,
+            "updated_at": utc_now().isoformat(),
+        }
+        self.provider_states[provider] = row
+        return self._copy(row)
+
+    def provider_health_snapshot(self) -> dict[str, Any]:
+        items = [self._copy(item) for item in self.provider_states.values()]
+        degraded = [item for item in items if item.get("status") in {"degraded", "circuit_open", "blocked"}]
+        return {
+            "schema_version": "6.2",
+            "ok": not any(item.get("status") == "blocked" for item in items),
+            "provider_count": len(items),
+            "degraded_count": len(degraded),
+            "items": items,
+        }
+
+    def acquire_ai_slot(
+        self,
+        *,
+        tenant_id: str,
+        run_id: str,
+        provider: str,
+        agent_run_id: str,
+        task_kind: str,
+        provider_limit: int,
+        run_limit: int,
+        wait_seconds: int,
+        lease_seconds: int,
+    ) -> dict[str, Any]:
+        provider = provider or "unknown-provider"
+        provider_limit = max(1, int(provider_limit or 1))
+        run_limit = max(1, int(run_limit or 1))
+        started = time_time()
+        deadline = started + max(0, int(wait_seconds or 0))
+        while True:
+            now = time_time()
+            for slot in self.ai_slots.values():
+                if slot.get("status") == "active" and float(slot.get("lease_until_epoch") or 0) < now:
+                    slot["status"] = "expired"
+                    slot["released_at"] = utc_now().isoformat()
+            provider_active = [slot for slot in self.ai_slots.values() if slot.get("provider") == provider and slot.get("status") == "active"]
+            run_active = [slot for slot in self.ai_slots.values() if slot.get("run_id") == run_id and slot.get("status") == "active"]
+            if len(provider_active) < provider_limit and len(run_active) < run_limit:
+                slot_id = new_id()
+                lease_until = datetime.now(timezone.utc) + timedelta(seconds=max(30, int(lease_seconds or 30)))
+                row = {
+                    "id": slot_id,
+                    "tenant_id": tenant_id or DEFAULT_TENANT,
+                    "run_id": run_id,
+                    "provider": provider,
+                    "agent_run_id": agent_run_id,
+                    "task_kind": task_kind,
+                    "status": "active",
+                    "acquired_at": utc_now().isoformat(),
+                    "lease_until": lease_until.isoformat(),
+                    "lease_until_epoch": now + max(30, int(lease_seconds or 30)),
+                    "released_at": None,
+                    "wait_ms": round((time_time() - started) * 1000),
+                }
+                self.ai_slots[slot_id] = row
+                self.add_event(tenant_id or DEFAULT_TENANT, None, run_id, "ai_slot.acquired", {"slot_id": slot_id, "provider": provider, "agent_run_id": agent_run_id, "task_kind": task_kind, "provider_limit": provider_limit, "run_limit": run_limit, "wait_ms": row["wait_ms"]})
+                return self._copy(row)
+            if time_time() >= deadline:
+                self.add_event(tenant_id or DEFAULT_TENANT, None, run_id, "ai_slot.wait_timeout", {"provider": provider, "agent_run_id": agent_run_id, "task_kind": task_kind, "provider_limit": provider_limit, "run_limit": run_limit})
+                raise StoreError("AI concurrency slot wait timed out")
+            import time as _time
+
+            _time.sleep(0.02)
+
+    def release_ai_slot(self, slot_id: str) -> dict[str, Any]:
+        slot = self.ai_slots.get(slot_id)
+        if not slot:
+            return {}
+        slot["status"] = "released"
+        slot["released_at"] = utc_now().isoformat()
+        current = self._copy(slot)
+        self.add_event(current.get("tenant_id", DEFAULT_TENANT), None, current.get("run_id"), "ai_slot.released", {"slot_id": current.get("id", ""), "provider": current.get("provider", ""), "agent_run_id": current.get("agent_run_id", ""), "task_kind": current.get("task_kind", "")})
+        return current
+
+    def ai_slot_snapshot(self, run_id: str | None = None) -> dict[str, Any]:
+        items = list(self.ai_slots.values())
+        if run_id:
+            items = [item for item in items if item.get("run_id") == run_id]
+        active = [item for item in items if item.get("status") == "active"]
+        return {"schema_version": "6.2", "active_count": len(active), "slot_count": len(items), "items": [self._copy(item) for item in items[:200]]}
+
+    def purge_retired_generation_records(self) -> dict[str, Any]:
+        patterns = ("v" + "5", "V" + "5")
+        project_ids = [
+            project_id
+            for project_id, project in self.projects.items()
+            if any(pattern in stable_json(project) for pattern in patterns)
+        ]
+        result = self.delete_projects(project_ids) if project_ids else {"deleted_projects": [], "deleted_runs": 0}
+        return {"ok": True, "deleted_project_count": len(project_ids), **result}
 
 
 def build_store(database_url: str) -> V6Store:

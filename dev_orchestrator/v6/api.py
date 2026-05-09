@@ -57,6 +57,7 @@ class ModelSettingsUpdate(BaseModel):
     model: str = ""
     model_reasoning_effort: str = ""
     disable_response_storage: bool | None = None
+    max_request_body_bytes: int | None = None
     api_key: str = ""
 
 
@@ -77,7 +78,7 @@ RECOMMENDED_CUSTOM_MODEL_SETTINGS: dict[str, Any] = {
 
 
 def build_app(service: V6Orchestrator, config: AppConfig) -> FastAPI:
-    app = FastAPI(title="Dev Orchestrator V6", version="6.0")
+    app = FastAPI(title="Dev Orchestrator V6", version="6.1.0")
     static_root = config.root_dir / "dev_orchestrator" / "static"
     if static_root.exists():
         app.mount("/static", StaticFiles(directory=str(static_root)), name="static")
@@ -109,6 +110,7 @@ def build_app(service: V6Orchestrator, config: AppConfig) -> FastAPI:
 
     @app.get("/api/v6/ai-policy")
     def ai_policy() -> dict[str, Any]:
+        policy = service.ai_policy()
         return {
             "policy": "ai-agent-native-file-manifest",
             "principles": [
@@ -117,6 +119,9 @@ def build_app(service: V6Orchestrator, config: AppConfig) -> FastAPI:
                 "Every agent call has explicit input, output, timeout, reasoning, and retry budgets.",
             ],
             "budgets": list_ai_task_budgets(),
+            "payload_limits": policy["payload_limits"],
+            "compression_policy": policy["compression_policy"],
+            "parallel_policy": policy["parallel_policy"],
         }
 
     @app.get("/api/v6/scale-profiles")
@@ -126,6 +131,10 @@ def build_app(service: V6Orchestrator, config: AppConfig) -> FastAPI:
     @app.get("/api/v6/provider-health")
     def provider_health() -> dict[str, Any]:
         return service.provider_health()
+
+    @app.get("/api/v6/ai-slots")
+    def ai_slots() -> dict[str, Any]:
+        return service.ai_slot_snapshot()
 
     @app.get("/api/v6/model-settings")
     def get_model_settings() -> dict[str, Any]:
@@ -263,9 +272,9 @@ def build_app(service: V6Orchestrator, config: AppConfig) -> FastAPI:
         return {"recovery_trace": service.recovery_trace(run_id)}
 
     @app.get("/api/v6/runs/{run_id}/events")
-    def events(run_id: str) -> dict[str, Any]:
+    def events(run_id: str, kind: str = "", after_sequence: int | None = None, limit: int | None = None) -> dict[str, Any]:
         service.get_run(run_id) or _missing_run()
-        return {"items": service.list_events(run_id)}
+        return {"items": service.list_events(run_id, event_type=kind or None, after_sequence=after_sequence, limit=limit)}
 
     @app.get("/api/v6/runs/{run_id}/replay-projection")
     def replay_projection(run_id: str) -> dict[str, Any]:
@@ -276,6 +285,11 @@ def build_app(service: V6Orchestrator, config: AppConfig) -> FastAPI:
     def checkpoint_resume(run_id: str) -> dict[str, Any]:
         service.get_run(run_id) or _missing_run()
         return {"checkpoint_resume": service.checkpoint_resume(run_id)}
+
+    @app.post("/api/v6/runs/{run_id}/recover")
+    def recover(run_id: str) -> dict[str, Any]:
+        service.get_run(run_id) or _missing_run()
+        return {"run": service.recover_run(run_id)}
 
     @app.get("/api/v6/runs/{run_id}/understanding")
     def understanding(run_id: str) -> dict[str, Any]:
@@ -350,7 +364,7 @@ def build_app(service: V6Orchestrator, config: AppConfig) -> FastAPI:
     @app.get("/api/v6/runs/{run_id}/ai-calls")
     def ai_calls(run_id: str) -> dict[str, Any]:
         service.get_run(run_id) or _missing_run()
-        return {"items": [artifact for artifact in service.list_artifacts(run_id) if artifact["kind"] == "agent_run"]}
+        return {"items": service.ai_calls(run_id)}
 
     @app.get("/api/v6/runs/{run_id}/waves")
     def waves(run_id: str) -> dict[str, Any]:
@@ -373,7 +387,8 @@ def build_app(service: V6Orchestrator, config: AppConfig) -> FastAPI:
 
     @app.get("/api/v6/runs/{run_id}/context-index")
     def context_index(run_id: str) -> dict[str, Any]:
-        return {"snapshot": _latest_payload(service.list_artifacts(run_id), "context_snapshot")}
+        service.get_run(run_id) or _missing_run()
+        return service.context_index(run_id)
 
     @app.get("/api/v6/runs/{run_id}/repair-history")
     def repair_history(run_id: str) -> dict[str, Any]:
@@ -499,6 +514,7 @@ def build_app(service: V6Orchestrator, config: AppConfig) -> FastAPI:
         ("/api/v6/runs/{run_id}/events", events, ["GET"]),
         ("/api/v6/runs/{run_id}/replay-projection", replay_projection, ["GET"]),
         ("/api/v6/runs/{run_id}/checkpoint-resume", checkpoint_resume, ["GET"]),
+        ("/api/v6/runs/{run_id}/recover", recover, ["POST"]),
         ("/api/v6/runs/{run_id}/solution-graph", solution_graph, ["GET"]),
         ("/api/v6/runs/{run_id}/agent-runs", agent_runs, ["GET"]),
         ("/api/v6/runs/{run_id}/patch-sets", patch_sets, ["GET"]),
@@ -526,11 +542,13 @@ def build_app(service: V6Orchestrator, config: AppConfig) -> FastAPI:
         ("/api/v6/runs/{run_id}/browser-smoke", browser_smoke, ["GET"]),
         ("/api/v6/runs/{run_id}/pause", pause, ["POST"]),
         ("/api/v6/runs/{run_id}/resume", resume, ["POST"]),
+        ("/api/v6/runs/{run_id}/recover", recover, ["POST"]),
         ("/api/v6/runs/{run_id}/requeue-blocked", requeue_blocked, ["POST"]),
         ("/api/v6/runs/{run_id}/repair", repair, ["POST"]),
         ("/api/v6/runs/{run_id}/cancel", cancel, ["POST"]),
         ("/api/v6/runs/{run_id}/export-delivery", export_delivery, ["POST"]),
         ("/api/v6/workers", workers, ["GET"]),
+        ("/api/v6/ai-slots", ai_slots, ["GET"]),
         ("/api/v6/dead-letter", dead_letter, ["GET"]),
         ("/api/v6/dead-letter/{job_id}/requeue", requeue_dead_letter, ["POST"]),
         ("/api/v6/recovery/requeue-expired-leases", requeue_expired_leases, ["POST"]),
@@ -573,6 +591,8 @@ def _normalize_model_settings_payload(payload: dict[str, Any]) -> dict[str, Any]
         llm_payload["model_reasoning_effort"] = payload["model_reasoning_effort"]
     if payload.get("disable_response_storage") is not None:
         llm_payload["disable_response_storage"] = bool(payload["disable_response_storage"])
+    if payload.get("max_request_body_bytes") is not None:
+        llm_payload["max_request_body_bytes"] = int(payload["max_request_body_bytes"])
     if payload.get("api_key") not in {"", "***", None}:
         llm_payload["api_key"] = payload["api_key"]
     if requires_openai_auth is True:
@@ -606,6 +626,7 @@ def _sync_llm_env_file(root_dir: Path, llm_config: Any) -> None:
         "OPENAI_API_PATH": str(getattr(llm_config, "api_path", "") or ""),
         "OPENAI_REASONING_EFFORT": str(getattr(llm_config, "model_reasoning_effort", "") or ""),
         "OPENAI_DISABLE_RESPONSE_STORAGE": "true" if bool(getattr(llm_config, "disable_response_storage", False)) else "false",
+        "DEV_ORCHESTRATOR_MAX_REQUEST_BODY_BYTES": str(int(getattr(llm_config, "max_request_body_bytes", 950000) or 950000)),
     }
     api_key = str(getattr(llm_config, "api_key", "") or "")
     if api_key and api_key != "***":

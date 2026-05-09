@@ -29,7 +29,7 @@ services:
       dockerfile: Dockerfile.v6
     image: ai-agent-v6:local
     working_dir: /app
-    command: python run_server.py --worker-supervisor --tenant local-workspace --roles requirements,architect,planner,db,backend,frontend,qa,security,integration,review,repair,release,docs
+    command: python run_server.py --worker-supervisor --tenant local-workspace --supervisor-scale xlarge_100k --roles requirements,architect,planner,db,backend,frontend,qa,security,integration,review,repair,release,docs
     environment:
       V6_DATABASE_URL: postgresql+psycopg://orchestrator:orchestrator@postgres:5432/orchestrator
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
@@ -53,6 +53,8 @@ services:
       POSTGRES_DB: orchestrator
     volumes:
       - v6-postgres:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
 
 volumes:
   v6-postgres:

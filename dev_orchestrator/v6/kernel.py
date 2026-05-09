@@ -7,7 +7,7 @@ from typing import Any
 from dev_orchestrator.v6.models import sha256_bytes, stable_json
 
 
-SCHEMA_VERSION = "6.0"
+SCHEMA_VERSION = "6.1"
 KERNEL_GENERATION = "100k_ai_native"
 
 

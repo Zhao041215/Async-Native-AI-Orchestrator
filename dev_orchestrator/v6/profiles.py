@@ -6,7 +6,7 @@ from typing import Any
 
 
 KERNEL_GENERATION = "100k_ai_native"
-MISSION_CONTRACT_VERSION = "6.0"
+MISSION_CONTRACT_VERSION = "6.1"
 
 
 @dataclass(frozen=True)
@@ -20,6 +20,9 @@ class ScaleProfile:
     recursive_decomposition_depth: int
     max_waves: int
     wave_parallelism: int
+    ai_provider_concurrency: int
+    ai_run_concurrency: int
+    ai_slot_wait_seconds: int
     context_budget_chars: int
     ai_retry_attempts: int
     contract_density: str
@@ -29,10 +32,12 @@ class ScaleProfile:
     checkpoint_interval_packages: int
     provider_failover_required: bool
     job_attempts: dict[str, int] = field(default_factory=dict)
+    worker_role_concurrency: dict[str, int] = field(default_factory=dict)
     required_quality_gates: list[str] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "job_attempts", MappingProxyType({str(key): int(value) for key, value in dict(self.job_attempts).items()}))
+        object.__setattr__(self, "worker_role_concurrency", MappingProxyType({str(key): max(1, int(value)) for key, value in dict(self.worker_role_concurrency).items()}))
         object.__setattr__(self, "required_quality_gates", tuple(str(item) for item in self.required_quality_gates))
 
     def to_dict(self) -> dict[str, Any]:
@@ -46,6 +51,9 @@ class ScaleProfile:
             "recursive_decomposition_depth": self.recursive_decomposition_depth,
             "max_waves": self.max_waves,
             "wave_parallelism": self.wave_parallelism,
+            "ai_provider_concurrency": self.ai_provider_concurrency,
+            "ai_run_concurrency": self.ai_run_concurrency,
+            "ai_slot_wait_seconds": self.ai_slot_wait_seconds,
             "context_budget_chars": self.context_budget_chars,
             "ai_retry_attempts": self.ai_retry_attempts,
             "contract_density": self.contract_density,
@@ -55,6 +63,7 @@ class ScaleProfile:
             "checkpoint_interval_packages": self.checkpoint_interval_packages,
             "provider_failover_required": self.provider_failover_required,
             "job_attempts": dict(self.job_attempts),
+            "worker_role_concurrency": dict(self.worker_role_concurrency),
             "required_quality_gates": list(self.required_quality_gates),
         }
 
@@ -84,14 +93,57 @@ QUALITY_GATES_100K = (
     "package_ownership_gate",
     "contract_density_gate",
     "provider_resilience_gate",
+    "ai_live_execution_gate",
+    "ai_payload_budget_gate",
+    "ai_context_compression_gate",
+    "oversize_recovery_gate",
+    "agent_output_diversity_gate",
     "event_replay_projection_gate",
     "checkpoint_resume_gate",
     "recovery_trace_gate",
     "recovery_checkpoint_gate",
     "patch_transaction_addressing_gate",
     "ai_native_no_template_fallback_gate",
+    "parallel_execution_safety_gate",
+    "durable_ai_slot_gate",
+    "long_call_heartbeat_gate",
+    "provider_circuit_recovery_gate",
+    "patch_parallel_conflict_gate",
     "performance_budget_gate",
 )
+
+
+DEFAULT_WORKER_ROLE_CONCURRENCY = MappingProxyType({
+    "requirements": 1,
+    "architect": 1,
+    "planner": 1,
+    "db": 1,
+    "backend": 1,
+    "frontend": 1,
+    "qa": 1,
+    "security": 1,
+    "integration": 1,
+    "review": 1,
+    "repair": 1,
+    "release": 1,
+    "docs": 1,
+})
+
+XLARGE_WORKER_ROLE_CONCURRENCY = MappingProxyType({
+    "requirements": 1,
+    "architect": 1,
+    "planner": 1,
+    "db": 2,
+    "backend": 3,
+    "frontend": 3,
+    "qa": 3,
+    "security": 2,
+    "integration": 1,
+    "review": 1,
+    "repair": 1,
+    "release": 1,
+    "docs": 2,
+})
 
 
 SCALE_PROFILES = MappingProxyType({
@@ -105,6 +157,9 @@ SCALE_PROFILES = MappingProxyType({
         recursive_decomposition_depth=2,
         max_waves=4,
         wave_parallelism=2,
+        ai_provider_concurrency=1,
+        ai_run_concurrency=1,
+        ai_slot_wait_seconds=10,
         context_budget_chars=22000,
         ai_retry_attempts=3,
         contract_density="standard",
@@ -114,6 +169,7 @@ SCALE_PROFILES = MappingProxyType({
         checkpoint_interval_packages=2,
         provider_failover_required=False,
         job_attempts=DEFAULT_JOB_ATTEMPTS,
+        worker_role_concurrency=DEFAULT_WORKER_ROLE_CONCURRENCY,
         required_quality_gates=QUALITY_GATES_100K,
     ),
     "medium": ScaleProfile(
@@ -126,6 +182,9 @@ SCALE_PROFILES = MappingProxyType({
         recursive_decomposition_depth=3,
         max_waves=7,
         wave_parallelism=3,
+        ai_provider_concurrency=2,
+        ai_run_concurrency=2,
+        ai_slot_wait_seconds=20,
         context_budget_chars=36000,
         ai_retry_attempts=3,
         contract_density="dense",
@@ -135,6 +194,7 @@ SCALE_PROFILES = MappingProxyType({
         checkpoint_interval_packages=2,
         provider_failover_required=False,
         job_attempts={**DEFAULT_JOB_ATTEMPTS, "quality": 3, "release_notes": 3},
+        worker_role_concurrency={**DEFAULT_WORKER_ROLE_CONCURRENCY, "backend": 2, "frontend": 2, "qa": 2},
         required_quality_gates=QUALITY_GATES_100K,
     ),
     "large": ScaleProfile(
@@ -147,6 +207,9 @@ SCALE_PROFILES = MappingProxyType({
         recursive_decomposition_depth=4,
         max_waves=12,
         wave_parallelism=4,
+        ai_provider_concurrency=3,
+        ai_run_concurrency=3,
+        ai_slot_wait_seconds=45,
         context_budget_chars=52000,
         ai_retry_attempts=4,
         contract_density="dense",
@@ -156,6 +219,7 @@ SCALE_PROFILES = MappingProxyType({
         checkpoint_interval_packages=1,
         provider_failover_required=True,
         job_attempts={**DEFAULT_JOB_ATTEMPTS, "code_generation": 4, "test_generation": 4, "security_review": 4, "code_review": 4},
+        worker_role_concurrency={**XLARGE_WORKER_ROLE_CONCURRENCY, "backend": 2, "frontend": 2, "qa": 2},
         required_quality_gates=QUALITY_GATES_100K,
     ),
     "xlarge_100k": ScaleProfile(
@@ -168,6 +232,9 @@ SCALE_PROFILES = MappingProxyType({
         recursive_decomposition_depth=5,
         max_waves=18,
         wave_parallelism=6,
+        ai_provider_concurrency=4,
+        ai_run_concurrency=4,
+        ai_slot_wait_seconds=60,
         context_budget_chars=76000,
         ai_retry_attempts=4,
         contract_density="exhaustive",
@@ -177,6 +244,7 @@ SCALE_PROFILES = MappingProxyType({
         checkpoint_interval_packages=1,
         provider_failover_required=True,
         job_attempts={**DEFAULT_JOB_ATTEMPTS, "code_generation": 4, "test_generation": 4, "security_review": 4, "integration": 4, "code_review": 4, "repair": 3},
+        worker_role_concurrency=XLARGE_WORKER_ROLE_CONCURRENCY,
         required_quality_gates=QUALITY_GATES_100K,
     ),
 })

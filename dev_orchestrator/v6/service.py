@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from dev_orchestrator.llm_client import LLMError, OpenAICompatibleClient
+from dev_orchestrator.v6.ai_payload import compact_payload_for_budget, payload_budget_report, payload_outline
 from dev_orchestrator.v6.agent_contracts import agent_contract_schema, validate_agent_contract
 from dev_orchestrator.v6.ai_scheduler import AICallScheduler
 from dev_orchestrator.v6.artifacts import ArtifactWriter, build_manifest
@@ -14,7 +15,7 @@ from dev_orchestrator.v6.code_indexer import build_code_index
 from dev_orchestrator.v6.contract_store import build_contract_index
 from dev_orchestrator.v6.context_memory import build_context_snapshot, package_context, validate_context_snapshot
 from dev_orchestrator.v6.kernel import build_checkpoint_resume_plan, build_mission_graph, build_recovery_trace, build_replay_projection
-from dev_orchestrator.v6.llm_policy import get_ai_task_budget
+from dev_orchestrator.v6.llm_policy import ai_policy_payload_limits, get_ai_task_budget, resolve_ai_task_budget
 from dev_orchestrator.v6.models import DEFAULT_TENANT, new_id, sha256_file, slugify
 from dev_orchestrator.v6.patch_runtime import TransactionalPatchRuntime
 from dev_orchestrator.v6.release_quality import build_deploy_guide, validate_ai_native_project
@@ -150,6 +151,75 @@ class V6Orchestrator:
     def _job_attempts(self, run: dict[str, Any], task_kind: str) -> int:
         return scale_job_attempts(task_kind, self._run_scale_profile(run))
 
+    def ai_policy(self) -> dict[str, Any]:
+        limits = ai_policy_payload_limits()
+        config_limit = int(getattr(getattr(self.llm_client, "config", None), "max_request_body_bytes", 0) or 0)
+        if config_limit:
+            limits = {**limits, "provider_body_limit_bytes": config_limit}
+        return {
+            "schema_version": "6.1",
+            "policy": "ai-agent-native-file-manifest",
+            "payload_limits": limits,
+            "compression_policy": {
+                "mode": "trim_then_ai_context_summary_then_recover",
+                "summary_task_kind": "context_summary",
+                "blocking_event": "ai_payload_oversize_blocked",
+            },
+            "live_ai_policy": {
+                "large_profiles_require_live_provider_evidence": True,
+                "fake_clients_allowed_for_small_unit_regressions_only": True,
+            },
+            "parallel_policy": {
+                "mode": "profile_driven_durable_ai_slots",
+                "provider_health_source": "durable_store",
+                "backpressure": "provider_and_run_slot_limits",
+            },
+        }
+
+    def ai_calls(self, run_id: str) -> list[dict[str, Any]]:
+        self._require_run(run_id)
+        items = [artifact for artifact in self.store.list_artifacts(run_id) if artifact["kind"] == "agent_run"]
+        return [
+            {
+                **artifact,
+                "payload_budget": (artifact.get("payload") or {}).get("payload_budget", {}),
+                "payload_chars": (artifact.get("payload") or {}).get("payload_chars", 0),
+                "payload_bytes": (artifact.get("payload") or {}).get("payload_bytes", 0),
+                "body_bytes": (artifact.get("payload") or {}).get("body_bytes", 0),
+                "estimated_tokens": (artifact.get("payload") or {}).get("estimated_tokens", 0),
+                "budget_status": (artifact.get("payload") or {}).get("budget_status", ""),
+                "compression_applied": (artifact.get("payload") or {}).get("compression_applied", False),
+                "summary_agent_run_id": (artifact.get("payload") or {}).get("summary_agent_run_id", ""),
+                "budget_limit": (artifact.get("payload") or {}).get("budget_limit", 0),
+                "provider_body_limit_bytes": (artifact.get("payload") or {}).get("provider_body_limit_bytes", 0),
+                "live_provider": (artifact.get("payload") or {}).get("live_provider", False),
+                "model": (artifact.get("payload") or {}).get("model", ""),
+                "model_tier": (artifact.get("payload") or {}).get("model_tier", ""),
+                "queued_at": (artifact.get("payload") or {}).get("queued_at", 0),
+                "started_at": (artifact.get("payload") or {}).get("started_at", 0),
+                "finished_at": (artifact.get("payload") or {}).get("finished_at", 0),
+                "wait_ms": (artifact.get("payload") or {}).get("wait_ms", 0),
+                "slot_id": (artifact.get("payload") or {}).get("slot_id", ""),
+                "concurrency_limited": (artifact.get("payload") or {}).get("concurrency_limited", False),
+            }
+            for artifact in items
+        ]
+
+    def context_index(self, run_id: str) -> dict[str, Any]:
+        self._require_run(run_id)
+        artifacts = self.store.list_artifacts(run_id)
+        snapshot = self._latest_payload_or_empty(artifacts, "context_snapshot")
+        budget_reports = [artifact.get("payload") or {} for artifact in artifacts if artifact["kind"] == "ai_payload_budget"]
+        latest_budget = budget_reports[-1] if budget_reports else {}
+        return {
+            "snapshot": snapshot,
+            "trimming": latest_budget.get("trim_report", {}),
+            "budget": latest_budget,
+            "compression_applied": bool(latest_budget.get("compression_applied")),
+            "selected_layers": (latest_budget.get("trim_report") or {}).get("selected_layers", []),
+            "dropped": (latest_budget.get("trim_report") or {}).get("dropped", []),
+        }
+
     def create_project(self, payload: dict[str, Any], tenant_id: str | None = None) -> dict[str, Any]:
         config = dict(DEFAULT_PROJECT_CONFIG)
         config.update(payload.get("config") or {})
@@ -159,7 +229,7 @@ class V6Orchestrator:
         scale_profile = resolve_scale_profile(config)
         config["scale_profile"] = scale_profile
         config["kernel_generation"] = scale_profile.get("kernel_generation", "100k_ai_native")
-        config["mission_contract_version"] = scale_profile.get("mission_contract_version", "6.0")
+        config["mission_contract_version"] = scale_profile.get("mission_contract_version", "6.1")
         name = payload.get("name") or slugify(payload.get("title") or "v6-ai-agent-project")
         project = self.store.create_project(
             tenant_id or self.tenant_id,
@@ -175,7 +245,6 @@ class V6Orchestrator:
         if not path_status["ok"]:
             self.store.delete_project(project["id"])
             raise ProjectPathError(path_status["reason"])
-        self.store.add_event(project["tenant_id"], project["id"], None, "project_created", {"project_id": project["id"]})
         return self._project_snapshot(project)
 
     def list_projects(self, tenant_id: str | None = None) -> list[dict[str, Any]]:
@@ -207,14 +276,14 @@ class V6Orchestrator:
                 "package_dag": {},
                 "scale_profile": scale_profile,
                 "kernel_generation": scale_profile.get("kernel_generation", "100k_ai_native"),
-                "mission_contract_version": scale_profile.get("mission_contract_version", "6.0"),
+                "mission_contract_version": scale_profile.get("mission_contract_version", "6.1"),
             },
         )
         continuation = {
             **dict(run.get("continuation") or {}),
             "schema_version": "6.0",
             "kernel_generation": scale_profile.get("kernel_generation", "100k_ai_native"),
-            "mission_contract_version": scale_profile.get("mission_contract_version", "6.0"),
+            "mission_contract_version": scale_profile.get("mission_contract_version", "6.1"),
             "scale_profile": scale_profile,
             "recovery_policy": scale_profile.get("recovery_policy", "checkpoint_retry_then_repair"),
         }
@@ -244,8 +313,14 @@ class V6Orchestrator:
     def list_artifacts(self, run_id: str) -> list[dict[str, Any]]:
         return self.store.list_artifacts(run_id)
 
-    def list_events(self, run_id: str) -> list[dict[str, Any]]:
-        return self.store.list_events(run_id)
+    def list_events(self, run_id: str, event_type: str | None = None, after_sequence: int | None = None, limit: int | None = None) -> list[dict[str, Any]]:
+        events = self.store.list_events(run_id, event_type=event_type)
+        if after_sequence is not None:
+            events = [event for event in events if int((event.get("metadata") or {}).get("sequence") or 0) > int(after_sequence)]
+        events = sorted(events, key=lambda event: int((event.get("metadata") or {}).get("sequence") or 0))
+        if limit is not None:
+            events = events[: max(1, min(int(limit), 1000))]
+        return events
 
     def replay_projection(self, run_id: str) -> dict[str, Any]:
         run = self._require_run(run_id)
@@ -274,7 +349,16 @@ class V6Orchestrator:
         return self._live_continuation(run)
 
     def provider_health(self) -> dict[str, Any]:
-        return self.ai_scheduler.provider_health.snapshot()
+        try:
+            return self.store.provider_health_snapshot()
+        except Exception:
+            return self.ai_scheduler.provider_health.snapshot()
+
+    def ai_slot_snapshot(self, run_id: str | None = None) -> dict[str, Any]:
+        try:
+            return self.store.ai_slot_snapshot(run_id=run_id)
+        except Exception:
+            return {"schema_version": "6.2", "active_count": 0, "slot_count": 0, "items": []}
 
     def mission_state(self, run_id: str) -> dict[str, Any]:
         run = self._require_run(run_id)
@@ -328,6 +412,22 @@ class V6Orchestrator:
         updated = self.store.update_run(run_id, status="running", continuation={**dict(run.get("continuation") or {}), "next_action": plan["next_action"], "resume_from": plan["resume_from"], "checkpoint_resume": plan})
         self._enqueue_checkpoint_resume_job(updated, plan)
         return updated
+
+    def recover_run(self, run_id: str) -> dict[str, Any]:
+        run = self._require_run(run_id)
+        plan = self.checkpoint_resume(run_id)
+        continuation = {
+            **dict(run.get("continuation") or {}),
+            "failure_reason": "",
+            "next_action": plan["next_action"],
+            "resume_from": plan["resume_from"],
+            "checkpoint_resume": plan,
+            "recovery_source": "manual_api",
+        }
+        recovered = self.store.update_run(run_id, status="running", continuation=continuation)
+        self.store.add_event(recovered["tenant_id"], recovered.get("project_id"), run_id, "run.manual_recovery_requested", {"run_id": run_id, "checkpoint_resume": plan})
+        self._enqueue_checkpoint_resume_job(recovered, plan)
+        return recovered
 
     def cancel_run(self, run_id: str) -> dict[str, Any]:
         run = self._require_run(run_id)
@@ -514,7 +614,7 @@ class V6Orchestrator:
                 "Analyze the user's project request. Do not write code. Return status GO or NO_GO, "
                 "summary, goals, users, constraints, acceptance_criteria, missing_information, risks, and expected_terms."
             ),
-            user_payload={"project": self._project_prompt(project), "requirements_text": _compact_text(requirements_text, get_ai_task_budget("requirements_analysis").max_input_chars)},
+            user_payload={"project": self._project_prompt(project), "requirements_text": _compact_text(requirements_text, resolve_ai_task_budget("requirements_analysis", self._run_scale_profile(run, project)).max_input_chars)},
             required=True,
         )
         self._record_json(project, run, "requirements_analysis", "requirements-analysis.json", analysis)
@@ -837,6 +937,7 @@ class V6Orchestrator:
             "checkpoint": run.get("checkpoint", ""),
             "continuation": self._live_continuation(self._require_run(run["id"])),
             "scale_profile": self._run_scale_profile(run, project),
+            "live_ai_required": self._run_scale_profile(run, project).get("name") in {"large", "xlarge_100k"} and self.ai_scheduler._is_live_provider(),
             "architecture": metadata.get("architecture_design", {}),
             "agent_runs": [artifact for artifact in artifacts if artifact["kind"] == "agent_run"],
             "patch_sets": [artifact for artifact in artifacts if artifact["kind"] == "patch_set"],
@@ -853,10 +954,12 @@ class V6Orchestrator:
             "code_index": code_index,
             "contract_index": contract_index,
             "mission_memory": mission_memory,
+            "ai_payload_budget": self._latest_payload_or_empty(artifacts, "ai_payload_budget"),
             "replay_projection": self.replay_projection(run["id"]),
             "checkpoint_resume": self.checkpoint_resume(run["id"]),
             "recovery_trace": self.recovery_trace(run["id"]),
             "provider_health": self.provider_health(),
+            "ai_slots": self.ai_slot_snapshot(run["id"]),
             "requirements_text": metadata.get("requirements_text", ""),
             "effective_loc_target": (metadata.get("project_config") or {}).get("effective_loc_target", 0),
         }
@@ -1028,12 +1131,143 @@ class V6Orchestrator:
             },
         )
 
+    def _prepare_ai_payload(
+        self,
+        project: dict[str, Any],
+        run: dict[str, Any],
+        *,
+        role: str,
+        job: dict[str, Any],
+        task_kind: str,
+        system_prompt: str,
+        user_payload: dict[str, Any],
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        profile = self._run_scale_profile(run, project)
+        budget = resolve_ai_task_budget(task_kind, profile)
+        body_limit = int(getattr(getattr(self.llm_client, "config", None), "max_request_body_bytes", 0) or ai_policy_payload_limits()["provider_body_limit_bytes"])
+        report = payload_budget_report(
+            system_prompt=system_prompt,
+            user_payload=user_payload,
+            task_budget=budget,
+            scale_profile=profile,
+            provider_body_limit_bytes=body_limit,
+        )
+        if report["ok"]:
+            self._record_json(project, run, "ai_payload_budget", f"{job.get('id', new_id())}-{task_kind}-budget.json", report, {"role": role, "job_id": job.get("id", ""), "task_kind": task_kind})
+            return user_payload, report
+
+        trimmed_payload, trim_report = compact_payload_for_budget(user_payload, target_chars=int(report["budget_limit"] * 0.75))
+        trimmed_report = payload_budget_report(
+            system_prompt=system_prompt,
+            user_payload=trimmed_payload,
+            task_budget=budget,
+            scale_profile=profile,
+            provider_body_limit_bytes=body_limit,
+            trim_report=trim_report,
+        )
+        if trimmed_report["ok"]:
+            trimmed_report["budget_status"] = "trimmed_within_budget"
+            self.store.add_event(run["tenant_id"], project["id"], run["id"], "ai_context_trimmed", {"job_id": job.get("id", ""), "task_kind": task_kind, "budget": trimmed_report})
+            self._record_json(project, run, "ai_payload_budget", f"{job.get('id', new_id())}-{task_kind}-budget.json", trimmed_report, {"role": role, "job_id": job.get("id", ""), "task_kind": task_kind})
+            return trimmed_payload, trimmed_report
+
+        if self.ai_scheduler.llm_client is not None and task_kind != "context_summary":
+            summary_payload = {
+                "task_kind": task_kind,
+                "role": role,
+                "payload_outline": payload_outline(user_payload),
+                "trim_report": trim_report,
+                "trimmed_payload": trimmed_payload,
+                "instruction": "Summarize this oversized agent context into compact JSON preserving project-specific facts, contracts, file paths, package objectives, risks, and acceptance criteria.",
+            }
+            summary_budget = get_ai_task_budget("context_summary")
+            summary_report = payload_budget_report(
+                system_prompt="You are context_summary_agent. Return strict JSON only with summary, retained_facts, dropped_context, risks, and resume_instructions.",
+                user_payload=summary_payload,
+                task_budget=summary_budget,
+                scale_profile=profile,
+                provider_body_limit_bytes=body_limit,
+            )
+            if not summary_report["ok"]:
+                summary_payload, summary_trim = compact_payload_for_budget(summary_payload, target_chars=int(summary_report["budget_limit"] * 0.75))
+                summary_report = payload_budget_report(
+                    system_prompt="You are context_summary_agent. Return strict JSON only with summary, retained_facts, dropped_context, risks, and resume_instructions.",
+                    user_payload=summary_payload,
+                    task_budget=summary_budget,
+                    scale_profile=profile,
+                    provider_body_limit_bytes=body_limit,
+                    trim_report=summary_trim,
+                )
+            if summary_report["ok"]:
+                summary_call = self.ai_scheduler.call(
+                    run_id=run["id"],
+                    role="context",
+                    job={**job, "job_type": "context_summary", "payload": self._job_payload(run, {})},
+                    system_prompt="You are context_summary_agent. Return strict JSON only with summary, retained_facts, dropped_context, risks, and resume_instructions.",
+                    user_payload=summary_payload,
+                    task_kind="context_summary",
+                    required=True,
+                    payload_guard=summary_report,
+                    store=self.store,
+                    tenant_id=run["tenant_id"],
+                )
+                summary_call["parsed_response"] = _json_or_empty(summary_call.get("raw_response", {}))
+                self._record_json(project, run, "agent_run", f"{summary_call['agent_run_id']}.json", summary_call, {"role": "context", "job_id": job.get("id", ""), "task_kind": "context_summary"})
+                if summary_call.get("ok") and summary_call.get("parsed_response"):
+                    compressed_payload = {
+                        "project": self._project_prompt(project),
+                        "compressed_context": summary_call["parsed_response"],
+                        "original_payload_budget": report,
+                        "trim_report": trim_report,
+                        "resume_key": f"run:{run['id']}:{job.get('id', '')}:{task_kind}:compressed",
+                    }
+                    compressed_report = payload_budget_report(
+                        system_prompt=system_prompt,
+                        user_payload=compressed_payload,
+                        task_budget=budget,
+                        scale_profile=profile,
+                        provider_body_limit_bytes=body_limit,
+                        compression_applied=True,
+                        summary_agent_run_id=summary_call["agent_run_id"],
+                        trim_report=trim_report,
+                    )
+                    if compressed_report["ok"]:
+                        compressed_report["budget_status"] = "ai_compressed_within_budget"
+                        self.store.add_event(run["tenant_id"], project["id"], run["id"], "ai_context_compressed", {"job_id": job.get("id", ""), "task_kind": task_kind, "summary_agent_run_id": summary_call["agent_run_id"], "budget": compressed_report})
+                        self._record_json(project, run, "ai_payload_budget", f"{job.get('id', new_id())}-{task_kind}-budget.json", compressed_report, {"role": role, "job_id": job.get("id", ""), "task_kind": task_kind})
+                        return compressed_payload, compressed_report
+
+        blocked_report = {**trimmed_report, "ok": False, "budget_status": "blocked_oversize_after_trim_and_summary"}
+        continuation = {
+            **dict(run.get("continuation") or {}),
+            "failure_reason": "ai_payload_oversize_blocked",
+            "next_action": "recover_with_compressed_context",
+            "recovery_state": "recovering",
+            "ai_payload_budget": blocked_report,
+        }
+        self.store.add_event(run["tenant_id"], project["id"], run["id"], "ai_payload_oversize_blocked", {"job_id": job.get("id", ""), "task_kind": task_kind, "budget": blocked_report})
+        self._record_json(project, run, "ai_payload_budget", f"{job.get('id', new_id())}-{task_kind}-budget.json", blocked_report, {"role": role, "job_id": job.get("id", ""), "task_kind": task_kind})
+        self.store.update_run(run["id"], status="recovering", continuation=continuation)
+        raise ProviderCallError("AI payload exceeds provider/body budget after trim and AI summary", retryable=True)
+
     def _invoke_json_agent(self, project: dict[str, Any], run: dict[str, Any], *, role: str, job: dict[str, Any], system_prompt: str, user_payload: dict[str, Any], required: bool, task_kind: str) -> dict[str, Any]:
         retry_payload = dict(user_payload)
         retry_prompt = system_prompt
         last_error = "agent contract validation failed"
         for attempt in (1, 2):
-            payload = self.ai_scheduler.call(run_id=run["id"], role=role, job=job, system_prompt=retry_prompt, user_payload=retry_payload, task_kind=task_kind, required=required)
+            prepared_payload, payload_guard = self._prepare_ai_payload(project, run, role=role, job=job, task_kind=task_kind, system_prompt=retry_prompt, user_payload=retry_payload)
+            payload = self.ai_scheduler.call(
+                run_id=run["id"],
+                role=role,
+                job=job,
+                system_prompt=retry_prompt,
+                user_payload=prepared_payload,
+                task_kind=task_kind,
+                required=required,
+                payload_guard=payload_guard,
+                store=self.store,
+                tenant_id=run["tenant_id"],
+            )
             payload["parsed_response"] = _json_or_empty(payload.get("raw_response", {}))
             payload["contract_attempt"] = attempt
             if not payload.get("ok"):
@@ -1176,7 +1410,7 @@ class V6Orchestrator:
                 "schema_version": "6.0",
                 "run_id": run["id"],
                 "kernel_generation": scale_profile.get("kernel_generation", "100k_ai_native"),
-                "mission_contract_version": scale_profile.get("mission_contract_version", "6.0"),
+                "mission_contract_version": scale_profile.get("mission_contract_version", "6.1"),
                 "scale_profile": scale_profile,
                 "checkpoint": run.get("checkpoint", continuation.get("checkpoint", "run_created")),
                 "current_wave": self._current_wave(waves),
