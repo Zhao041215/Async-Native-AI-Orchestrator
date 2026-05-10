@@ -1,11 +1,30 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: orchestrator
+      POSTGRES_PASSWORD: orchestrator
+      POSTGRES_DB: orchestrator
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orchestrator"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   api:
     build:
       context: .
       dockerfile: Dockerfile
-    image: ai-agent-v7:local
+    image: ai-agent-v8:local
     working_dir: /app
-    command: python run_server.py --v7-api --host 0.0.0.0 --port 8787
+    command: python run_server.py --v8-api --host 0.0.0.0 --port 8787
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_API_BASE: ${OPENAI_API_BASE:-}
@@ -13,12 +32,17 @@ services:
       OPENAI_WIRE_API: ${OPENAI_WIRE_API:-}
       OPENAI_PROVIDER_PROFILE: ${OPENAI_PROVIDER_PROFILE:-}
       OPENAI_API_PATH: ${OPENAI_API_PATH:-}
-      OPENAI_REASONING_EFFORT: ${OPENAI_REASONING_EFFORT:-}
+      OPENAI_REASONING_EFFORT: ${OPENAI_REASONING_EFFORT:-xhigh}
       OPENAI_DISABLE_RESPONSE_STORAGE: ${OPENAI_DISABLE_RESPONSE_STORAGE:-}
       AI_AGENT_RUNTIME_ROOT: ${AI_AGENT_RUNTIME_ROOT:-workspace/projects}
       AI_AGENT_WORKSPACE_MAX_BYTES: ${AI_AGENT_WORKSPACE_MAX_BYTES:-53687091200}
+      DATABASE_URL: postgresql://orchestrator:orchestrator@postgres:5432/orchestrator
+      STORE_BACKEND: ${STORE_BACKEND:-postgres}
     ports:
       - "8787:8787"
     volumes:
       - .:/app
       - E:\ProgramProjects\V7_test01:/exports
+
+volumes:
+  postgres_data:

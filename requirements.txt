@@ -6,3 +6,4 @@ structlog>=24.1
 sse-starlette>=2.0
 pytest>=8.0
 ruff>=0.6
+psycopg[binary,pool]>=3.2

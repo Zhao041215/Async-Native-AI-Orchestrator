@@ -3,185 +3,306 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>AI-Agent Workbench</title>
+  <title>Orchestrator V8</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/styles.css?v=20260510">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css?v=20260510v8">
 </head>
 <body>
-  <div class="scanlines"></div>
+  <div class="noise-layer" aria-hidden="true"></div>
+  <div class="grid-backdrop" aria-hidden="true"></div>
+
   <main class="shell">
     <header class="topbar">
-      <div class="topbar-left">
-        <div class="logo-mark">AI</div>
-        <div>
-          <p class="eyebrow">Dev Orchestrator</p>
-          <h1>Workbench</h1>
+      <div class="topbar-brand">
+        <div class="brand-mark">V8</div>
+        <div class="brand-text">
+          <span class="brand-sub">Dev Orchestrator</span>
+          <span class="brand-name">Workbench</span>
         </div>
       </div>
-      <div class="status-strip">
-        <span id="health-pill" class="pill">checking</span>
-        <span id="worker-count" class="pill">workers 0</span>
-        <button id="refresh" type="button">Refresh</button>
-      </div>
+      <nav class="topbar-status">
+        <span id="health-pill" class="status-pill">—</span>
+        <span id="schema-pill" class="status-pill schema">8.0</span>
+        <button id="refresh" type="button" class="btn-refresh">↻ Refresh</button>
+      </nav>
     </header>
 
-    <section class="grid">
-      <form id="project-form" class="panel create-panel">
-        <div class="panel-title">
-          <p class="eyebrow">Create</p>
-          <h2>Dispatch Project</h2>
-        </div>
-        <label>Project name<input name="name" placeholder="knowledge-base"></label>
-        <label>Project title<input name="title" placeholder="Knowledge Base Management"></label>
-        <label>Project path<input name="project_path" placeholder="custom-output or /app/workspace/projects/custom-output"></label>
-        <label>Technology guidance<input name="stack_pack" placeholder="AI decides structure; optional constraints"></label>
-        <label>Target scale
-          <select name="target_scale">
-            <option value="auto" selected>auto</option>
-            <option value="small">small</option>
-            <option value="medium">medium</option>
-            <option value="large">large</option>
-            <option value="xlarge_100k">xlarge_100k</option>
-          </select>
-        </label>
-        <label>Effective LOC target<input name="effective_loc_target" type="number" value="1000" min="100"></label>
-        <label>Requirements<textarea name="description" rows="8" placeholder="Describe the product, users, workflows, constraints, scale, and deployment expectations."></textarea></label>
-        <button id="create-run" type="submit">Create and Run</button>
-        <div id="create-run-status" class="form-status" role="status" aria-live="polite"></div>
-      </form>
+    <div class="workspace">
 
-      <section class="panel projects-panel">
-        <div class="panel-title">
-          <p class="eyebrow">Projects</p>
-          <h2>Queue</h2>
-        </div>
-        <div class="project-toolbar">
-          <label class="checkline"><input id="select-all-projects" type="checkbox"> Select all</label>
-          <button id="delete-selected-projects" type="button" class="danger subtle" disabled>Delete selected</button>
-        </div>
-        <div id="project-list" class="list"></div>
-      </section>
+      <!-- LEFT COLUMN: Create + Queue -->
+      <aside class="sidebar">
 
-      <section class="panel detail">
-        <div class="panel-title">
-          <p class="eyebrow">Run</p>
-          <h2 id="run-title">Select a Project</h2>
-        </div>
-        <div id="run-summary" class="summary"></div>
-        <div id="run-actions" class="action-strip"></div>
-        <form id="delivery-export-form" class="export-strip">
-          <label>Export directory<input name="target_path" placeholder="/path/to/deployment or C:\exports\my-project"></label>
-          <label class="checkline export-overwrite"><input name="overwrite" type="checkbox"> Overwrite</label>
-          <button id="export-delivery" type="submit" class="subtle">Export</button>
-          <div id="delivery-export-status" class="form-status" role="status" aria-live="polite"></div>
+        <section class="pane pane-create">
+          <header class="pane-header">
+            <span class="pane-tag">01</span>
+            <h2>New Project</h2>
+          </header>
+          <form id="project-form">
+            <div class="field-group">
+              <label class="field">
+                <span class="field-label">Name</span>
+                <input name="name" placeholder="knowledge-base" autocomplete="off">
+              </label>
+              <label class="field">
+                <span class="field-label">Title</span>
+                <input name="title" placeholder="Knowledge Base Management" autocomplete="off">
+              </label>
+            </div>
+            <label class="field">
+              <span class="field-label">Output path</span>
+              <input name="project_path" placeholder="/app/workspace/projects/my-project" autocomplete="off">
+            </label>
+            <label class="field">
+              <span class="field-label">Tech constraints</span>
+              <input name="stack_pack" placeholder="AI-decided — optional constraints" autocomplete="off">
+            </label>
+            <div class="field-group two-col">
+              <label class="field">
+                <span class="field-label">Scale</span>
+                <select name="target_scale">
+                  <option value="auto" selected>auto</option>
+                  <option value="small">small</option>
+                  <option value="medium">medium</option>
+                  <option value="large">large</option>
+                  <option value="xlarge_100k">xlarge_100k</option>
+                </select>
+              </label>
+              <label class="field">
+                <span class="field-label">LOC target</span>
+                <input name="effective_loc_target" type="number" value="1000" min="100">
+              </label>
+            </div>
+            <label class="field">
+              <span class="field-label">Requirements</span>
+              <textarea name="description" rows="6" placeholder="Describe the product, users, workflows, constraints, scale, and deployment expectations."></textarea>
+            </label>
+            <button id="create-run" type="submit" class="btn-primary">Dispatch Run</button>
+            <div id="create-run-status" class="form-feedback" role="status" aria-live="polite"></div>
+          </form>
+        </section>
+
+        <section class="pane pane-queue">
+          <header class="pane-header">
+            <span class="pane-tag">02</span>
+            <h2>Project Queue</h2>
+            <div class="queue-controls">
+              <label class="check-row">
+                <input id="select-all-projects" type="checkbox">
+                <span>All</span>
+              </label>
+              <button id="delete-selected-projects" type="button" class="btn-danger btn-sm" disabled>Delete</button>
+            </div>
+          </header>
+          <div id="project-list" class="item-list"></div>
+        </section>
+
+        <section class="pane pane-workers">
+          <header class="pane-header">
+            <span class="pane-tag">05</span>
+            <h2>Workers <span id="worker-count" class="count-badge">0</span></h2>
+          </header>
+          <div id="worker-list" class="item-list compact"></div>
+        </section>
+
+      </aside>
+
+      <!-- MAIN: Run Detail -->
+      <section class="detail-view" id="detail-panel">
+        <header class="detail-header">
+          <h2 id="run-title">Select a project</h2>
+          <div id="run-badge-strip" class="badge-strip"></div>
+        </header>
+
+        <div id="run-summary" class="stat-grid"></div>
+
+        <div id="run-actions" class="action-bar"></div>
+
+        <form id="delivery-export-form" class="export-row hidden">
+          <label class="field inline">
+            <span class="field-label">Export path</span>
+            <input name="target_path" placeholder="/exports/my-project">
+          </label>
+          <label class="check-row">
+            <input name="overwrite" type="checkbox">
+            <span>Overwrite</span>
+          </label>
+          <button id="export-delivery" type="submit" class="btn-ghost">Export</button>
+          <div id="delivery-export-status" class="form-feedback inline" role="status" aria-live="polite"></div>
         </form>
 
-        <h3>Mission Health</h3>
-        <div id="mission-summary" class="summary wide"></div>
+        <div class="sections-grid">
 
-        <h3>Active Blocker</h3>
-        <div id="mission-blocker" class="summary wide"></div>
+          <div class="detail-section">
+            <h3>Mission Health</h3>
+            <div id="mission-summary" class="stat-grid small"></div>
+          </div>
 
-        <h3>Mission Kernel</h3>
-        <div id="mission-kernel" class="summary wide"></div>
+          <div class="detail-section">
+            <h3>Active Blocker</h3>
+            <div id="mission-blocker" class="stat-grid small"></div>
+          </div>
 
-        <h3>Execution Plan</h3>
-        <div id="execution-plan" class="summary wide"></div>
+          <div class="detail-section">
+            <h3>Execution Kernel</h3>
+            <div id="mission-kernel" class="stat-grid small"></div>
+          </div>
 
-        <h3>Implementation Plan</h3>
-        <div id="implementation-plan" class="summary wide"></div>
+          <div class="detail-section">
+            <h3>Execution Plan</h3>
+            <div id="execution-plan" class="stat-grid small"></div>
+          </div>
 
-        <h3>Stability Report</h3>
-        <div id="stability-report" class="summary wide"></div>
+          <div class="detail-section">
+            <h3>Implementation Plan</h3>
+            <div id="implementation-plan" class="stat-grid small"></div>
+          </div>
 
-        <h3>Frontend Quality</h3>
-        <div id="frontend-quality" class="summary wide"></div>
+          <div class="detail-section">
+            <h3>Stability Report</h3>
+            <div id="stability-report" class="stat-grid small"></div>
+          </div>
 
-        <h3>Contract Validation</h3>
-        <div id="contract-validation" class="summary wide"></div>
+          <div class="detail-section">
+            <h3>Frontend Quality</h3>
+            <div id="frontend-quality" class="stat-grid small"></div>
+          </div>
 
-        <h3>Patch Transactions</h3>
-        <div id="patch-transactions" class="summary wide"></div>
+          <div class="detail-section">
+            <h3>Contract Validation <span class="v8-badge">V8</span></h3>
+            <div id="contract-validation" class="stat-grid small"></div>
+          </div>
 
-        <h3>Test Execution</h3>
-        <div id="test-execution" class="summary wide"></div>
+          <div class="detail-section">
+            <h3>Patch Transactions</h3>
+            <div id="patch-transactions" class="stat-grid small"></div>
+          </div>
 
-        <h3>Code/Contract Index</h3>
-        <div id="code-contract-index" class="summary wide"></div>
+          <div class="detail-section">
+            <h3>Test Execution</h3>
+            <div id="test-execution" class="stat-grid small"></div>
+          </div>
 
-        <h3>Agent Runs</h3>
-        <div id="ai-call-list" class="list compact"></div>
+          <div class="detail-section">
+            <h3>Code / Contract Index</h3>
+            <div id="code-contract-index" class="stat-grid small"></div>
+          </div>
 
-        <h3>Waves</h3>
-        <div id="wave-list" class="list compact"></div>
+        </div>
 
-        <h3>Agent Packages</h3>
-        <div id="package-list" class="list compact"></div>
+        <div class="list-sections">
 
-        <h3>Quality Gates</h3>
-        <div id="quality-gate-list" class="list compact"></div>
+          <div class="list-section">
+            <h3>Agent Runs <span class="v8-badge">V8</span></h3>
+            <div id="ai-call-list" class="item-list compact"></div>
+          </div>
 
-        <h3>Repair History</h3>
-        <div id="repair-list" class="list compact"></div>
+          <div class="list-section">
+            <h3>Waves</h3>
+            <div id="wave-list" class="item-list compact"></div>
+          </div>
 
-        <h3>Jobs</h3>
-        <div id="job-list" class="list compact"></div>
+          <div class="list-section">
+            <h3>Packages</h3>
+            <div id="package-list" class="item-list compact"></div>
+          </div>
 
-        <h3>Context Index</h3>
-        <pre id="context-index"></pre>
+          <div class="list-section">
+            <h3>Quality Gates</h3>
+            <div id="quality-gate-list" class="item-list compact"></div>
+          </div>
 
-        <h3>Continuation</h3>
-        <pre id="continuation"></pre>
+          <div class="list-section">
+            <h3>Repair History</h3>
+            <div id="repair-list" class="item-list compact"></div>
+          </div>
 
-        <h3>Artifacts</h3>
-        <div id="artifact-list" class="list compact"></div>
+          <div class="list-section">
+            <h3>Jobs</h3>
+            <div id="job-list" class="item-list compact"></div>
+          </div>
+
+          <div class="list-section">
+            <h3>Artifacts</h3>
+            <div id="artifact-list" class="item-list compact"></div>
+          </div>
+
+          <div class="list-section full-width">
+            <h3>Context Snapshot</h3>
+            <pre id="context-index" class="code-block"></pre>
+          </div>
+
+          <div class="list-section full-width">
+            <h3>Continuation State</h3>
+            <pre id="continuation" class="code-block"></pre>
+          </div>
+
+        </div>
       </section>
 
-      <form id="model-settings-form" class="panel model-settings-panel">
-        <div class="panel-title">
-          <p class="eyebrow">Model</p>
-          <h2>API Provider</h2>
-        </div>
-        <label>Provider<input name="model_provider" value="custom"></label>
-        <label>Base URL<input name="base_url" value="https://deepkey.top/v1"></label>
-        <label>Model<input name="model" value="gpt-5.3-codex"></label>
-        <label>Wire API
-          <select name="wire_api">
-            <option value="responses">responses</option>
-            <option value="chat_completions">chat_completions</option>
-          </select>
-        </label>
-        <label>Reasoning effort
-          <select name="model_reasoning_effort">
-            <option value="xhigh">xhigh</option>
-            <option value="high">high</option>
-            <option value="medium">medium</option>
-            <option value="low">low</option>
-            <option value="">default</option>
-          </select>
-        </label>
-        <label>API key<input name="api_key" type="password" autocomplete="off" placeholder="stored key unchanged"></label>
-        <label class="checkline setting-toggle"><input name="disable_response_storage" type="checkbox" checked> Disable response storage</label>
-        <label class="checkline setting-toggle"><input name="requires_openai_auth" type="checkbox" checked> OpenAI auth header</label>
-        <div class="settings-actions">
-          <button id="apply-recommended-model" type="button" class="subtle">Use preset</button>
-          <button id="test-model-settings" type="button" class="subtle">Test API</button>
-          <button id="save-model-settings" type="submit">Save settings</button>
-        </div>
-        <div id="model-settings-status" class="settings-status">not loaded</div>
-      </form>
+      <!-- RIGHT COLUMN: Model Settings -->
+      <aside class="settings-panel">
+        <section class="pane pane-model">
+          <header class="pane-header">
+            <span class="pane-tag">03</span>
+            <h2>API Provider</h2>
+          </header>
+          <form id="model-settings-form">
+            <label class="field">
+              <span class="field-label">Provider</span>
+              <input name="model_provider" value="custom" autocomplete="off">
+            </label>
+            <label class="field">
+              <span class="field-label">Base URL</span>
+              <input name="base_url" value="https://deepkey.top/v1" autocomplete="off">
+            </label>
+            <label class="field">
+              <span class="field-label">Model</span>
+              <input name="model" value="gpt-5.3-codex" autocomplete="off">
+            </label>
+            <label class="field">
+              <span class="field-label">Wire API</span>
+              <select name="wire_api">
+                <option value="responses">responses</option>
+                <option value="chat_completions">chat_completions</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field-label">Reasoning effort</span>
+              <select name="model_reasoning_effort">
+                <option value="xhigh">xhigh</option>
+                <option value="high">high</option>
+                <option value="medium">medium</option>
+                <option value="low">low</option>
+                <option value="">default</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field-label">API key</span>
+              <input name="api_key" type="password" autocomplete="off" placeholder="stored key unchanged">
+            </label>
+            <label class="check-row">
+              <input name="disable_response_storage" type="checkbox" checked>
+              <span>Disable response storage</span>
+            </label>
+            <label class="check-row">
+              <input name="requires_openai_auth" type="checkbox" checked>
+              <span>OpenAI auth header</span>
+            </label>
+            <div class="model-actions">
+              <button id="apply-recommended-model" type="button" class="btn-ghost">Preset</button>
+              <button id="test-model-settings" type="button" class="btn-ghost">Test</button>
+              <button id="save-model-settings" type="submit" class="btn-primary">Save</button>
+            </div>
+            <div id="model-settings-status" class="settings-status">not loaded</div>
+          </form>
+        </section>
+      </aside>
 
-      <section class="panel workers-panel">
-        <div class="panel-title">
-          <p class="eyebrow">Workers</p>
-          <h2>Process Pool</h2>
-        </div>
-        <div id="worker-list" class="list compact"></div>
-      </section>
-    </section>
+    </div>
   </main>
-  <script src="/static/app.js?v=20260510"></script>
+
+  <script src="/static/app.js?v=20260510v8"></script>
 </body>
 </html>

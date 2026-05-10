@@ -270,9 +270,11 @@ class AsyncLLMClient:
                 ),
                 limits=httpx.Limits(
                     max_connections=20,
-                    max_keepalive_connections=10,
-                    keepalive_expiry=30.0,
+                    max_keepalive_connections=0,
+                    keepalive_expiry=0,
                 ),
+                http1=True,
+                http2=False,
                 follow_redirects=True,
             )
             return self._client

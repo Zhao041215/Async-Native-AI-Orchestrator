@@ -7,4 +7,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . /app
 
-CMD ["python", "run_server.py", "--v7-api", "--host", "0.0.0.0", "--port", "8787"]
+CMD ["python", "run_server.py", "--v8-api", "--host", "0.0.0.0", "--port", "8787"]
