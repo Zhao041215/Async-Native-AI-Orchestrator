@@ -1,0 +1,11 @@
+{
+  "role": "planner",
+  "pid": 9,
+  "status": "idle",
+  "current_job": null,
+  "processed_job_count": 0,
+  "last_error": "",
+  "log_path": "",
+  "worker_id": "planner-9-f69e13e5",
+  "last_heartbeat": "2026-05-09T05:14:49.704811+00:00"
+}

@@ -1,0 +1,11 @@
+{
+  "role": "repair",
+  "pid": 16,
+  "status": "started",
+  "current_job": null,
+  "processed_job_count": 0,
+  "last_error": "",
+  "log_path": "/app/logs/v6-workers/repair.log",
+  "worker_id": "supervisor-child-repair",
+  "last_heartbeat": "2026-05-09T05:45:19.768237+00:00"
+}

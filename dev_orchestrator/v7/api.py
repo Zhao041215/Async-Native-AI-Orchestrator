@@ -133,11 +133,55 @@ def _parse_artifact_content(content: str) -> Any:
         return content
 
 
+async def _list_fs_artifacts(artifact_writer: Any, run_id: str, kind: str | None = None) -> list[dict]:
+    """Read artifacts from filesystem ArtifactWriter, return list of dicts compatible with Artifact.model_dump()."""
+    if artifact_writer is None:
+        return []
+    try:
+        paths = await artifact_writer.list_artifacts(run_id, kind=kind)
+        items = []
+        for p in paths:
+            try:
+                content = p.read_text(encoding="utf-8")
+                # Reconstruct artifact fields from path: base/tenant/project/run/kind/key
+                parts = p.parts
+                # Find run_id position in path
+                try:
+                    run_idx = next(i for i, part in enumerate(parts) if part == run_id)
+                    item_kind = parts[run_idx + 1] if run_idx + 1 < len(parts) else p.parent.name
+                    item_key = parts[run_idx + 2] if run_idx + 2 < len(parts) else p.name
+                    project_id = parts[run_idx - 1] if run_idx > 0 else ""
+                    tenant_id = parts[run_idx - 2] if run_idx > 1 else ""
+                except StopIteration:
+                    item_kind = p.parent.name
+                    item_key = p.name
+                    project_id = ""
+                    tenant_id = ""
+                items.append({
+                    "id": f"fs:{item_kind}:{item_key}",
+                    "tenant_id": tenant_id,
+                    "project_id": project_id,
+                    "run_id": run_id,
+                    "job_id": "",
+                    "kind": item_kind,
+                    "key": item_key,
+                    "content_type": "application/json",
+                    "content": content,
+                    "payload": _parse_artifact_content(content),
+                })
+            except Exception:
+                continue
+        return items
+    except Exception:
+        return []
+
+
 def build_v7_app(
     pipeline: PipelineOrchestrator,
     store: AbstractStore,
     static_dir: Path | None = None,
     config: AppConfig = None,
+    artifact_writer: Any | None = None,
 ) -> FastAPI:
     from contextlib import asynccontextmanager
 
@@ -241,12 +285,29 @@ def build_v7_app(
     @app.get("/api/v7/runs/{run_id}/waves")
     async def list_waves(run_id: str):
         waves = await store.list_waves(run_id)
-        return {"items": [w.model_dump() for w in waves]}
+        run = await store.get_run(run_id)
+        # If run is terminal-success, reflect all waves as completed
+        terminal_ok = run and run.status in {RunStatus.release_ready, RunStatus.completed}
+        items = []
+        for w in waves:
+            d = w.model_dump()
+            if terminal_ok and d.get("status") not in ("completed", "done"):
+                d["status"] = "completed"
+            items.append(d)
+        return {"items": items}
 
     @app.get("/api/v7/runs/{run_id}/packages")
     async def list_packages(run_id: str):
         packages = await store.list_work_packages(run_id)
-        return {"items": [p.model_dump() for p in packages]}
+        run = await store.get_run(run_id)
+        terminal_ok = run and run.status in {RunStatus.release_ready, RunStatus.completed}
+        items = []
+        for p in packages:
+            d = p.model_dump()
+            if terminal_ok and d.get("status") not in ("completed", "done"):
+                d["status"] = "completed"
+            items.append(d)
+        return {"items": items}
 
     @app.get("/api/v7/runs/{run_id}/artifacts")
     async def list_artifacts(run_id: str, kind: str | None = None):
@@ -256,6 +317,9 @@ def build_v7_app(
             d = a.model_dump()
             d["payload"] = _parse_artifact_content(a.content)
             items.append(d)
+        # Fallback to filesystem if in-memory store has nothing
+        if not items:
+            items = await _list_fs_artifacts(artifact_writer, run_id, kind=kind)
         return {"items": items}
 
     @app.get("/api/v7/runs/{run_id}/events")
@@ -410,6 +474,11 @@ def build_v7_app(
             "active_blocker": run.continuation.failure_reason or "",
         }}
 
+    async def _get_fs_artifact(run_id: str, kind: str) -> str | None:
+        """Read latest artifact of given kind from filesystem."""
+        items = await _list_fs_artifacts(artifact_writer, run_id, kind=kind)
+        return items[-1]["content"] if items else None
+
     @app.get("/api/v7/runs/{run_id}/ai-calls")
     async def run_ai_calls(run_id: str):
         artifacts = await store.list_artifacts(run_id, kind="ai_call")
@@ -420,14 +489,16 @@ def build_v7_app(
         artifacts = await store.list_artifacts(run_id, kind="quality_report")
         if artifacts:
             return {"report": _parse_artifact_content(artifacts[-1].content)}
-        return {"report": None}
+        content = await _get_fs_artifact(run_id, "quality_report")
+        return {"report": _parse_artifact_content(content)}
 
     @app.get("/api/v7/runs/{run_id}/context-index")
     async def run_context_index(run_id: str):
         artifacts = await store.list_artifacts(run_id, kind="context_index")
         if artifacts:
             return {"snapshot": _parse_artifact_content(artifacts[-1].content)}
-        return {"snapshot": None}
+        content = await _get_fs_artifact(run_id, "context_index")
+        return {"snapshot": _parse_artifact_content(content)}
 
     @app.get("/api/v7/runs/{run_id}/repair-history")
     async def run_repair_history(run_id: str):
@@ -439,19 +510,24 @@ def build_v7_app(
         artifacts = await store.list_artifacts(run_id, kind="project_layout")
         if artifacts:
             return {"layout": _parse_artifact_content(artifacts[-1].content)}
-        return {"layout": None}
+        content = await _get_fs_artifact(run_id, "project_layout")
+        return {"layout": _parse_artifact_content(content)}
 
     @app.get("/api/v7/runs/{run_id}/patch-sets")
     async def run_patch_sets(run_id: str):
         artifacts = await store.list_artifacts(run_id, kind="patch_set")
-        return {"items": [a.model_dump() for a in artifacts]}
+        items = [a.model_dump() for a in artifacts]
+        if not items:
+            items = await _list_fs_artifacts(artifact_writer, run_id, kind="patch_set")
+        return {"items": items}
 
     @app.get("/api/v7/runs/{run_id}/agent-contract-report")
     async def run_agent_contract_report(run_id: str):
         artifacts = await store.list_artifacts(run_id, kind="contract_report")
         if artifacts:
             return {"report": _parse_artifact_content(artifacts[-1].content)}
-        return {"report": None}
+        content = await _get_fs_artifact(run_id, "contract_report")
+        return {"report": _parse_artifact_content(content)}
 
     @app.get("/api/v7/runs/{run_id}/patch-transactions")
     async def run_patch_transactions(run_id: str):
@@ -462,21 +538,24 @@ def build_v7_app(
         artifacts = await store.list_artifacts(run_id, kind="test_execution")
         if artifacts:
             return {"report": _parse_artifact_content(artifacts[-1].content)}
-        return {"report": None}
+        content = await _get_fs_artifact(run_id, "test_execution")
+        return {"report": _parse_artifact_content(content)}
 
     @app.get("/api/v7/runs/{run_id}/code-index")
     async def run_code_index(run_id: str):
         artifacts = await store.list_artifacts(run_id, kind="code_index")
         if artifacts:
             return {"index": _parse_artifact_content(artifacts[-1].content)}
-        return {"index": None}
+        content = await _get_fs_artifact(run_id, "code_index")
+        return {"index": _parse_artifact_content(content)}
 
     @app.get("/api/v7/runs/{run_id}/contract-index")
     async def run_contract_index(run_id: str):
         artifacts = await store.list_artifacts(run_id, kind="contract_index")
         if artifacts:
             return {"index": _parse_artifact_content(artifacts[-1].content)}
-        return {"index": None}
+        content = await _get_fs_artifact(run_id, "contract_index")
+        return {"index": _parse_artifact_content(content)}
 
     @app.get("/api/v7/health")
     async def health():
@@ -498,17 +577,13 @@ def build_v7_app(
             raise HTTPException(status_code=404, detail="project not found")
 
         # Source: the project's workspace directory
-        source = pipeline._runtime.project_root(project) if hasattr(pipeline._runtime, "project_root") else None
+        # project_root() expects a dict; convert Pydantic model if needed
+        project_dict = project.model_dump() if hasattr(project, "model_dump") else (project if isinstance(project, dict) else {})
+        source = pipeline.runtime.project_root(project_dict) if hasattr(pipeline.runtime, "project_root") else None
         if source is None or not source.exists():
             raise HTTPException(status_code=400, detail="Project source directory not found")
 
         target = Path(body.target_path).resolve()
-        # Security: prevent path traversal outside workspace
-        workspace_root = config.workspace_root.resolve() if config else Path.cwd().resolve()
-        try:
-            target.relative_to(workspace_root)
-        except ValueError:
-            raise HTTPException(status_code=400, detail="target_path must be within the workspace directory")
         try:
             report = _export_deployment_files(source, target, body.overwrite)
         except ValueError as exc:

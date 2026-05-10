@@ -1,0 +1,12 @@
+{
+  "role": "security",
+  "slot": 2,
+  "pid": 22,
+  "status": "started",
+  "current_job": null,
+  "processed_job_count": 0,
+  "last_error": "",
+  "log_path": "/app/logs/v6-workers/security-2.log",
+  "worker_id": "supervisor-child-security-2",
+  "last_heartbeat": "2026-05-09T15:25:25.884084+00:00"
+}

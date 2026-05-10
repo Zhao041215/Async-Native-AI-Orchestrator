@@ -1,0 +1,12 @@
+{
+  "role": "frontend",
+  "slot": 3,
+  "pid": 17,
+  "status": "started",
+  "current_job": null,
+  "processed_job_count": 0,
+  "last_error": "",
+  "log_path": "/app/logs/v6-workers/frontend-3.log",
+  "worker_id": "supervisor-child-frontend-3",
+  "last_heartbeat": "2026-05-09T15:25:25.817826+00:00"
+}

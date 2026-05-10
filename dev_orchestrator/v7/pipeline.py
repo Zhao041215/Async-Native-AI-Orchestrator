@@ -96,7 +96,15 @@ class _StoreAdapter:
         return [p.model_dump() for p in await self._store.list_work_packages(run_id)]
 
     async def list_artifacts(self, run_id: str) -> list[dict]:
-        return [a.model_dump() for a in await self._store.list_artifacts(run_id)]
+        # Check both in-memory store and filesystem artifacts
+        results = [a.model_dump() for a in await self._store.list_artifacts(run_id)]
+        if not results and self._artifacts:
+            try:
+                fs_artifacts = await self._artifacts.list_artifacts(run_id)
+                results = [{"kind": str(p.parent.name), "name": p.name, "path": str(p)} for p in fs_artifacts]
+            except Exception:
+                pass
+        return results
 
 
 # ---------------------------------------------------------------------------
@@ -420,6 +428,8 @@ class PipelineOrchestrator:
         # Release-ready terminal
         if checkpoint == "release_candidate_completed":
             await self._update_run_state(run_id, status=RunStatus.release_ready, checkpoint="release_ready")
+            # Mark any lingering queued waves as completed so the frontend unblocks
+            await self._complete_pending_waves(run_id)
             self.log.info("pipeline.release_ready", run_id=run_id)
             return
 
@@ -488,6 +498,22 @@ class PipelineOrchestrator:
     # ------------------------------------------------------------------
     # Phase result persistence
     # ------------------------------------------------------------------
+
+    async def _complete_pending_waves(self, run_id: str) -> None:
+        """Mark any queued/running waves as completed when the run finishes."""
+        try:
+            waves = await self.store.list_waves(run_id)
+            for wave in waves:
+                if wave.status not in ("completed", "done"):
+                    await self.store.upsert_wave(run_id, Wave(
+                        id=wave.id, run_id=run_id,
+                        wave_key=wave.wave_key, sequence=wave.sequence,
+                        status="completed",
+                    ))
+            if waves:
+                self.log.info("pipeline.waves_completed", run_id=run_id, count=len(waves))
+        except Exception as exc:
+            self.log.warning("pipeline.complete_pending_waves_failed", run_id=run_id, error=str(exc))
 
     async def _persist_phase_result(self, job: Job, result: dict[str, Any]) -> None:
         """Store phase output in run metadata so downstream phases can access it."""

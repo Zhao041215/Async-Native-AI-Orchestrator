@@ -1,0 +1,11 @@
+{
+  "role": "review",
+  "pid": 15,
+  "status": "started",
+  "current_job": null,
+  "processed_job_count": 0,
+  "last_error": "",
+  "log_path": "/app/logs/v6-workers/review.log",
+  "worker_id": "supervisor-child-review",
+  "last_heartbeat": "2026-05-09T05:45:19.756444+00:00"
+}

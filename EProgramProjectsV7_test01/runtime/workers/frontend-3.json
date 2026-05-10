@@ -1,0 +1,11 @@
+{
+  "role": "frontend",
+  "pid": 17,
+  "status": "idle",
+  "current_job": null,
+  "processed_job_count": 0,
+  "last_error": "",
+  "log_path": "",
+  "worker_id": "frontend-3",
+  "last_heartbeat": "2026-05-09T17:24:09.703259+00:00"
+}

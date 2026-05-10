@@ -1,0 +1,11 @@
+{
+  "role": "backend",
+  "pid": 11,
+  "status": "idle",
+  "current_job": null,
+  "processed_job_count": 0,
+  "last_error": "",
+  "log_path": "",
+  "worker_id": "backend-11-e09c8966",
+  "last_heartbeat": "2026-05-08T14:45:04.209323+00:00"
+}

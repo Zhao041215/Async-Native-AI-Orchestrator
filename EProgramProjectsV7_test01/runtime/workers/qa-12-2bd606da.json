@@ -1,0 +1,11 @@
+{
+  "role": "qa",
+  "pid": 12,
+  "status": "idle",
+  "current_job": null,
+  "processed_job_count": 0,
+  "last_error": "",
+  "log_path": "",
+  "worker_id": "qa-12-2bd606da",
+  "last_heartbeat": "2026-05-09T08:10:47.950021+00:00"
+}

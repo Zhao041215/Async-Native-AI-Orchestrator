@@ -1,0 +1,12 @@
+{
+  "role": "db",
+  "slot": 2,
+  "pid": 11,
+  "status": "started",
+  "current_job": null,
+  "processed_job_count": 0,
+  "last_error": "",
+  "log_path": "/app/logs/v6-workers/db-2.log",
+  "worker_id": "supervisor-child-db-2",
+  "last_heartbeat": "2026-05-09T15:25:25.740955+00:00"
+}

@@ -1,0 +1,11 @@
+{
+  "role": "security",
+  "pid": 22,
+  "status": "idle",
+  "current_job": null,
+  "processed_job_count": 0,
+  "last_error": "",
+  "log_path": "",
+  "worker_id": "security-2",
+  "last_heartbeat": "2026-05-09T17:24:10.060235+00:00"
+}

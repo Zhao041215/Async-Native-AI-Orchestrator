@@ -1,0 +1,12 @@
+{
+  "role": "release",
+  "slot": 1,
+  "pid": 26,
+  "status": "started",
+  "current_job": null,
+  "processed_job_count": 0,
+  "last_error": "",
+  "log_path": "/app/logs/v6-workers/release.log",
+  "worker_id": "supervisor-child-release-1",
+  "last_heartbeat": "2026-05-09T15:25:25.988518+00:00"
+}

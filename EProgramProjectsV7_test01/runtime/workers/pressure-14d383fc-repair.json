@@ -1,0 +1,11 @@
+{
+  "role": "repair",
+  "pid": 11,
+  "status": "idle",
+  "current_job": null,
+  "processed_job_count": 0,
+  "last_error": "",
+  "log_path": "",
+  "worker_id": "pressure-14d383fc-repair",
+  "last_heartbeat": "2026-05-09T05:41:19.590103+00:00"
+}

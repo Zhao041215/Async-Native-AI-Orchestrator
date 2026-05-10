@@ -50,7 +50,7 @@ def run_v7_api(host: str, port: int) -> None:
 
     store, scheduler, pipeline, runtime, artifacts, llm_client, config = _build_v7()
     static_dir = Path(__file__).resolve().parent / "dev_orchestrator" / "static"
-    app = build_v7_app(pipeline, store, static_dir=static_dir, config=config)
+    app = build_v7_app(pipeline, store, static_dir=static_dir, config=config, artifact_writer=artifacts)
 
     log = get_logger("v7_server")
     log.info("v7_api_starting", host=host, port=port)

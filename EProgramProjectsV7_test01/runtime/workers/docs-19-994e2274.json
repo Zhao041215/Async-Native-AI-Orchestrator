@@ -1,0 +1,11 @@
+{
+  "role": "docs",
+  "pid": 19,
+  "status": "idle",
+  "current_job": null,
+  "processed_job_count": 0,
+  "last_error": "",
+  "log_path": "",
+  "worker_id": "docs-19-994e2274",
+  "last_heartbeat": "2026-05-09T05:14:50.243970+00:00"
+}

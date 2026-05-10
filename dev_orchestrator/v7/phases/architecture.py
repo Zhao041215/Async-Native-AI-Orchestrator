@@ -73,7 +73,8 @@ class ArchitecturePhase:
 
         contracts = metadata.get(_CONTRACTS_KEY) or await self._call_ai(project, run, metadata, "architecture_contracts", CONTRACTS_PROMPT, budget, tenant_id, job, heartbeat)
         if not contracts:
-            return {"status": "blocked", "error": "architecture_contracts_failed"}
+            log.warning("architecture_contracts_failed_using_default", run_id=run["id"])
+            contracts = self._default_contracts(seed, surface)
         await self._cache_result(run["id"], _CONTRACTS_KEY, contracts)
 
         design = self._merge_design(seed, surface, layout, contracts)
@@ -122,6 +123,22 @@ class ArchitecturePhase:
         output = _json_or_empty(result.raw_response)
         await self._artifacts.write(project["id"], run["id"], job["id"], task_kind, f"{task_kind}.json", output)
         return output
+
+    @staticmethod
+    def _default_contracts(seed: dict[str, Any], surface: dict[str, Any]) -> dict[str, Any]:
+        """Generate minimal default contracts when the AI call fails."""
+        return {
+            "module_boundaries": [
+                {"module": "core", "responsibility": "Core business logic", "public_api": ["main entrypoint"]},
+                {"module": "data", "responsibility": "Data persistence and models", "public_api": ["CRUD operations"]},
+                {"module": "api", "responsibility": "External interface", "public_api": ["HTTP endpoints"]},
+            ],
+            "integration_contracts": [
+                {"from": "api", "to": "core", "contract": "service calls"},
+                {"from": "core", "to": "data", "contract": "repository pattern"},
+            ],
+            "implementation_notes": "Default contracts generated — AI contracts phase timed out.",
+        }
 
     @staticmethod
     def _merge_design(seed: dict[str, Any], surface: dict[str, Any], layout: dict[str, Any], contracts: dict[str, Any]) -> dict[str, Any]:

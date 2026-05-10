@@ -1,0 +1,11 @@
+const r=require('express').Router();
+const db=globalThis.__contentdb||(globalThis.__contentdb={articles:[],categories:[],tags:[],ids:{a:1,c:1,t:1}});
+const like=(s,q)=>String(s||'').toLowerCase().includes(String(q||'').toLowerCase());
+r.get('/',(req,res)=>{let {page=1,pageSize=10,q='',status,tag,category}=req.query;page=+page;pageSize=+pageSize;
+let list=db.articles.filter(x=>(!status||x.status===status)&&(!tag||(x.tagIds||[]).includes(+tag))&&(!category||x.categoryId===+category)&&(!q||like(x.title,q)||like(x.content,q)||like(x.summary,q)));
+res.json({total:list.length,list:list.slice((page-1)*pageSize,page*pageSize),page,pageSize});});
+r.get('/:id',(req,res)=>{const x=db.articles.find(v=>v.id===+req.params.id);if(!x)return res.status(404).json({message:'not found'});res.json(x);});
+r.post('/',(req,res)=>{const b=req.body||{},x={id:db.ids.a++,title:b.title||'',content:b.content||'',summary:b.summary||'',status:b.status||'draft',categoryId:b.categoryId||null,tagIds:b.tagIds||[],createdAt:Date.now(),updatedAt:Date.now()};db.articles.push(x);res.status(201).json(x);});
+r.put('/:id',(req,res)=>{const x=db.articles.find(v=>v.id===+req.params.id);if(!x)return res.status(404).json({message:'not found'});Object.assign(x,req.body||{},{updatedAt:Date.now()});res.json(x);});
+r.delete('/:id',(req,res)=>{const i=db.articles.findIndex(v=>v.id===+req.params.id);if(i<0)return res.status(404).json({message:'not found'});res.json(db.articles.splice(i,1)[0]);});
+module.exports=r;

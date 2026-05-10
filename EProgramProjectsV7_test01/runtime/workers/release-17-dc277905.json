@@ -1,0 +1,11 @@
+{
+  "role": "release",
+  "pid": 17,
+  "status": "idle",
+  "current_job": null,
+  "processed_job_count": 0,
+  "last_error": "",
+  "log_path": "",
+  "worker_id": "release-17-dc277905",
+  "last_heartbeat": "2026-05-09T08:10:48.106759+00:00"
+}

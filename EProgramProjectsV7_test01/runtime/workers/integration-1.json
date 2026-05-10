@@ -1,0 +1,11 @@
+{
+  "role": "integration",
+  "pid": 23,
+  "status": "idle",
+  "current_job": null,
+  "processed_job_count": 0,
+  "last_error": "",
+  "log_path": "",
+  "worker_id": "integration-1",
+  "last_heartbeat": "2026-05-09T17:24:10.058177+00:00"
+}

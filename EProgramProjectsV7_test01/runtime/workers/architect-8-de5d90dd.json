@@ -1,0 +1,11 @@
+{
+  "role": "architect",
+  "pid": 8,
+  "status": "idle",
+  "current_job": null,
+  "processed_job_count": 0,
+  "last_error": "",
+  "log_path": "",
+  "worker_id": "architect-8-de5d90dd",
+  "last_heartbeat": "2026-05-08T14:45:04.326992+00:00"
+}

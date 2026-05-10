@@ -1,0 +1,23 @@
+{
+  "store": "tasks",
+  "format_version": 1,
+  "task_fields": {
+    "id": "string",
+    "title": "string",
+    "description": "string|null",
+    "completed": "boolean",
+    "created_at": "ISO-8601 datetime string",
+    "updated_at": "ISO-8601 datetime string|null",
+    "due_at": "ISO-8601 datetime string|null",
+    "tags": [
+      "string"
+    ]
+  },
+  "defaults": {
+    "description": null,
+    "completed": false,
+    "updated_at": null,
+    "due_at": null,
+    "tags": []
+  }
+}

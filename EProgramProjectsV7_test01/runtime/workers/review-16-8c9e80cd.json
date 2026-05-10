@@ -1,0 +1,11 @@
+{
+  "role": "review",
+  "pid": 16,
+  "status": "idle",
+  "current_job": null,
+  "processed_job_count": 0,
+  "last_error": "",
+  "log_path": "",
+  "worker_id": "review-16-8c9e80cd",
+  "last_heartbeat": "2026-05-08T14:45:04.205705+00:00"
+}

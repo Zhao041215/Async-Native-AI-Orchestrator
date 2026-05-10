@@ -1,0 +1,12 @@
+{
+  "role": "docs",
+  "slot": 2,
+  "pid": 28,
+  "status": "started",
+  "current_job": null,
+  "processed_job_count": 0,
+  "last_error": "",
+  "log_path": "/app/logs/v6-workers/docs-2.log",
+  "worker_id": "supervisor-child-docs-2",
+  "last_heartbeat": "2026-05-09T15:25:26.052360+00:00"
+}

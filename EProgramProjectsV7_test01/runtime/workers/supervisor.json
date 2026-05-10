@@ -1,0 +1,123 @@
+{
+  "role": "supervisor",
+  "pid": 1,
+  "status": "running",
+  "current_job": null,
+  "processed_job_count": 0,
+  "last_error": "",
+  "log_path": "",
+  "children": [
+    {
+      "role": "requirements",
+      "slot": 1,
+      "pid": 7
+    },
+    {
+      "role": "architect",
+      "slot": 1,
+      "pid": 8
+    },
+    {
+      "role": "planner",
+      "slot": 1,
+      "pid": 9
+    },
+    {
+      "role": "db",
+      "slot": 1,
+      "pid": 10
+    },
+    {
+      "role": "db",
+      "slot": 2,
+      "pid": 11
+    },
+    {
+      "role": "backend",
+      "slot": 1,
+      "pid": 12
+    },
+    {
+      "role": "backend",
+      "slot": 2,
+      "pid": 13
+    },
+    {
+      "role": "backend",
+      "slot": 3,
+      "pid": 14
+    },
+    {
+      "role": "frontend",
+      "slot": 1,
+      "pid": 15
+    },
+    {
+      "role": "frontend",
+      "slot": 2,
+      "pid": 16
+    },
+    {
+      "role": "frontend",
+      "slot": 3,
+      "pid": 17
+    },
+    {
+      "role": "qa",
+      "slot": 1,
+      "pid": 18
+    },
+    {
+      "role": "qa",
+      "slot": 2,
+      "pid": 19
+    },
+    {
+      "role": "qa",
+      "slot": 3,
+      "pid": 20
+    },
+    {
+      "role": "security",
+      "slot": 1,
+      "pid": 21
+    },
+    {
+      "role": "security",
+      "slot": 2,
+      "pid": 22
+    },
+    {
+      "role": "integration",
+      "slot": 1,
+      "pid": 23
+    },
+    {
+      "role": "review",
+      "slot": 1,
+      "pid": 24
+    },
+    {
+      "role": "repair",
+      "slot": 1,
+      "pid": 25
+    },
+    {
+      "role": "release",
+      "slot": 1,
+      "pid": 26
+    },
+    {
+      "role": "docs",
+      "slot": 1,
+      "pid": 27
+    },
+    {
+      "role": "docs",
+      "slot": 2,
+      "pid": 28
+    }
+  ],
+  "worker_id": "supervisor",
+  "last_heartbeat": "2026-05-09T15:25:26.067866+00:00"
+}
