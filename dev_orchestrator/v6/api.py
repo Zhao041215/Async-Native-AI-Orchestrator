@@ -23,7 +23,7 @@ class ProjectCreate(BaseModel):
     name: str = ""
     title: str = ""
     description: str = ""
-    target_scale: str = "small"
+    target_scale: str = "auto"
     stack_pack: str = "auto"
     deployment_mode: str = ""
     api_only: bool = False
@@ -43,11 +43,30 @@ class RunCreate(BaseModel):
 
 class ProjectBatchDelete(BaseModel):
     project_ids: list[str] = Field(default_factory=list)
+    delete_files: bool = False
+    dry_run: bool = True
+    force: bool = False
 
 
 class DeliveryExportRequest(BaseModel):
     target_path: str = ""
     overwrite: bool = False
+
+
+class StorageGCRequest(BaseModel):
+    dry_run: bool = True
+    force: bool = False
+    include_logs: bool = True
+
+
+class RunPruneRequest(BaseModel):
+    dry_run: bool = True
+    force: bool = False
+
+
+class RunArchiveRequest(BaseModel):
+    dry_run: bool = True
+    include_worktree: bool = False
 
 
 class ModelSettingsUpdate(BaseModel):
@@ -78,7 +97,7 @@ RECOMMENDED_CUSTOM_MODEL_SETTINGS: dict[str, Any] = {
 
 
 def build_app(service: V6Orchestrator, config: AppConfig) -> FastAPI:
-    app = FastAPI(title="Dev Orchestrator V6", version="6.1.0")
+    app = FastAPI(title="Dev Orchestrator V6", version="6.3.0")
     static_root = config.root_dir / "dev_orchestrator" / "static"
     if static_root.exists():
         app.mount("/static", StaticFiles(directory=str(static_root)), name="static")
@@ -131,6 +150,14 @@ def build_app(service: V6Orchestrator, config: AppConfig) -> FastAPI:
     @app.get("/api/v6/provider-health")
     def provider_health() -> dict[str, Any]:
         return service.provider_health()
+
+    @app.get("/api/v6/storage-report")
+    def storage_report() -> dict[str, Any]:
+        return {"report": service.storage_report()}
+
+    @app.post("/api/v6/storage/gc")
+    def storage_gc(payload: StorageGCRequest) -> dict[str, Any]:
+        return {"result": service.gc_storage(dry_run=payload.dry_run, force=payload.force, include_logs=payload.include_logs)}
 
     @app.get("/api/v6/ai-slots")
     def ai_slots() -> dict[str, Any]:
@@ -206,17 +233,35 @@ def build_app(service: V6Orchestrator, config: AppConfig) -> FastAPI:
         return {"items": service.list_runs(project_id)}
 
     @app.delete("/api/v6/projects/{project_id}")
-    def delete_project(project_id: str) -> dict[str, Any]:
+    def delete_project(project_id: str, delete_files: bool = False, dry_run: bool = True, force: bool = False) -> dict[str, Any]:
         project = service.get_project(project_id)
         if not project:
             raise HTTPException(status_code=404, detail="project not found")
-        return {"ok": True, "result": service.store.delete_project(project_id)}
+        storage = []
+        if delete_files:
+            for run in service.list_runs(project_id):
+                storage.append(service.prune_run_storage(run["id"], dry_run=dry_run, force=force))
+            if any(not item["result"].get("ok") for item in storage):
+                return {"ok": False, "result": {"deleted_projects": [], "deleted_runs": 0, "deleted_jobs": 0, "deleted_artifacts": 0}, "storage": storage, "delete_files": delete_files, "dry_run": dry_run}
+        result = service.store.delete_project(project_id) if not delete_files or not dry_run else {"deleted_projects": [], "deleted_runs": 0, "deleted_jobs": 0, "deleted_artifacts": 0, "dry_run": True}
+        return {"ok": True, "result": result, "storage": storage, "delete_files": delete_files, "dry_run": dry_run}
 
     @app.post("/api/v6/projects/batch-delete")
     def batch_delete_projects(payload: ProjectBatchDelete) -> dict[str, Any]:
         if not payload.project_ids:
             raise HTTPException(status_code=400, detail="project_ids is required")
-        return {"ok": True, "result": service.store.delete_projects(payload.project_ids)}
+        storage = []
+        if payload.delete_files:
+            for project_id in payload.project_ids:
+                project = service.get_project(project_id)
+                if not project:
+                    continue
+                for run in service.list_runs(project_id):
+                    storage.append(service.prune_run_storage(run["id"], dry_run=payload.dry_run, force=payload.force))
+            if any(not item["result"].get("ok") for item in storage):
+                return {"ok": False, "result": {"deleted_projects": [], "deleted_runs": 0, "deleted_jobs": 0, "deleted_artifacts": 0}, "storage": storage, "delete_files": payload.delete_files, "dry_run": payload.dry_run}
+        result = service.store.delete_projects(payload.project_ids) if not payload.delete_files or not payload.dry_run else {"deleted_projects": [], "deleted_runs": 0, "deleted_jobs": 0, "deleted_artifacts": 0, "dry_run": True}
+        return {"ok": True, "result": result, "storage": storage, "delete_files": payload.delete_files, "dry_run": payload.dry_run}
 
     @app.post("/api/v6/projects/{project_id}/requirements")
     def update_requirements(project_id: str, payload: RequirementUpdate) -> dict[str, Any]:
@@ -275,6 +320,21 @@ def build_app(service: V6Orchestrator, config: AppConfig) -> FastAPI:
     def events(run_id: str, kind: str = "", after_sequence: int | None = None, limit: int | None = None) -> dict[str, Any]:
         service.get_run(run_id) or _missing_run()
         return {"items": service.list_events(run_id, event_type=kind or None, after_sequence=after_sequence, limit=limit)}
+
+    @app.get("/api/v6/runs/{run_id}/storage")
+    def run_storage(run_id: str) -> dict[str, Any]:
+        service.get_run(run_id) or _missing_run()
+        return {"storage": service.run_storage(run_id)}
+
+    @app.post("/api/v6/runs/{run_id}/prune")
+    def prune_run(run_id: str, payload: RunPruneRequest) -> dict[str, Any]:
+        service.get_run(run_id) or _missing_run()
+        return service.prune_run_storage(run_id, dry_run=payload.dry_run, force=payload.force)
+
+    @app.post("/api/v6/runs/{run_id}/archive")
+    def archive_run(run_id: str, payload: RunArchiveRequest) -> dict[str, Any]:
+        service.get_run(run_id) or _missing_run()
+        return {"archive": service.archive_run_storage(run_id, include_worktree=payload.include_worktree, dry_run=payload.dry_run)}
 
     @app.get("/api/v6/runs/{run_id}/replay-projection")
     def replay_projection(run_id: str) -> dict[str, Any]:
@@ -493,6 +553,8 @@ def build_app(service: V6Orchestrator, config: AppConfig) -> FastAPI:
         ("/api/v6/system-check", system_check, ["GET"]),
         ("/api/v6/stack-packs", stack_packs, ["GET"]),
         ("/api/v6/ai-policy", ai_policy, ["GET"]),
+        ("/api/v6/storage-report", storage_report, ["GET"]),
+        ("/api/v6/storage/gc", storage_gc, ["POST"]),
         ("/api/v6/model-settings", get_model_settings, ["GET"]),
         ("/api/v6/model-settings", update_model_settings, ["PUT"]),
         ("/api/v6/model-settings/test", test_model_settings, ["POST"]),
@@ -512,6 +574,9 @@ def build_app(service: V6Orchestrator, config: AppConfig) -> FastAPI:
         ("/api/v6/runs/{run_id}/mission-graph", mission_graph, ["GET"]),
         ("/api/v6/runs/{run_id}/recovery-trace", recovery_trace, ["GET"]),
         ("/api/v6/runs/{run_id}/events", events, ["GET"]),
+        ("/api/v6/runs/{run_id}/storage", run_storage, ["GET"]),
+        ("/api/v6/runs/{run_id}/prune", prune_run, ["POST"]),
+        ("/api/v6/runs/{run_id}/archive", archive_run, ["POST"]),
         ("/api/v6/runs/{run_id}/replay-projection", replay_projection, ["GET"]),
         ("/api/v6/runs/{run_id}/checkpoint-resume", checkpoint_resume, ["GET"]),
         ("/api/v6/runs/{run_id}/recover", recover, ["POST"]),

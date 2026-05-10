@@ -112,6 +112,33 @@ QUALITY_GATES_100K = (
     "performance_budget_gate",
 )
 
+QUALITY_GATES_SMALL = (
+    "v6_scale_profile_gate",
+    "mission_state_contract_gate",
+    "package_dag_acyclic_gate",
+    "package_ownership_gate",
+    "provider_resilience_gate",
+    "ai_live_execution_gate",
+    "ai_payload_budget_gate",
+    "event_replay_projection_gate",
+    "checkpoint_resume_gate",
+    "recovery_trace_gate",
+    "recovery_checkpoint_gate",
+    "patch_transaction_addressing_gate",
+    "ai_native_no_template_fallback_gate",
+    "long_call_heartbeat_gate",
+    "performance_budget_gate",
+)
+
+QUALITY_GATES_MEDIUM = tuple(dict.fromkeys(QUALITY_GATES_SMALL + (
+    "contract_density_gate",
+    "ai_context_compression_gate",
+    "oversize_recovery_gate",
+    "agent_output_diversity_gate",
+    "durable_ai_slot_gate",
+    "patch_parallel_conflict_gate",
+)))
+
 
 DEFAULT_WORKER_ROLE_CONCURRENCY = MappingProxyType({
     "requirements": 1,
@@ -161,16 +188,16 @@ SCALE_PROFILES = MappingProxyType({
         ai_run_concurrency=1,
         ai_slot_wait_seconds=10,
         context_budget_chars=22000,
-        ai_retry_attempts=3,
+        ai_retry_attempts=2,
         contract_density="standard",
         qa_depth="focused",
         security_depth="baseline",
         recovery_policy="checkpoint_retry_then_repair",
         checkpoint_interval_packages=2,
         provider_failover_required=False,
-        job_attempts=DEFAULT_JOB_ATTEMPTS,
+        job_attempts={**DEFAULT_JOB_ATTEMPTS, "architecture_design": 2, "package_planning": 2, "quality": 2, "security_review": 2, "code_review": 2, "repair": 2},
         worker_role_concurrency=DEFAULT_WORKER_ROLE_CONCURRENCY,
-        required_quality_gates=QUALITY_GATES_100K,
+        required_quality_gates=QUALITY_GATES_SMALL,
     ),
     "medium": ScaleProfile(
         name="medium",
@@ -195,7 +222,7 @@ SCALE_PROFILES = MappingProxyType({
         provider_failover_required=False,
         job_attempts={**DEFAULT_JOB_ATTEMPTS, "quality": 3, "release_notes": 3},
         worker_role_concurrency={**DEFAULT_WORKER_ROLE_CONCURRENCY, "backend": 2, "frontend": 2, "qa": 2},
-        required_quality_gates=QUALITY_GATES_100K,
+        required_quality_gates=QUALITY_GATES_MEDIUM,
     ),
     "large": ScaleProfile(
         name="large",
@@ -250,7 +277,9 @@ SCALE_PROFILES = MappingProxyType({
 })
 
 SCALE_ALIASES = {
-    "": "small",
+    "": "medium",
+    "auto": "medium",
+    "adaptive": "medium",
     "tiny": "small",
     "small": "small",
     "s": "small",
@@ -265,7 +294,7 @@ SCALE_ALIASES = {
 }
 
 
-def _resolve_profile_name(raw: str, *, default: str = "small") -> str:
+def _resolve_profile_name(raw: str, *, default: str = "medium") -> str:
     normalized = str(raw or "").strip().lower()
     if not normalized:
         return default

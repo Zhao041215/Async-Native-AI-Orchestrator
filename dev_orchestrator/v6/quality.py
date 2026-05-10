@@ -56,7 +56,8 @@ def validate_100k_quality_gates(run_context: dict[str, Any]) -> list[dict[str, A
     oversize_recovery_report = _oversize_recovery_report(recovery_trace, ai_payload_budget, run_id_present)
     diversity_report = _agent_output_diversity_report(agent_runs, run_context)
 
-    return [
+    required = set(profile.get("required_quality_gates") or [])
+    gates = [
         _gate(
             "v6_scale_profile_gate",
             profile.get("kernel_generation") == "100k_ai_native" and bool(profile.get("mission_contract_version")),
@@ -96,10 +97,25 @@ def validate_100k_quality_gates(run_context: dict[str, Any]) -> list[dict[str, A
         _gate("patch_parallel_conflict_gate", patch_parallel_report["ok"], severity, patch_parallel_report),
         _gate("performance_budget_gate", performance_report["ok"], "major", performance_report),
     ]
+    return [_adapt_gate_to_profile(gate, required, profile) for gate in gates]
 
 
 def _gate(name: str, ok: bool, severity: str, details: dict[str, Any]) -> dict[str, Any]:
     return {"name": name, "ok": bool(ok), "severity": severity, "details": details}
+
+
+def _adapt_gate_to_profile(gate: dict[str, Any], required: set[str], profile: dict[str, Any]) -> dict[str, Any]:
+    if not required or gate["name"] in required:
+        return gate
+    adapted = dict(gate)
+    adapted["severity"] = "info"
+    adapted["profile_observation_only"] = True
+    adapted["details"] = {
+        **dict(gate.get("details") or {}),
+        "profile": profile.get("name", ""),
+        "reason": "not_a_hard_gate_for_this_scale_profile",
+    }
+    return adapted
 
 
 def _package_payloads(packages: list[dict[str, Any]]) -> list[dict[str, Any]]:

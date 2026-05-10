@@ -10,6 +10,7 @@ from dev_orchestrator.llm_contract_check import run_llm_contract_check
 from dev_orchestrator.v6.pressure import PressureFaultConfig, PressureTestRunner
 from dev_orchestrator.v6.service import V6Orchestrator
 from dev_orchestrator.v6.store import InMemoryV6Store, build_store
+from dev_orchestrator.v6.storage_lifecycle import StorageLifecyclePolicy
 from dev_orchestrator.v6.system_check import build_v6_system_check
 from dev_orchestrator.v6.worker import DEFAULT_WORKER_ROLES, DurableWorker, WorkerSupervisor, default_role_concurrency, parse_role_concurrency
 
@@ -23,7 +24,14 @@ def _build_v6(memory_store: bool = False) -> tuple[Path, V6Orchestrator]:
     config = load_config(root)
     store = InMemoryV6Store() if memory_store else build_store(config.database_url)
     llm_client = None if memory_store else OpenAICompatibleClient(config.llm)
-    service = V6Orchestrator(store=store, workspace_root=config.workspace_root, tenant_id=config.identity.default_tenant, llm_client=llm_client)
+    service = V6Orchestrator(
+        store=store,
+        workspace_root=config.workspace_root,
+        tenant_id=config.identity.default_tenant,
+        llm_client=llm_client,
+        logs_root=config.logs_path,
+        storage_policy=StorageLifecyclePolicy.from_runtime_config(config.runtime),
+    )
     service.bootstrap(attempts=30, delay_seconds=1.0)
     return root, service
 
@@ -44,6 +52,16 @@ def purge_retired_records(database_url: str = "") -> None:
     print(json.dumps(store.purge_retired_generation_records(), indent=2, ensure_ascii=True))
 
 
+def run_storage_report(memory_store: bool = False) -> None:
+    _, service = _build_v6(memory_store=memory_store)
+    print(json.dumps(service.storage_report(), indent=2, ensure_ascii=True))
+
+
+def run_storage_gc(dry_run: bool, force: bool, include_logs: bool, memory_store: bool = False) -> None:
+    _, service = _build_v6(memory_store=memory_store)
+    print(json.dumps(service.gc_storage(dry_run=dry_run, force=force, include_logs=include_logs), indent=2, ensure_ascii=True))
+
+
 def run_llm_handshake_check() -> None:
     root = _root()
     config = load_config(root)
@@ -59,7 +77,14 @@ def run_pressure_test(timeout_minutes: int, output_path: str, disable_faults: bo
     if config.llm.use_mock or not config.llm.api_base or not config.llm.api_key:
         raise RuntimeError("Pressure test requires a real AI provider configuration.")
     store = build_store(config.database_url)
-    service = V6Orchestrator(store=store, workspace_root=config.workspace_root, tenant_id=config.identity.default_tenant, llm_client=OpenAICompatibleClient(config.llm))
+    service = V6Orchestrator(
+        store=store,
+        workspace_root=config.workspace_root,
+        tenant_id=config.identity.default_tenant,
+        llm_client=OpenAICompatibleClient(config.llm),
+        logs_root=config.logs_path,
+        storage_policy=StorageLifecyclePolicy.from_runtime_config(config.runtime),
+    )
     try:
         service.bootstrap(attempts=1, delay_seconds=0.0)
     except Exception as exc:
@@ -131,7 +156,14 @@ def run_api(host: str, port: int, memory_store: bool = False) -> None:
     config = load_config(root)
     store = InMemoryV6Store() if memory_store else build_store(config.database_url)
     llm_client = None if memory_store else OpenAICompatibleClient(config.llm)
-    service = V6Orchestrator(store=store, workspace_root=config.workspace_root, tenant_id=config.identity.default_tenant, llm_client=llm_client)
+    service = V6Orchestrator(
+        store=store,
+        workspace_root=config.workspace_root,
+        tenant_id=config.identity.default_tenant,
+        llm_client=llm_client,
+        logs_root=config.logs_path,
+        storage_policy=StorageLifecyclePolicy.from_runtime_config(config.runtime),
+    )
     service.bootstrap(attempts=1 if memory_store else 30, delay_seconds=1.0)
     run_api_server(service, config, host=host or config.server.host, port=port or config.server.port)
 
@@ -144,6 +176,11 @@ def main() -> None:
     parser.add_argument("--system-check", action="store_true")
     parser.add_argument("--purge-retired-records", action="store_true")
     parser.add_argument("--purge-database-url", default="", help="Override the V6 Postgres URL for retired record cleanup.")
+    parser.add_argument("--storage-report", action="store_true", help="Print V6 managed runtime storage usage and cleanup candidates.")
+    parser.add_argument("--gc-workspace", action="store_true", help="Run V6 managed runtime garbage collection.")
+    parser.add_argument("--gc-apply", action="store_true", help="Actually delete eligible managed runtime files for --gc-workspace. Default is dry-run.")
+    parser.add_argument("--gc-force", action="store_true", help="Allow GC to ignore elapsed retention windows; active runs and unsafe paths remain protected.")
+    parser.add_argument("--gc-no-logs", action="store_true", help="Do not include expired managed logs in --gc-workspace.")
     parser.add_argument("--strict-db", action="store_true", help="Require Postgres bootstrap during --system-check.")
     parser.add_argument("--llm-contract-check", action="store_true")
     parser.add_argument("--worker", action="store_true", help="Run one V6 durable worker process.")
@@ -172,6 +209,12 @@ def main() -> None:
         return
     if args.purge_retired_records:
         purge_retired_records(args.purge_database_url)
+        return
+    if args.storage_report:
+        run_storage_report(memory_store=args.memory_store)
+        return
+    if args.gc_workspace:
+        run_storage_gc(dry_run=not args.gc_apply, force=args.gc_force, include_logs=not args.gc_no_logs, memory_store=args.memory_store)
         return
     if args.llm_contract_check:
         run_llm_handshake_check()

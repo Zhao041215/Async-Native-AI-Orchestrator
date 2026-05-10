@@ -17,10 +17,20 @@ from dev_orchestrator.v6.context_memory import build_context_snapshot, package_c
 from dev_orchestrator.v6.kernel import build_checkpoint_resume_plan, build_mission_graph, build_recovery_trace, build_replay_projection
 from dev_orchestrator.v6.llm_policy import ai_policy_payload_limits, get_ai_task_budget, resolve_ai_task_budget
 from dev_orchestrator.v6.models import DEFAULT_TENANT, new_id, sha256_file, slugify
+from dev_orchestrator.v6.role_aliases import canonical_worker_role, normalize_role_name
 from dev_orchestrator.v6.patch_runtime import TransactionalPatchRuntime
 from dev_orchestrator.v6.release_quality import build_deploy_guide, validate_ai_native_project
 from dev_orchestrator.v6.runtime import AgentFileRuntime, PatchValidationError
+from dev_orchestrator.v6.scale_inference import (
+    choose_larger_scale,
+    infer_initial_scale,
+    infer_scale_from_architecture,
+    infer_scale_from_package_plan,
+    infer_scale_from_requirements,
+    merge_inference_history,
+)
 from dev_orchestrator.v6.store import V6Store
+from dev_orchestrator.v6.storage_lifecycle import StorageLifecycleManager, StorageLifecyclePolicy
 from dev_orchestrator.v6.test_runner import run_validation_commands
 from dev_orchestrator.v6.memory import build_layered_memory, memory_for_package
 from dev_orchestrator.v6.mission import build_mission_state
@@ -28,7 +38,7 @@ from dev_orchestrator.v6.profiles import resolve_scale_profile, scale_job_attemp
 
 
 DEFAULT_PROJECT_CONFIG = {
-    "target_scale": "small",
+    "target_scale": "auto",
     "stack_pack": "auto",
     "deployment_mode": "",
     "api_only": False,
@@ -42,7 +52,6 @@ PACKAGE_ROLE_TO_TASK = {
     "docs": "code_generation",
     "release": "release_notes",
 }
-
 
 class AgentContractViolationError(LLMError):
     retryable = False
@@ -60,6 +69,7 @@ class ProjectPathError(RuntimeError):
 
 class DeliveryExportError(RuntimeError):
     pass
+
 
 
 EXPORT_EXCLUDED_DIRS = {
@@ -102,16 +112,27 @@ def _json_or_empty(raw: Any) -> dict[str, Any]:
 
 
 class V6Orchestrator:
-    def __init__(self, store: V6Store, workspace_root: Path, tenant_id: str = DEFAULT_TENANT, llm_client: OpenAICompatibleClient | None = None):
+    def __init__(
+        self,
+        store: V6Store,
+        workspace_root: Path,
+        tenant_id: str = DEFAULT_TENANT,
+        llm_client: OpenAICompatibleClient | None = None,
+        logs_root: Path | None = None,
+        storage_policy: StorageLifecyclePolicy | None = None,
+    ):
         self.store = store
-        self.workspace_root = workspace_root
+        self.workspace_root = workspace_root.resolve()
+        self.logs_root = (logs_root or self.workspace_root.parent.parent / "logs").resolve()
         self.tenant_id = tenant_id or DEFAULT_TENANT
-        self.artifacts = ArtifactWriter(workspace_root)
-        self.runtime = AgentFileRuntime(workspace_root)
+        self.artifacts = ArtifactWriter(self.workspace_root)
+        self.runtime = AgentFileRuntime(self.workspace_root)
         self.patch_runtime = TransactionalPatchRuntime(self.runtime)
         self.materializer = self.runtime
         self.llm_client = llm_client
         self.ai_scheduler = AICallScheduler(llm_client)
+        self.storage_policy = storage_policy or StorageLifecyclePolicy()
+        self.storage_lifecycle = StorageLifecycleManager(self.workspace_root, self.logs_root, self.storage_policy)
 
     def update_llm_client(self, llm_client: OpenAICompatibleClient | None) -> None:
         self.llm_client = llm_client
@@ -119,6 +140,7 @@ class V6Orchestrator:
 
     def bootstrap(self, attempts: int = 1, delay_seconds: float = 1.0) -> None:
         self.workspace_root.mkdir(parents=True, exist_ok=True)
+        self.logs_root.mkdir(parents=True, exist_ok=True)
         last_error: Exception | None = None
         for attempt in range(max(1, attempts)):
             try:
@@ -135,7 +157,11 @@ class V6Orchestrator:
         self.store.get_or_create_tenant(self.tenant_id)
 
     def _project_scale_profile(self, project: dict[str, Any]) -> dict[str, Any]:
-        return resolve_scale_profile(project.get("config") or {})
+        config = project.get("config") or {}
+        inferred = config.get("inferred_target_scale")
+        if str(config.get("target_scale") or "").strip().lower() in {"", "auto"} and inferred:
+            return resolve_scale_profile({"target_scale": inferred})
+        return resolve_scale_profile(config)
 
     def _run_scale_profile(self, run: dict[str, Any], project: dict[str, Any] | None = None) -> dict[str, Any]:
         metadata = run.get("metadata") or {}
@@ -150,6 +176,33 @@ class V6Orchestrator:
 
     def _job_attempts(self, run: dict[str, Any], task_kind: str) -> int:
         return scale_job_attempts(task_kind, self._run_scale_profile(run))
+
+    def _apply_scale_inference(self, run: dict[str, Any], project: dict[str, Any], inference: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+        metadata = dict(run.get("metadata") or {})
+        requested = str(metadata.get("target_scale_requested") or (project.get("config") or {}).get("target_scale") or "auto").strip().lower() or "auto"
+        current_profile = self._run_scale_profile(run, project)
+        current_scale = current_profile.get("name", "medium")
+        inferred_scale = inference.get("selected_scale") or current_scale
+        selected_scale = choose_larger_scale(current_scale, inferred_scale) if requested in {"", "auto"} else current_scale
+        upgraded = selected_scale != current_scale
+        selected_profile = resolve_scale_profile({"target_scale": selected_scale})
+        history = merge_inference_history(metadata.get("scale_inference_history"), {**inference, "previous_scale": current_scale, "applied_scale": selected_scale, "upgraded": upgraded})
+        metadata.update(
+            {
+                "scale_profile": selected_profile,
+                "scale_inference": {**inference, "previous_scale": current_scale, "applied_scale": selected_scale, "upgraded": upgraded},
+                "scale_inference_history": history,
+                "inferred_target_scale": selected_scale,
+                "scale_auto_upgrade_enabled": requested in {"", "auto"},
+                "target_scale_requested": requested,
+            }
+        )
+        if upgraded:
+            continuation = {**dict(run.get("continuation") or {}), "scale_profile": selected_profile, "scale_upgraded_from": current_scale, "scale_upgraded_to": selected_scale}
+            updated_run = self.store.update_run(run["id"], metadata=metadata, continuation=continuation)
+            self.store.add_event(run["tenant_id"], project["id"], run["id"], "scale_profile.upgraded", {"run_id": run["id"], "from": current_scale, "to": selected_scale, "inference": inference})
+            return updated_run, metadata
+        return {**run, "metadata": metadata}, metadata
 
     def ai_policy(self) -> dict[str, Any]:
         limits = ai_policy_payload_limits()
@@ -226,7 +279,14 @@ class V6Orchestrator:
         for key in DEFAULT_PROJECT_CONFIG:
             if key in payload and payload[key] is not None:
                 config[key] = payload[key]
-        scale_profile = resolve_scale_profile(config)
+        requested_scale = str(config.get("target_scale") or "auto").strip().lower() or "auto"
+        inference = infer_initial_scale(config, payload.get("description") or "")
+        effective_scale = inference["selected_scale"] if requested_scale in {"", "auto"} else requested_scale
+        scale_profile = resolve_scale_profile({"target_scale": effective_scale})
+        config["target_scale"] = requested_scale
+        config["inferred_target_scale"] = effective_scale
+        config["scale_inference"] = inference
+        config["scale_inference_history"] = [inference]
         config["scale_profile"] = scale_profile
         config["kernel_generation"] = scale_profile.get("kernel_generation", "100k_ai_native")
         config["mission_contract_version"] = scale_profile.get("mission_contract_version", "6.1")
@@ -275,6 +335,9 @@ class V6Orchestrator:
                 "project_layout": {},
                 "package_dag": {},
                 "scale_profile": scale_profile,
+                "target_scale_requested": (project.get("config") or {}).get("target_scale", "auto"),
+                "scale_inference": (project.get("config") or {}).get("scale_inference", {}),
+                "scale_inference_history": (project.get("config") or {}).get("scale_inference_history", []),
                 "kernel_generation": scale_profile.get("kernel_generation", "100k_ai_native"),
                 "mission_contract_version": scale_profile.get("mission_contract_version", "6.1"),
             },
@@ -312,6 +375,92 @@ class V6Orchestrator:
 
     def list_artifacts(self, run_id: str) -> list[dict[str, Any]]:
         return self.store.list_artifacts(run_id)
+
+    def storage_report(self) -> dict[str, Any]:
+        projects = self.store.list_projects(self.tenant_id)
+        runs_by_project = {project["id"]: self.store.list_runs(project["id"]) for project in projects}
+        jobs_by_run: dict[str, list[dict[str, Any]]] = {}
+        artifacts_by_run: dict[str, list[dict[str, Any]]] = {}
+        for runs in runs_by_project.values():
+            for run in runs:
+                jobs_by_run[run["id"]] = self.store.list_jobs(run_id=run["id"])
+                artifacts_by_run[run["id"]] = self.store.list_artifacts(run["id"])
+        report = self.storage_lifecycle.build_report(projects, runs_by_project, jobs_by_run, artifacts_by_run)
+        report["managed_roots"] = {
+            "runtime_root": str(self.workspace_root),
+            "logs_root": str(self.logs_root),
+            "user_export_policy": "never_delete_user_export_targets",
+        }
+        return report
+
+    def run_storage(self, run_id: str) -> dict[str, Any]:
+        run = self._require_run(run_id)
+        project = self._require_project(run["project_id"])
+        return self.storage_lifecycle.run_summary(project, run, self.store.list_jobs(run_id=run_id), self.store.list_artifacts(run_id))
+
+    def prune_run_storage(self, run_id: str, dry_run: bool = True, force: bool = False) -> dict[str, Any]:
+        run = self._require_run(run_id)
+        project = self._require_project(run["project_id"])
+        jobs = self.store.list_jobs(run_id=run_id)
+        artifacts = self.store.list_artifacts(run_id)
+        plan = self.storage_lifecycle.build_run_prune_plan(project, run, jobs, artifacts, force=force)
+        self.store.add_event(run["tenant_id"], project["id"], run_id, "storage.gc_planned", {"run_id": run_id, "dry_run": dry_run, "force": force, "plan": plan})
+        result = self.storage_lifecycle.apply_delete_plan(plan, dry_run=dry_run) if plan["ok"] else {"schema_version": "6.3", "ok": False, "dry_run": dry_run, "deleted": [], "errors": [], "reclaimed_bytes": 0, "blocked_reasons": plan["blocked_reasons"]}
+        latest = self._require_run(run_id)
+        lifecycle = dict((latest.get("metadata") or {}).get("storage_lifecycle") or {})
+        if result.get("ok") and not dry_run:
+            lifecycle.update(
+                {
+                    "state": "pruned",
+                    "pruned_at": time.strftime("%Y-%m-%dT%H:%M:%S+00:00", time.gmtime()),
+                    "last_prune": result,
+                }
+            )
+            self.store.update_run(run_id, metadata={**dict(latest.get("metadata") or {}), "storage_lifecycle": lifecycle})
+        self.store.add_event(run["tenant_id"], project["id"], run_id, "storage.gc_completed", {"run_id": run_id, "dry_run": dry_run, "result": result})
+        return {"plan": plan, "result": result}
+
+    def archive_run_storage(self, run_id: str, include_worktree: bool = False, dry_run: bool = True) -> dict[str, Any]:
+        run = self._require_run(run_id)
+        project = self._require_project(run["project_id"])
+        result = self.storage_lifecycle.archive_run(project, run, self.store.list_artifacts(run_id), include_worktree=include_worktree, dry_run=dry_run)
+        self.store.add_event(run["tenant_id"], project["id"], run_id, "storage.archive_planned" if dry_run else "storage.archived", {"run_id": run_id, "result": result})
+        if result.get("ok") and not dry_run:
+            latest = self._require_run(run_id)
+            lifecycle = dict((latest.get("metadata") or {}).get("storage_lifecycle") or {})
+            lifecycle.update(
+                {
+                    "state": "archived",
+                    "archived_at": time.strftime("%Y-%m-%dT%H:%M:%S+00:00", time.gmtime()),
+                    "archive_path": result.get("archive_path", ""),
+                    "archive_file_count": result.get("file_count", 0),
+                }
+            )
+            self.store.update_run(run_id, metadata={**dict(latest.get("metadata") or {}), "storage_lifecycle": lifecycle})
+        return result
+
+    def gc_storage(self, dry_run: bool = True, force: bool = False, include_logs: bool = True) -> dict[str, Any]:
+        report = self.storage_report()
+        run_results = []
+        candidates = report.get("runs", []) if force else report.get("cleanup_candidates", [])
+        for candidate in candidates:
+            run_results.append(self.prune_run_storage(candidate["run_id"], dry_run=dry_run, force=force))
+        log_plan = self.storage_lifecycle.old_log_delete_plan() if include_logs else {"schema_version": "6.3", "ok": True, "targets": [], "estimated_reclaim_bytes": 0}
+        self.store.add_event(self.tenant_id, None, None, "storage.gc_planned", {"dry_run": dry_run, "force": force, "include_logs": include_logs, "run_candidate_count": len(run_results), "log_plan": log_plan})
+        log_result = self.storage_lifecycle.apply_delete_plan(log_plan, dry_run=dry_run)
+        result = {
+            "schema_version": "6.3",
+            "ok": all(item["result"].get("ok") for item in run_results) and log_result.get("ok", False),
+            "dry_run": dry_run,
+            "force": force,
+            "run_results": run_results,
+            "log_plan": log_plan,
+            "log_result": log_result,
+            "estimated_reclaim_bytes": sum(int(item["plan"].get("estimated_reclaim_bytes") or 0) for item in run_results) + int(log_plan.get("estimated_reclaim_bytes") or 0),
+            "reclaimed_bytes": sum(int(item["result"].get("reclaimed_bytes") or 0) for item in run_results) + int(log_result.get("reclaimed_bytes") or 0),
+        }
+        self.store.add_event(self.tenant_id, None, None, "storage.gc_completed", result)
+        return result
 
     def list_events(self, run_id: str, event_type: str | None = None, after_sequence: int | None = None, limit: int | None = None) -> list[dict[str, Any]]:
         events = self.store.list_events(run_id, event_type=event_type)
@@ -540,7 +689,7 @@ class V6Orchestrator:
             copied.append({"path": normalized, "size": target.stat().st_size, "sha256": sha256_file(target)})
 
         report = {
-            "schema_version": "6.0",
+            "schema_version": "6.3",
             "run_id": run_id,
             "project_id": project["id"],
             "source_project_root": str(source_root),
@@ -554,7 +703,43 @@ class V6Orchestrator:
         }
         artifact = self._record_json(project, run, "delivery_export", "delivery-export-report.json", report)
         latest_run = self._require_run(run_id)
-        self.store.update_run(run_id, metadata={**dict(latest_run.get("metadata") or {}), "delivery_export_path": artifact["path"], "delivery_export_target": str(target_root)})
+        export_time = time.strftime("%Y-%m-%dT%H:%M:%S+00:00", time.gmtime())
+        quality_summary = self._latest_payload_or_empty(self.store.list_artifacts(run_id), "quality_report")
+        receipt = {
+            "schema_version": "6.3",
+            "run_id": run_id,
+            "project_id": project["id"],
+            "exported_at": export_time,
+            "source_project_root": str(source_root),
+            "target_path": str(target_root),
+            "copied_count": len(copied),
+            "copied_bytes": sum(int(item.get("size") or 0) for item in copied),
+            "copied_files": copied,
+            "quality_status": quality_summary.get("status", ""),
+            "quality_ok": quality_summary.get("ok"),
+            "retention": {
+                "state": "exported",
+                "worktree_retention_days": self.storage_policy.exported_worktree_retention_days,
+                "user_export_policy": "never_delete_user_export_targets",
+            },
+        }
+        receipt_artifact = self._record_json(project, latest_run, "delivery_export_receipt", "delivery-export-receipt.json", receipt)
+        metadata = dict(latest_run.get("metadata") or {})
+        lifecycle = dict(metadata.get("storage_lifecycle") or {})
+        lifecycle.update(
+            {
+                "schema_version": "6.3",
+                "state": "exported",
+                "exported_at": export_time,
+                "delivery_export_receipt_id": receipt_artifact["id"],
+                "delivery_export_target": str(target_root),
+                "worktree_retention_days": self.storage_policy.exported_worktree_retention_days,
+                "user_export_policy": "never_delete_user_export_targets",
+            }
+        )
+        metadata.update({"delivery_export_path": artifact["path"], "delivery_export_target": str(target_root), "delivery_exported_at": export_time, "storage_lifecycle": lifecycle})
+        self.store.update_run(run_id, metadata=metadata)
+        self.store.add_event(run["tenant_id"], project["id"], run_id, "storage.export_recorded", {"run_id": run_id, "target_path": str(target_root), "receipt_artifact_id": receipt_artifact["id"], "copied_count": len(copied)})
         return report
 
     def execute_job(self, job: dict[str, Any]) -> dict[str, Any]:
@@ -623,71 +808,232 @@ class V6Orchestrator:
             self.store.update_run(run["id"], status="no_go", checkpoint="requirements_completed", continuation=continuation, metadata={**dict(run.get("metadata") or {}), "requirements_analysis": analysis})
             self._write_manifest(project, run)
             return {"status": "NO_GO", "requirements_analysis": analysis}
-        metadata = {**dict(run.get("metadata") or {}), "requirements_analysis": analysis}
-        continuation = {**dict(run.get("continuation") or {}), "checkpoint": "requirements_completed", "next_action": "architecture_design"}
-        self.store.update_run(run["id"], status="running", checkpoint="requirements_completed", continuation=continuation, metadata=metadata)
-        self.store.enqueue_job(run["tenant_id"], {"job_type": "architecture_design", "role": "architect", "run_id": run["id"], "resume_key": f"run:{run['id']}:architecture_design", "payload": self._job_payload(run, {}), "max_attempts": self._job_attempts(run, "architecture_design")})
-        self._write_manifest(project, run)
+        inference = infer_scale_from_requirements(analysis, requirements_text)
+        inferred_run, inferred_metadata = self._apply_scale_inference(run, project, inference)
+        metadata = {**inferred_metadata, "requirements_analysis": analysis}
+        continuation = {**dict(inferred_run.get("continuation") or {}), "checkpoint": "requirements_completed", "next_action": "architecture_design"}
+        updated_run = self.store.update_run(run["id"], status="running", checkpoint="requirements_completed", continuation=continuation, metadata=metadata)
+        self.store.enqueue_job(run["tenant_id"], {"job_type": "architecture_design", "role": "architect", "run_id": run["id"], "resume_key": f"run:{run['id']}:architecture_design", "payload": self._job_payload(updated_run, {}), "max_attempts": self._job_attempts(updated_run, "architecture_design")})
+        self._write_manifest(project, updated_run)
         return {"status": "completed", "next": "architecture_design"}
 
     def _execute_architecture_design(self, job: dict[str, Any]) -> dict[str, Any]:
         run = self._require_run(job["run_id"])
         project = self._require_project(run["project_id"])
         metadata = dict(run.get("metadata") or {})
-        design = self._invoke_json_agent(
-            project,
-            run,
-            role="architect",
-            job=job,
-            task_kind="architecture_design",
-            system_prompt=(
-                "You are architect_agent. Return strict JSON only. You must design the project directory layout. "
-                "Do not use a fixed template. Return architecture_summary, technology_choices, project_layout, module_boundaries, integration_contracts. "
-                "project_layout must contain source_root, delivery_root, entrypoints, directories, validation_commands."
-            ),
-            user_payload={"project": self._project_prompt(project), "requirements_analysis": metadata.get("requirements_analysis", {}), "stack_constraints": (project.get("config") or {})},
-            required=True,
-        )
+        if metadata.get("architecture_design") and run.get("checkpoint") == "architecture_completed":
+            layout = self._normalize_layout(metadata.get("architecture_design") or {})
+            return {"status": "completed", "project_layout": layout}
+
+        architecture_seed = metadata.get("architecture_seed") or self._build_architecture_seed(project, run, metadata)
+        seed_artifact = {"id": metadata.get("architecture_seed_artifact_id", ""), "path": metadata.get("architecture_seed_path", "")}
+        if not metadata.get("architecture_seed_path"):
+            seed_artifact = self._record_json(project, run, "architecture_seed", "architecture-seed.json", architecture_seed, {"stage": "seed"})
+            metadata["architecture_seed_path"] = seed_artifact["path"]
+            metadata["architecture_seed_artifact_id"] = seed_artifact["id"]
+            seed_continuation = {**dict(run.get("continuation") or {}), "architecture_phase": "seed_completed", "next_action": "architecture_design"}
+            run = self.store.update_run(run["id"], status="running", continuation=seed_continuation, metadata=metadata)
+        metadata["architecture_seed"] = architecture_seed
+
+        surface = dict(metadata.get("architecture_surface") or {})
+        if not surface:
+            surface = self._invoke_json_agent(
+                project,
+                run,
+                role="architect",
+                job=job,
+                task_kind="architecture_surface",
+                system_prompt=(
+                    "You are architecture_surface_agent. Return strict JSON only. "
+                    "Produce a concise, project-specific architecture surface. "
+                    "Return architecture_summary, technology_choices, design_principles, primary_risks, scale_notes. "
+                    "Avoid generic templates and keep lists short and concrete."
+                ),
+                user_payload=self._architecture_surface_payload(project, run, metadata, architecture_seed),
+                required=True,
+            )
+            surface_artifact = self._record_json(project, run, "architecture_surface", "architecture-surface.json", surface, {"stage": "surface"})
+            self.store.add_event(run["tenant_id"], project["id"], run["id"], "architecture.surface_completed", {"stage": "surface", "artifact_id": surface_artifact["id"], "seed_artifact_id": seed_artifact["id"]})
+            metadata["architecture_surface"] = surface
+            metadata["architecture_surface_path"] = surface_artifact["path"]
+            metadata["architecture_surface_artifact_id"] = surface_artifact["id"]
+            surface_continuation = {**dict(run.get("continuation") or {}), "architecture_phase": "surface_completed", "next_action": "architecture_design"}
+            run = self.store.update_run(run["id"], status="running", continuation=surface_continuation, metadata=metadata)
+
+        structure = dict(metadata.get("architecture_structure") or {})
+        if not structure:
+            layout_draft = dict(metadata.get("architecture_layout") or {})
+            if not layout_draft:
+                layout_draft = self._invoke_json_agent(
+                    project,
+                    run,
+                    role="architect",
+                    job=job,
+                    task_kind="architecture_layout",
+                    system_prompt=(
+                        "You are architecture_layout_agent. Return strict JSON only. "
+                        "Design only the concrete project layout for this project. "
+                        "Return project_layout and validation_commands. "
+                        "project_layout must contain source_root, delivery_root, entrypoints, directories, validation_commands. "
+                        "Keep the answer compact; do not include module contracts here."
+                    ),
+                    user_payload=self._architecture_layout_payload(project, run, metadata, architecture_seed, surface),
+                    required=True,
+                )
+                layout_artifact = self._record_json(project, run, "architecture_layout", "architecture-layout.json", layout_draft, {"stage": "layout"})
+                self.store.add_event(run["tenant_id"], project["id"], run["id"], "architecture.layout_completed", {"stage": "layout", "artifact_id": layout_artifact["id"], "surface_ready": bool(surface)})
+                metadata["architecture_layout"] = layout_draft
+                metadata["architecture_layout_path"] = layout_artifact["path"]
+                metadata["architecture_layout_artifact_id"] = layout_artifact["id"]
+                layout_continuation = {**dict(run.get("continuation") or {}), "architecture_phase": "layout_completed", "next_action": "architecture_design"}
+                run = self.store.update_run(run["id"], status="running", continuation=layout_continuation, metadata=metadata)
+
+            contracts_draft = dict(metadata.get("architecture_contracts") or {})
+            if not contracts_draft:
+                contracts_draft = self._invoke_json_agent(
+                    project,
+                    run,
+                    role="architect",
+                    job=job,
+                    task_kind="architecture_contracts",
+                    system_prompt=(
+                        "You are architecture_contracts_agent. Return strict JSON only. "
+                        "Using the architecture surface and layout, define only module_boundaries, integration_contracts, and implementation_notes. "
+                        "Keep the answer compact and project-specific. Do not repeat directory layout."
+                    ),
+                    user_payload=self._architecture_contracts_payload(project, run, metadata, architecture_seed, surface, layout_draft),
+                    required=True,
+                )
+                contracts_artifact = self._record_json(project, run, "architecture_contracts", "architecture-contracts.json", contracts_draft, {"stage": "contracts"})
+                self.store.add_event(run["tenant_id"], project["id"], run["id"], "architecture.contracts_completed", {"stage": "contracts", "artifact_id": contracts_artifact["id"], "layout_ready": bool(layout_draft)})
+                metadata["architecture_contracts"] = contracts_draft
+                metadata["architecture_contracts_path"] = contracts_artifact["path"]
+                metadata["architecture_contracts_artifact_id"] = contracts_artifact["id"]
+                contracts_continuation = {**dict(run.get("continuation") or {}), "architecture_phase": "contracts_completed", "next_action": "architecture_design"}
+                run = self.store.update_run(run["id"], status="running", continuation=contracts_continuation, metadata=metadata)
+
+            structure = self._merge_architecture_structure(layout_draft, contracts_draft)
+            structure_artifact = self._record_json(project, run, "architecture_structure", "architecture-structure.json", structure, {"stage": "structure_merged"})
+            self.store.add_event(run["tenant_id"], project["id"], run["id"], "architecture.structure_completed", {"stage": "structure_merged", "artifact_id": structure_artifact["id"], "surface_ready": bool(surface), "layout_ready": bool(layout_draft), "contracts_ready": bool(contracts_draft)})
+            metadata["architecture_structure"] = structure
+            metadata["architecture_structure_path"] = structure_artifact["path"]
+            metadata["architecture_structure_artifact_id"] = structure_artifact["id"]
+
+        design = self._merge_architecture_design(architecture_seed, surface, structure)
         layout = self._normalize_layout(design)
         project_root = self.runtime.project_root(project)
         self.runtime.layout_roots(project_root, layout)
         design["project_layout"] = layout
         self._record_json(project, run, "architecture_design", "architecture-design.json", design)
         self._record_json(project, run, "project_layout", "project-layout.json", layout)
-        metadata.update({"architecture_design": design, "project_layout": layout, "project_root": str(project_root)})
-        continuation = {**dict(run.get("continuation") or {}), "checkpoint": "architecture_completed", "next_action": "package_planning"}
-        self.store.update_run(run["id"], status="running", checkpoint="architecture_completed", continuation=continuation, metadata=metadata)
-        self.store.enqueue_job(run["tenant_id"], {"job_type": "package_planning", "role": "planner", "run_id": run["id"], "resume_key": f"run:{run['id']}:package_planning", "payload": self._job_payload(run, {}), "max_attempts": self._job_attempts(run, "package_planning")})
-        self._write_manifest(project, run)
+        inference = infer_scale_from_architecture(design, layout)
+        inferred_run, inferred_metadata = self._apply_scale_inference(run, project, inference)
+        metadata = {
+            **inferred_metadata,
+            "architecture_seed": architecture_seed,
+            "architecture_seed_path": seed_artifact["path"],
+            "architecture_seed_artifact_id": metadata.get("architecture_seed_artifact_id", seed_artifact["id"]),
+            "architecture_surface": surface,
+            "architecture_surface_path": metadata.get("architecture_surface_path", ""),
+            "architecture_surface_artifact_id": metadata.get("architecture_surface_artifact_id", ""),
+            "architecture_layout": metadata.get("architecture_layout", {}),
+            "architecture_layout_path": metadata.get("architecture_layout_path", ""),
+            "architecture_layout_artifact_id": metadata.get("architecture_layout_artifact_id", ""),
+            "architecture_contracts": metadata.get("architecture_contracts", {}),
+            "architecture_contracts_path": metadata.get("architecture_contracts_path", ""),
+            "architecture_contracts_artifact_id": metadata.get("architecture_contracts_artifact_id", ""),
+            "architecture_structure": structure,
+            "architecture_structure_path": metadata.get("architecture_structure_path", ""),
+            "architecture_structure_artifact_id": metadata.get("architecture_structure_artifact_id", ""),
+            "architecture_design": design,
+            "project_layout": layout,
+            "project_root": str(project_root),
+            "architecture_phase": "completed",
+        }
+        continuation = {**dict(inferred_run.get("continuation") or {}), "checkpoint": "architecture_completed", "next_action": "package_planning", "architecture_phase": "completed"}
+        updated_run = self.store.update_run(run["id"], status="running", checkpoint="architecture_completed", continuation=continuation, metadata=metadata)
+        self.store.enqueue_job(run["tenant_id"], {"job_type": "package_planning", "role": "planner", "run_id": run["id"], "resume_key": f"run:{run['id']}:package_planning", "payload": self._job_payload(updated_run, {}), "max_attempts": self._job_attempts(updated_run, "package_planning")})
+        self._write_manifest(project, updated_run)
         return {"status": "completed", "project_layout": layout}
 
     def _execute_package_planning(self, job: dict[str, Any]) -> dict[str, Any]:
         run = self._require_run(job["run_id"])
         project = self._require_project(run["project_id"])
         metadata = dict(run.get("metadata") or {})
-        plan = self._invoke_json_agent(
-            project,
-            run,
-            role="planner",
-            job=job,
-            task_kind="package_planning",
-            system_prompt=(
-                "You are planner_agent. Return strict JSON only. Build a DAG of AI-agent work packages. "
-                "Return waves and packages. Each package needs package_key, role, domain, subsystem, wave_key, depends_on, allowed_paths, forbidden_paths, objective, requirements_mapping, expected_outputs. "
-                "Use roles db, backend, frontend, security, qa, docs, release when useful. Paths must be relative to the AI-generated layout."
-            ),
-            user_payload={
-                "project": self._project_prompt(project),
-                "requirements_analysis": metadata.get("requirements_analysis", {}),
-                "architecture_design": metadata.get("architecture_design", {}),
-            },
-            required=True,
-        )
+        if metadata.get("package_dag") and run.get("checkpoint") == "package_planning_completed":
+            return {"status": "completed", "package_count": len((metadata.get("package_dag") or {}).get("packages") or [])}
+
+        layout = metadata.get("project_layout") or (metadata.get("architecture_design") or {}).get("project_layout") or {}
+        seed_is_current = isinstance(metadata.get("package_planning_seed"), dict) and metadata["package_planning_seed"].get("seed_profile") == "compact_scope_current"
+        planning_seed = metadata.get("package_planning_seed") if seed_is_current else self._build_package_planning_seed(project, run, metadata)
+        seed_artifact = {"id": metadata.get("package_planning_seed_artifact_id", ""), "path": metadata.get("package_planning_seed_path", "")}
+        if not seed_is_current or not metadata.get("package_planning_seed_path"):
+            seed_artifact = self._record_json(project, run, "package_planning_seed", "package-planning-seed.json", planning_seed, {"stage": "seed"})
+            metadata["package_planning_seed"] = planning_seed
+            metadata["package_planning_seed_path"] = seed_artifact["path"]
+            metadata["package_planning_seed_artifact_id"] = seed_artifact["id"]
+            seed_continuation = {**dict(run.get("continuation") or {}), "package_planning_phase": "seed_completed", "next_action": "package_planning"}
+            run = self.store.update_run(run["id"], status="running", continuation=seed_continuation, metadata=metadata)
+
+        scope_plan = dict(metadata.get("package_scope_plan") or {})
+        if not scope_plan:
+            scope_plan = self._invoke_json_agent(
+                project,
+                run,
+                role="planner",
+                job=job,
+                task_kind="package_scope_planning",
+                system_prompt=(
+                    "You are package_scope_planning_agent. Return strict JSON only. "
+                    "Choose project-specific AI work packages only; do not assign waves or dependencies. "
+                    "Return packages with package_key, role, domain, subsystem, allowed_paths, forbidden_paths, objective, requirements_mapping, expected_outputs, acceptance_gates. "
+                    "Keep the package count appropriate to the actual project, not to a template."
+                ),
+                user_payload=self._package_scope_payload(project, run, metadata, planning_seed),
+                required=True,
+            )
+            scope_artifact = self._record_json(project, run, "package_scope_plan", "package-scope-plan.json", scope_plan, {"stage": "scope"})
+            self.store.add_event(run["tenant_id"], project["id"], run["id"], "package_planning.scope_completed", {"stage": "scope", "artifact_id": scope_artifact["id"], "package_count": len(scope_plan.get("packages") or [])})
+            metadata["package_scope_plan"] = scope_plan
+            metadata["package_scope_plan_path"] = scope_artifact["path"]
+            metadata["package_scope_plan_artifact_id"] = scope_artifact["id"]
+            scope_continuation = {**dict(run.get("continuation") or {}), "package_planning_phase": "scope_completed", "next_action": "package_planning"}
+            run = self.store.update_run(run["id"], status="running", continuation=scope_continuation, metadata=metadata)
+
+        wave_plan = dict(metadata.get("package_wave_plan") or {})
+        if not wave_plan:
+            wave_plan = self._invoke_json_agent(
+                project,
+                run,
+                role="planner",
+                job=job,
+                task_kind="package_wave_planning",
+                system_prompt=(
+                    "You are package_wave_planning_agent. Return strict JSON only. "
+                    "Assign the provided package candidates to execution waves and dependency edges. "
+                    "Return waves and assignments only. Do not repeat requirements or package descriptions."
+                ),
+                user_payload=self._package_wave_payload(project, run, metadata, planning_seed, scope_plan),
+                required=True,
+            )
+            wave_artifact = self._record_json(project, run, "package_wave_plan", "package-wave-plan.json", wave_plan, {"stage": "waves"})
+            self.store.add_event(run["tenant_id"], project["id"], run["id"], "package_planning.waves_completed", {"stage": "waves", "artifact_id": wave_artifact["id"], "wave_count": len(wave_plan.get("waves") or [])})
+            metadata["package_wave_plan"] = wave_plan
+            metadata["package_wave_plan_path"] = wave_artifact["path"]
+            metadata["package_wave_plan_artifact_id"] = wave_artifact["id"]
+            wave_continuation = {**dict(run.get("continuation") or {}), "package_planning_phase": "waves_completed", "next_action": "package_planning"}
+            run = self.store.update_run(run["id"], status="running", continuation=wave_continuation, metadata=metadata)
+
+        plan = self._merge_package_plan(scope_plan, wave_plan, layout)
         try:
-            plan = self._normalize_package_plan(plan, metadata.get("project_layout") or {})
+            plan = self._normalize_package_plan(plan, layout)
         except AgentContractViolationError as exc:
             self.store.update_run(run["id"], status="blocked", continuation={**dict(run.get("continuation") or {}), "failure_reason": "agent_contract_violation", "next_action": "repair_agent_contract", "contract_error": str(exc)[:2000]})
             raise
+        inference = infer_scale_from_package_plan(plan)
+        inferred_run, inferred_metadata = self._apply_scale_inference(run, project, inference)
+        metadata = {**metadata, **inferred_metadata}
+        run = inferred_run
         self._record_json(project, run, "package_dag", "package-dag.json", plan)
         wave_id_by_key = {}
         for wave in plan["waves"]:
@@ -711,6 +1057,15 @@ class V6Orchestrator:
         self._record_json(project, run, "mission_memory", "mission-memory.json", mission_memory)
         metadata.update(
             {
+                "package_planning_seed": planning_seed,
+                "package_planning_seed_path": metadata.get("package_planning_seed_path", seed_artifact["path"]),
+                "package_planning_seed_artifact_id": metadata.get("package_planning_seed_artifact_id", seed_artifact["id"]),
+                "package_scope_plan": scope_plan,
+                "package_scope_plan_path": metadata.get("package_scope_plan_path", ""),
+                "package_scope_plan_artifact_id": metadata.get("package_scope_plan_artifact_id", ""),
+                "package_wave_plan": wave_plan,
+                "package_wave_plan_path": metadata.get("package_wave_plan_path", ""),
+                "package_wave_plan_artifact_id": metadata.get("package_wave_plan_artifact_id", ""),
                 "package_dag": plan,
                 "context_snapshot": context_snapshot,
                 "context_snapshot_id": context_snapshot["index_hash"],
@@ -723,7 +1078,7 @@ class V6Orchestrator:
             }
         )
         first_wave = min(plan["waves"], key=lambda item: item["sequence"])
-        continuation = {**dict(run.get("continuation") or {}), "checkpoint": "package_planning_completed", "current_wave": first_wave["wave_key"], "pending_packages": [package["package_key"] for package in plan["packages"]], "next_action": "worker_claim_package_jobs"}
+        continuation = {**dict(run.get("continuation") or {}), "checkpoint": "package_planning_completed", "current_wave": first_wave["wave_key"], "pending_packages": [package["package_key"] for package in plan["packages"]], "package_planning_phase": "completed", "next_action": "worker_claim_package_jobs"}
         updated_run = self.store.update_run(run["id"], status="running", checkpoint="package_planning_completed", continuation=continuation, metadata=metadata)
         self._enqueue_wave_packages(project, updated_run, first_wave["wave_key"])
         self._write_manifest(project, run)
@@ -1078,6 +1433,15 @@ class V6Orchestrator:
         completed_keys = {package["package_key"] for package in self.store.list_work_packages(run["id"]) if package.get("status") == "completed"}
         for package in packages:
             payload = package.get("payload") or {}
+            role = self._normalize_package_role(str(package.get("role") or payload.get("role") or ""), str(payload.get("domain") or package.get("domain") or ""), str(payload.get("subsystem") or package.get("domain") or ""), str(payload.get("objective") or ""))
+            if role and role != package.get("role"):
+                updated_payload = dict(payload)
+                updated_payload["role"] = role
+                if package.get("role"):
+                    updated_payload["source_role"] = package.get("role")
+                self.store.update_work_package(package["id"], role=role, payload=updated_payload)
+                package = self.store.get_work_package(package["id"]) or package
+                payload = package.get("payload") or updated_payload
             depends_on = payload.get("depends_on") or []
             if any(dep not in completed_keys for dep in depends_on):
                 continue
@@ -1086,7 +1450,7 @@ class V6Orchestrator:
                 run["tenant_id"],
                 {
                     "job_type": job_type,
-                    "role": package["role"],
+                    "role": role or package["role"],
                     "run_id": run["id"],
                     "work_package_id": package["id"],
                     "wave_id": package["wave_id"],
@@ -1437,6 +1801,8 @@ class V6Orchestrator:
         if not preflight.get("ok", True):
             return "repair_missing_artifacts"
         queued = [job for job in jobs if job["status"] in {"queued", "retry", "leased", "running"}]
+        if any(job for job in queued if job.get("status") in {"leased", "running"}):
+            return "job_running"
         if queued:
             return "claim_pending_jobs"
         return (run.get("continuation") or {}).get("next_action", "idle")
@@ -1585,6 +1951,296 @@ class V6Orchestrator:
     def _project_prompt(self, project: dict[str, Any]) -> dict[str, Any]:
         return {"id": project.get("id"), "name": project.get("name"), "title": project.get("title"), "description": project.get("description"), "config": project.get("config") or {}, "project_path": project.get("project_path", "")}
 
+    def _build_architecture_seed(self, project: dict[str, Any], run: dict[str, Any], metadata: dict[str, Any]) -> dict[str, Any]:
+        requirements = dict(metadata.get("requirements_analysis") or {})
+        project_config = dict(project.get("config") or {})
+        profile = self._run_scale_profile(run, project)
+        scale_inference = dict(metadata.get("scale_inference") or {})
+        return {
+            "schema_version": "6.0",
+            "phase": "architecture_seed",
+            "project": {
+                "id": project.get("id", ""),
+                "name": project.get("name", ""),
+                "title": project.get("title", ""),
+                "project_path": project.get("project_path", ""),
+            },
+            "project_config": {
+                "target_scale": project_config.get("target_scale", ""),
+                "stack_pack": project_config.get("stack_pack", ""),
+                "deployment_mode": project_config.get("deployment_mode", ""),
+                "api_only": bool(project_config.get("api_only", False)),
+                "effective_loc_target": int(project_config.get("effective_loc_target") or 0),
+                "unattended_mode": project_config.get("unattended_mode", ""),
+            },
+            "scale_profile": {
+                "name": profile.get("name", ""),
+                "kernel_generation": profile.get("kernel_generation", ""),
+                "mission_contract_version": profile.get("mission_contract_version", ""),
+                "recursive_decomposition_depth": profile.get("recursive_decomposition_depth", 0),
+                "wave_parallelism": profile.get("wave_parallelism", 0),
+                "context_budget_chars": profile.get("context_budget_chars", 0),
+                "package_loc_target": profile.get("package_loc_target", 0),
+                "ai_retry_attempts": profile.get("ai_retry_attempts", 0),
+            },
+            "scale_inference": {
+                "selected_scale": scale_inference.get("selected_scale", profile.get("name", "")),
+                "confidence": scale_inference.get("confidence", ""),
+                "reasons": list(scale_inference.get("reasons") or [])[:6],
+            },
+            "requirements": self._compact_architecture_requirements(requirements),
+            "focus_tags": self._architecture_focus_tags(requirements, project_config),
+        }
+
+    def _architecture_surface_payload(self, project: dict[str, Any], run: dict[str, Any], metadata: dict[str, Any], architecture_seed: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "architecture_seed": architecture_seed,
+            "requirements": architecture_seed.get("requirements", {}),
+            "instructions": "Return a concise architecture surface for this project. Keep every list short, concrete, and specific to the project context.",
+        }
+
+    def _architecture_layout_payload(self, project: dict[str, Any], run: dict[str, Any], metadata: dict[str, Any], architecture_seed: dict[str, Any], surface: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "architecture_seed": architecture_seed,
+            "architecture_surface": surface,
+            "requirements": architecture_seed.get("requirements", {}),
+            "instructions": "Return only the concrete project layout, entrypoints, directories, and validation commands. Do not return module contracts.",
+        }
+
+    def _architecture_contracts_payload(self, project: dict[str, Any], run: dict[str, Any], metadata: dict[str, Any], architecture_seed: dict[str, Any], surface: dict[str, Any], layout_draft: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "architecture_seed": architecture_seed,
+            "architecture_surface": surface,
+            "architecture_layout": layout_draft,
+            "requirements": architecture_seed.get("requirements", {}),
+            "instructions": "Return only module boundaries, integration contracts, and implementation notes. Do not repeat directory layout.",
+        }
+
+    def _compact_architecture_requirements(self, requirements: dict[str, Any]) -> dict[str, Any]:
+        compact: dict[str, Any] = {}
+        for key in ("status", "summary"):
+            value = requirements.get(key)
+            if value is not None:
+                compact[key] = _compact_text(str(value), 1500)
+        for key in ("goals", "users", "constraints", "acceptance_criteria", "missing_information", "risks", "expected_terms"):
+            value = requirements.get(key)
+            if isinstance(value, list):
+                compact[key] = [self._compact_architecture_item(item) for item in value[:6]]
+        return compact
+
+    def _compact_architecture_item(self, item: Any) -> Any:
+        if isinstance(item, str):
+            return _compact_text(item, 220)
+        if isinstance(item, dict):
+            compact: dict[str, Any] = {}
+            for key, value in list(item.items())[:8]:
+                compact[key] = _compact_text(value, 220) if isinstance(value, str) else value
+            return compact
+        return item
+
+    def _architecture_focus_tags(self, requirements: dict[str, Any], project_config: dict[str, Any]) -> list[str]:
+        text = " ".join(
+            [
+                str(requirements.get("summary") or ""),
+                " ".join(str(item) for item in requirements.get("goals") or []),
+                " ".join(str(item) for item in requirements.get("constraints") or []),
+                " ".join(str(item) for item in requirements.get("acceptance_criteria") or []),
+                " ".join(str(item) for item in requirements.get("expected_terms") or []),
+                str(project_config.get("target_scale") or ""),
+            ]
+        ).lower()
+        focus_map = {
+            "auth": ("login", "logout", "password", "session", "auth", "rbac", "权限", "登录"),
+            "dashboard": ("dashboard", "summary", "report", "overview", "仪表盘"),
+            "inventory": ("inventory", "stock", "product", "warehouse", "入库", "出库", "库存", "产品"),
+            "admin_ui": ("admin", "后台", "settings", "manage"),
+            "data_history": ("history", "log", "record", "audit", "记录"),
+            "pagination": ("pagination", "page", "分页"),
+            "search_filter": ("search", "filter", "search box", "搜索", "筛选"),
+            "validation": ("validation", "constraint", "negative", "不足", "校验"),
+        }
+        tags = [name for name, keywords in focus_map.items() if any(keyword in text for keyword in keywords)]
+        if not tags:
+            return ["general_delivery"]
+        return tags[:6]
+
+    def _merge_architecture_design(self, architecture_seed: dict[str, Any], surface: dict[str, Any], structure: dict[str, Any]) -> dict[str, Any]:
+        layout = self._normalize_layout(structure)
+        return {
+            "schema_version": "6.0",
+            "architecture_summary": _compact_text(str(surface.get("architecture_summary") or ""), 4000) or _compact_text(str(structure.get("architecture_summary") or ""), 4000),
+            "technology_choices": surface.get("technology_choices") or [],
+            "project_layout": layout,
+            "module_boundaries": structure.get("module_boundaries") or [],
+            "integration_contracts": structure.get("integration_contracts") or [],
+            "design_principles": surface.get("design_principles") or [],
+            "primary_risks": surface.get("primary_risks") or [],
+            "scale_notes": surface.get("scale_notes") or [],
+            "implementation_notes": structure.get("implementation_notes") or [],
+            "architecture_seed": architecture_seed,
+        }
+
+    def _merge_architecture_structure(self, layout_draft: dict[str, Any], contracts_draft: dict[str, Any]) -> dict[str, Any]:
+        layout = self._normalize_layout(layout_draft)
+        if not layout.get("validation_commands") and contracts_draft.get("validation_commands"):
+            layout["validation_commands"] = contracts_draft.get("validation_commands") or []
+        return {
+            "schema_version": "6.0",
+            "project_layout": layout,
+            "module_boundaries": contracts_draft.get("module_boundaries") or [],
+            "integration_contracts": contracts_draft.get("integration_contracts") or [],
+            "validation_commands": layout.get("validation_commands") or [],
+            "implementation_notes": contracts_draft.get("implementation_notes") or [],
+        }
+
+    def _build_package_planning_seed(self, project: dict[str, Any], run: dict[str, Any], metadata: dict[str, Any]) -> dict[str, Any]:
+        requirements = metadata.get("requirements_analysis") or {}
+        architecture = metadata.get("architecture_design") or {}
+        layout = self._normalize_layout({"project_layout": metadata.get("project_layout") or architecture.get("project_layout") or {}})
+        profile = self._run_scale_profile(run, project)
+        project_config = (run.get("metadata") or {}).get("project_config") or {}
+        compact_requirements = {
+            "status": requirements.get("status", ""),
+            "summary": _compact_text(str(requirements.get("summary") or ""), 700),
+            "goals": [_compact_text(str(item), 140) for item in list(requirements.get("goals") or [])[:4]],
+            "constraints": [_compact_text(str(item), 140) for item in list(requirements.get("constraints") or [])[:4]],
+            "acceptance_criteria": [_compact_text(str(item), 180) for item in list(requirements.get("acceptance_criteria") or [])[:4]],
+            "risks": [_compact_text(str(item), 160) for item in list(requirements.get("risks") or [])[:4]],
+        }
+        compact_architecture = {
+            "architecture_summary": _compact_text(str(architecture.get("architecture_summary") or ""), 900),
+            "technology_choices": list(architecture.get("technology_choices") or [])[:6],
+            "project_layout": {
+                "source_root": layout.get("source_root", ""),
+                "delivery_root": layout.get("delivery_root", ""),
+                "entrypoints": list(layout.get("entrypoints") or [])[:6],
+                "directories": [{"path": str(item.get("path") or "")} for item in list(layout.get("directories") or [])[:6] if isinstance(item, dict)],
+                "validation_commands": [str(cmd) for cmd in list(layout.get("validation_commands") or [])[:4]],
+            },
+        }
+        return {
+            "schema_version": "6.1",
+            "seed_profile": "compact_scope_current",
+            "project": {
+                "id": project.get("id", ""),
+                "name": project.get("name", ""),
+                "title": project.get("title", ""),
+                "stack_pack": project_config.get("stack_pack", ""),
+                "target_scale": project_config.get("target_scale", ""),
+            },
+            "scale_profile": {
+                "name": profile.get("name", ""),
+                "target_loc_hint": profile.get("target_loc_hint", 0),
+                "recursive_decomposition_depth": profile.get("recursive_decomposition_depth", 0),
+                "wave_parallelism": profile.get("wave_parallelism", 0),
+                "max_waves": profile.get("max_waves", 0),
+                "package_loc_target": profile.get("package_loc_target", 0),
+            },
+            "requirements": compact_requirements,
+            "architecture": compact_architecture,
+            "planning_rules": [
+                "Use only project-specific packages with clear ownership.",
+                "Keep package count minimal for the actual project size.",
+            ],
+        }
+
+    def _package_scope_payload(self, project: dict[str, Any], run: dict[str, Any], metadata: dict[str, Any], planning_seed: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "package_planning_seed": planning_seed,
+            "instructions": "Return package candidates only. Do not return waves or depends_on. Keep the package set minimal and project-specific.",
+        }
+
+    def _package_wave_payload(self, project: dict[str, Any], run: dict[str, Any], metadata: dict[str, Any], planning_seed: dict[str, Any], scope_plan: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "package_planning_seed": {
+                "schema_version": planning_seed.get("schema_version", "6.1"),
+                "project": planning_seed.get("project", {}),
+                "scale_profile": planning_seed.get("scale_profile", {}),
+                "architecture": {
+                    "project_layout": (planning_seed.get("architecture") or {}).get("project_layout", {}),
+                },
+            },
+            "package_candidates": [self._compact_package_scope_item(item) for item in list(scope_plan.get("packages") or [])],
+            "instructions": "Return waves plus one assignment per package candidate. Use dependencies only when required by actual package outputs.",
+        }
+
+    def _compact_package_scope_item(self, package: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "package_key": str(package.get("package_key") or ""),
+            "role": str(package.get("role") or ""),
+            "domain": _compact_text(str(package.get("domain") or ""), 180),
+            "subsystem": _compact_text(str(package.get("subsystem") or ""), 180),
+            "allowed_paths": list(package.get("allowed_paths") or [])[:6],
+            "objective": _compact_text(str(package.get("objective") or ""), 500),
+            "expected_outputs": [self._compact_architecture_item(item) for item in list(package.get("expected_outputs") or [])[:6]],
+            "acceptance_gates": [self._compact_architecture_item(item) for item in list(package.get("acceptance_gates") or [])[:6]],
+        }
+
+    def _normalize_package_role(self, role: str, domain: str = "", subsystem: str = "", objective: str = "") -> str:
+        return canonical_worker_role(role, domain, subsystem, objective)
+
+    def _merge_package_plan(self, scope_plan: dict[str, Any], wave_plan: dict[str, Any], layout: dict[str, Any]) -> dict[str, Any]:
+        scope_packages = [dict(item) for item in list(scope_plan.get("packages") or []) if isinstance(item, dict)]
+        if not scope_packages:
+            raise AgentContractViolationError("package_scope_planning must return project-specific packages")
+        known_keys = {str(package.get("package_key") or "").strip() for package in scope_packages}
+        known_keys.discard("")
+        waves = [dict(item) for item in list(wave_plan.get("waves") or []) if isinstance(item, dict)]
+        assignments = [dict(item) for item in list(wave_plan.get("assignments") or []) if isinstance(item, dict)]
+        if not assignments and isinstance(wave_plan.get("packages"), list):
+            assignments = [
+                {"package_key": item.get("package_key"), "wave_key": item.get("wave_key"), "depends_on": item.get("depends_on") or []}
+                for item in wave_plan.get("packages") or []
+                if isinstance(item, dict)
+            ]
+        assignment_by_key = {str(item.get("package_key") or ""): item for item in assignments if str(item.get("package_key") or "") in known_keys}
+        if not waves:
+            wave_keys = list(dict.fromkeys(str(item.get("wave_key") or "WAVE-001") for item in assignments))
+            waves = [{"wave_key": wave_key, "sequence": index} for index, wave_key in enumerate(wave_keys or ["WAVE-001"], start=1)]
+        normalized_waves: list[dict[str, Any]] = []
+        seen_wave_keys: set[str] = set()
+        for index, wave in enumerate(waves, start=1):
+            wave_key = str(wave.get("wave_key") or f"WAVE-{index:03d}").strip() or f"WAVE-{index:03d}"
+            if wave_key in seen_wave_keys:
+                continue
+            seen_wave_keys.add(wave_key)
+            normalized_waves.append({"wave_key": wave_key, "sequence": int(wave.get("sequence") or index), "summary": wave.get("summary", "")})
+        if not normalized_waves:
+            normalized_waves = [{"wave_key": "WAVE-001", "sequence": 1, "summary": ""}]
+        wave_keys = {wave["wave_key"] for wave in normalized_waves}
+        packages: list[dict[str, Any]] = []
+        for index, package in enumerate(scope_packages, start=1):
+            package_key = str(package.get("package_key") or f"PKG-{index:03d}").strip() or f"PKG-{index:03d}"
+            assignment = assignment_by_key.get(package_key) or {}
+            wave_key = str(assignment.get("wave_key") or package.get("wave_key") or normalized_waves[0]["wave_key"]).strip()
+            if wave_key not in wave_keys:
+                wave_key = normalized_waves[0]["wave_key"]
+            depends_on = []
+            for dependency in list(assignment.get("depends_on") or package.get("depends_on") or []):
+                dep_key = str(dependency or "").strip()
+                if dep_key and dep_key in known_keys and dep_key != package_key and dep_key not in depends_on:
+                    depends_on.append(dep_key)
+            role = self._normalize_package_role(str(package.get("role") or ""), str(package.get("domain") or ""), str(package.get("subsystem") or ""), str(package.get("objective") or ""))
+            packages.append(
+                {
+                    **package,
+                    "package_key": package_key,
+                    "role": role,
+                    "source_role": package.get("role") or "",
+                    "domain": package.get("domain") or role or "core",
+                    "subsystem": package.get("subsystem") or package.get("domain") or role or "core",
+                    "wave_key": wave_key,
+                    "depends_on": depends_on,
+                    "allowed_paths": package.get("allowed_paths") or [f"{layout.get('source_root') or 'src'}/**"],
+                    "forbidden_paths": package.get("forbidden_paths") or [".git/**", ".v6/**"],
+                    "objective": package.get("objective") or f"Implement {package_key}.",
+                    "requirements_mapping": package.get("requirements_mapping") or [],
+                    "expected_outputs": package.get("expected_outputs") or [],
+                    "acceptance_gates": package.get("acceptance_gates") or [],
+                }
+            )
+        return {"schema_version": "6.1", "waves": normalized_waves, "packages": packages}
+
     def _project_snapshot(self, project: dict[str, Any]) -> dict[str, Any]:
         snapshot = dict(project)
         snapshot["project_path_status"] = self.runtime.project_path_status(project)
@@ -1650,9 +2306,7 @@ class V6Orchestrator:
         wave_keys = {wave["wave_key"] for wave in normalized_waves}
         normalized_packages = []
         for index, package in enumerate(packages, start=1):
-            role = str(package.get("role") or package.get("agent") or "backend").lower()
-            if role == "database":
-                role = "db"
+            role = self._normalize_package_role(str(package.get("role") or package.get("agent") or "backend"), str(package.get("domain") or ""), str(package.get("subsystem") or ""), str(package.get("objective") or package.get("summary") or ""))
             wave_key = package.get("wave_key") if package.get("wave_key") in wave_keys else normalized_waves[0]["wave_key"]
             allowed_paths = package.get("allowed_paths") or [f"{layout.get('source_root') or 'src'}/**"]
             normalized_packages.append(
@@ -1660,6 +2314,7 @@ class V6Orchestrator:
                     "id": package.get("id") or new_id(),
                     "package_key": package.get("package_key") or f"PKG-{index:03d}",
                     "role": role,
+                    "source_role": package.get("role") or package.get("agent") or "",
                     "agent": package.get("agent") or f"{role}_agent",
                     "domain": package.get("domain") or role,
                     "subsystem": package.get("subsystem") or role,
@@ -1677,7 +2332,11 @@ class V6Orchestrator:
         return {"schema_version": "6.0", "waves": normalized_waves, "packages": normalized_packages}
 
     def _job_type_for_package(self, package: dict[str, Any]) -> str:
-        role = package.get("role", "")
+        role = self._normalize_package_role(str(package.get("role", "")), str(package.get("domain") or ""), str(package.get("subsystem") or ""), str(package.get("objective") or ""))
+        if role == "docs":
+            return "code_generation"
+        if role == "release":
+            return "release_notes"
         if role == "qa":
             return "test_generation"
         if role == "security":

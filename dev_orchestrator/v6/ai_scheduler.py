@@ -143,7 +143,9 @@ class AICallScheduler:
             "allow_degraded": budget.allow_degraded,
             "elapsed_ms": elapsed_ms,
             "timeout_seconds": budget.timeout_seconds,
-            "over_budget": elapsed_ms > budget.timeout_seconds * 1000,
+            "timeout_exceeded": elapsed_ms > budget.timeout_seconds * 1000,
+            "over_budget": self._payload_over_budget(guard),
+            "payload_over_budget": self._payload_over_budget(guard),
             "budget": budget.to_dict(),
             "context_hash": context_hash,
             "prompt_summary": self._summary(user_payload),
@@ -188,6 +190,13 @@ class AICallScheduler:
             "payload_budget": guard,
         }
 
+    def _payload_over_budget(self, guard: dict[str, Any] | None) -> bool:
+        guard = guard or {}
+        if "ok" in guard:
+            return not bool(guard.get("ok"))
+        status = str(guard.get("budget_status") or "")
+        return bool(status and status not in {"within_budget", "trimmed_within_budget", "ai_compressed_within_budget"})
+
     def _skipped(
         self,
         agent_run_id: str,
@@ -217,6 +226,9 @@ class AICallScheduler:
             "required": required,
             "budget": budget.to_dict(),
             "context_hash": context_hash,
+            "timeout_exceeded": False,
+            "over_budget": self._payload_over_budget(guard),
+            "payload_over_budget": self._payload_over_budget(guard),
             **self._guard_fields(guard),
             "live_provider": False,
         }
@@ -256,7 +268,9 @@ class AICallScheduler:
             "allow_degraded": budget.allow_degraded,
             "elapsed_ms": elapsed_ms,
             "timeout_seconds": budget.timeout_seconds,
-            "over_budget": elapsed_ms > budget.timeout_seconds * 1000,
+            "timeout_exceeded": elapsed_ms > budget.timeout_seconds * 1000,
+            "over_budget": self._payload_over_budget(guard),
+            "payload_over_budget": self._payload_over_budget(guard),
             "budget": budget.to_dict(),
             "context_hash": context_hash,
             "error": error,

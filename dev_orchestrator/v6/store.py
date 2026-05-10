@@ -8,6 +8,8 @@ from typing import Any
 
 from dev_orchestrator.v6.kernel import build_state_transition_event
 from dev_orchestrator.v6.models import DEFAULT_TENANT, new_id, normalize_database_url, sha256_bytes, stable_json, utc_now
+from dev_orchestrator.v6.role_aliases import canonical_worker_role
+from dev_orchestrator.v6.role_aliases import canonical_worker_role
 
 try:
     from sqlalchemy import (
@@ -296,6 +298,9 @@ class V6Store:
     def list_jobs(self, run_id: str | None = None, status: str | None = None) -> list[dict[str, Any]]:
         raise NotImplementedError
 
+    def normalize_roles(self) -> dict[str, Any]:
+        raise NotImplementedError
+
     def add_artifact(self, tenant_id: str, project_id: str | None, artifact: dict[str, Any]) -> dict[str, Any]:
         raise NotImplementedError
 
@@ -358,6 +363,7 @@ class PostgresV6Store(V6Store):
     def bootstrap(self) -> None:
         self.metadata.create_all(self.engine)
         self._migrate()
+        self.normalize_roles()
         self.get_or_create_tenant(DEFAULT_TENANT)
 
     def _migrate(self) -> None:
@@ -690,12 +696,13 @@ class PostgresV6Store(V6Store):
     def enqueue_job(self, tenant_id: str, job: dict[str, Any]) -> dict[str, Any]:
         table = self.tables["durable_jobs"]
         now = utc_now()
+        job_role = canonical_worker_role(str(job.get("role") or ""), str(job.get("subsystem") or ""), str(job.get("domain") or ""), str((job.get("payload") or {}).get("objective") or ""))
         row = {
             "id": job.get("id") or new_id(),
             "tenant_id": tenant_id or DEFAULT_TENANT,
             "run_id": job.get("run_id"),
             "job_type": job["job_type"],
-            "role": job["role"],
+            "role": job_role,
             "status": job.get("status", "queued"),
             "resume_key": job["resume_key"],
             "work_package_id": job.get("work_package_id"),
@@ -733,6 +740,7 @@ class PostgresV6Store(V6Store):
             raise StoreError("SQLAlchemy dependencies are not installed")
         now = utc_now()
         lease_until = now + timedelta(seconds=lease_seconds)
+        role = canonical_worker_role(role)
         sql = text(
             """
             WITH candidate AS (
@@ -758,6 +766,10 @@ class PostgresV6Store(V6Store):
         )
         with self.engine.begin() as conn:
             row = conn.execute(sql, {"tenant_id": tenant_id, "role": role, "worker_id": worker_id, "lease_until": lease_until, "now": now}).first()
+        if not row:
+            self.normalize_roles()
+            with self.engine.begin() as conn:
+                row = conn.execute(sql, {"tenant_id": tenant_id, "role": role, "worker_id": worker_id, "lease_until": lease_until, "now": now}).first()
         current = self._row(row)
         if current:
             self.add_event(current.get("tenant_id", DEFAULT_TENANT), None, current.get("run_id"), "job.leased", {"job_id": current.get("id", ""), "job_type": current.get("job_type", ""), "role": current.get("role", ""), "worker_id": current.get("worker_id", ""), "attempts": current.get("attempts", 0), "lease_until": current.get("lease_until", "")})
@@ -843,8 +855,39 @@ class PostgresV6Store(V6Store):
                 recovered.append({**item, "status": status, "previous_status": previous_status})
                 count += 1
         for item in recovered:
+            role = canonical_worker_role(str(item.get("role") or ""), str(item.get("subsystem") or ""), "", str((item.get("payload") or {}).get("objective") or ""))
+            if role != item.get("role"):
+                with self.engine.begin() as conn:
+                    conn.execute(update(table).where(table.c.id == item["id"]).values(role=role, updated_at=utc_now()))
+                item["role"] = role
             self.add_event(item.get("tenant_id", DEFAULT_TENANT), None, item.get("run_id"), "job.requeued_after_expiry" if item.get("status") == "retry" else "job.dead_lettered_after_expiry", {"job_id": item.get("id", ""), "job_type": item.get("job_type", ""), "role": item.get("role", ""), "previous_status": item.get("previous_status", ""), "attempts": item.get("attempts", 0), "max_attempts": item.get("max_attempts", 0)})
         return count
+
+    def normalize_roles(self) -> dict[str, Any]:
+        jobs_table = self.tables["durable_jobs"]
+        packages_table = self.tables["work_packages"]
+        job_updates = 0
+        package_updates = 0
+        with self.engine.begin() as conn:
+            job_rows = conn.execute(select(jobs_table.c.id, jobs_table.c.role, jobs_table.c.subsystem, jobs_table.c.payload)).all()
+            for row in job_rows:
+                payload = self._row(row) or {}
+                role = canonical_worker_role(str(payload.get("role") or ""), str(payload.get("subsystem") or ""), "", str((payload.get("payload") or {}).get("objective") or ""))
+                if role and role != payload.get("role"):
+                    conn.execute(update(jobs_table).where(jobs_table.c.id == payload["id"]).values(role=role, updated_at=utc_now()))
+                    job_updates += 1
+            package_rows = conn.execute(select(packages_table.c.id, packages_table.c.role, packages_table.c.domain, packages_table.c.payload)).all()
+            for row in package_rows:
+                payload = self._row(row) or {}
+                package_payload = payload.get("payload") or {}
+                role = canonical_worker_role(str(payload.get("role") or ""), str(payload.get("domain") or ""), str(package_payload.get("subsystem") or ""), str(package_payload.get("objective") or ""))
+                if role and role != payload.get("role"):
+                    updated_payload = dict(package_payload)
+                    updated_payload["role"] = role
+                    updated_payload["source_role"] = payload.get("role") or ""
+                    conn.execute(update(packages_table).where(packages_table.c.id == payload["id"]).values(role=role, payload=updated_payload, updated_at=utc_now()))
+                    package_updates += 1
+        return {"ok": True, "job_updates": job_updates, "package_updates": package_updates}
 
     def list_jobs(self, run_id: str | None = None, status: str | None = None) -> list[dict[str, Any]]:
         table = self.tables["durable_jobs"]
@@ -1084,6 +1127,7 @@ class InMemoryV6Store(V6Store):
 
     def bootstrap(self) -> None:
         self.get_or_create_tenant(DEFAULT_TENANT)
+        self.normalize_roles()
 
     def _copy(self, value: Any) -> Any:
         return copy.deepcopy(value)
@@ -1299,12 +1343,13 @@ class InMemoryV6Store(V6Store):
                 self.add_event(current.get("tenant_id", DEFAULT_TENANT), None, current.get("run_id"), "job.enqueue_idempotent_hit", {"job_id": current.get("id", ""), "job_type": current.get("job_type", ""), "role": current.get("role", ""), "resume_key": current.get("resume_key", "")})
                 return current
         now = utc_now().isoformat()
+        job_role = canonical_worker_role(str(job.get("role") or ""), str(job.get("subsystem") or ""), str(job.get("domain") or ""), str((job.get("payload") or {}).get("objective") or ""))
         row = {
             "id": job.get("id") or new_id(),
             "tenant_id": tenant_id or DEFAULT_TENANT,
             "run_id": job.get("run_id"),
             "job_type": job["job_type"],
-            "role": job["role"],
+            "role": job_role,
             "status": job.get("status", "queued"),
             "resume_key": job["resume_key"],
             "work_package_id": job.get("work_package_id"),
@@ -1332,6 +1377,20 @@ class InMemoryV6Store(V6Store):
         return current
 
     def claim_job(self, tenant_id: str, role: str, worker_id: str, lease_seconds: int) -> dict[str, Any] | None:
+        role = canonical_worker_role(role)
+        for job in sorted(self.jobs.values(), key=lambda item: item["created_at"]):
+            if job["tenant_id"] == tenant_id and job["role"] == role and job["status"] in {"queued", "retry"}:
+                job["status"] = "leased"
+                job["attempts"] += 1
+                job["worker_id"] = worker_id
+                lease_until = datetime.now(timezone.utc) + timedelta(seconds=lease_seconds)
+                job["lease_until"] = lease_until.isoformat()
+                job["heartbeat_at"] = utc_now().isoformat()
+                job["updated_at"] = utc_now().isoformat()
+                current = self._copy(job)
+                self.add_event(current.get("tenant_id", DEFAULT_TENANT), None, current.get("run_id"), "job.leased", {"job_id": current.get("id", ""), "job_type": current.get("job_type", ""), "role": current.get("role", ""), "worker_id": current.get("worker_id", ""), "attempts": current.get("attempts", 0), "lease_until": current.get("lease_until", "")})
+                return current
+        self.normalize_roles()
         for job in sorted(self.jobs.values(), key=lambda item: item["created_at"]):
             if job["tenant_id"] == tenant_id and job["role"] == role and job["status"] in {"queued", "retry"}:
                 job["status"] = "leased"
@@ -1411,8 +1470,32 @@ class InMemoryV6Store(V6Store):
                 recovered.append({**self._copy(job), "previous_status": previous_status})
                 count += 1
         for item in recovered:
+            item["role"] = canonical_worker_role(str(item.get("role") or ""), str(item.get("subsystem") or ""), "", str((item.get("payload") or {}).get("objective") or ""))
             self.add_event(item.get("tenant_id", DEFAULT_TENANT), None, item.get("run_id"), "job.requeued_after_expiry" if item.get("status") == "retry" else "job.dead_lettered_after_expiry", {"job_id": item.get("id", ""), "job_type": item.get("job_type", ""), "role": item.get("role", ""), "previous_status": item.get("previous_status", ""), "attempts": item.get("attempts", 0), "max_attempts": item.get("max_attempts", 0)})
         return count
+
+    def normalize_roles(self) -> dict[str, Any]:
+        job_updates = 0
+        package_updates = 0
+        for job in self.jobs.values():
+            role = canonical_worker_role(str(job.get("role") or ""), str(job.get("subsystem") or ""), "", str((job.get("payload") or {}).get("objective") or ""))
+            if role and role != job.get("role"):
+                job["role"] = role
+                job["updated_at"] = utc_now().isoformat()
+                job_updates += 1
+        for package in self.packages.values():
+            package_payload = package.get("payload") or {}
+            original_role = package.get("role") or ""
+            role = canonical_worker_role(str(package.get("role") or ""), str(package.get("domain") or ""), str(package_payload.get("subsystem") or ""), str(package_payload.get("objective") or ""))
+            if role and role != package.get("role"):
+                package["role"] = role
+                package_payload = dict(package_payload)
+                package_payload["role"] = role
+                package_payload["source_role"] = package_payload.get("source_role") or original_role
+                package["payload"] = package_payload
+                package["updated_at"] = utc_now().isoformat()
+                package_updates += 1
+        return {"ok": True, "job_updates": job_updates, "package_updates": package_updates}
 
     def list_jobs(self, run_id: str | None = None, status: str | None = None) -> list[dict[str, Any]]:
         jobs = list(self.jobs.values())

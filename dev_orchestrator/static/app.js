@@ -865,7 +865,7 @@ nodes.form.addEventListener("submit", async (event) => {
     project_path: form.get("project_path") || "",
     description: form.get("description") || "",
     stack_pack: form.get("stack_pack") || "auto",
-    target_scale: form.get("target_scale") || "small",
+    target_scale: form.get("target_scale") || "auto",
     effective_loc_target: Number.parseInt(form.get("effective_loc_target") || "1000", 10),
   };
   try {

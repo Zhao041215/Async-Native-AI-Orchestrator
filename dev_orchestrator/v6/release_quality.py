@@ -40,8 +40,11 @@ def validate_ai_native_project(
 
     required_task_kinds = {
         "requirements_analysis",
-        "architecture_design",
-        "package_planning",
+        "architecture_surface",
+        "architecture_layout",
+        "architecture_contracts",
+        "package_scope_planning",
+        "package_wave_planning",
         "code_generation",
         "test_generation",
         "code_review",

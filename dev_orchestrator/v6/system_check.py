@@ -7,6 +7,7 @@ from typing import Any
 
 from dev_orchestrator.metadata import read_release_version
 from dev_orchestrator.v6.models import DEFAULT_TENANT
+from dev_orchestrator.v6.storage_lifecycle import StorageLifecyclePolicy, directory_stats
 
 
 def default_database_url() -> str:
@@ -32,7 +33,9 @@ def build_v6_system_check(root_dir: Path, config: dict[str, Any], strict_db: boo
         "psycopg_installed": importlib.util.find_spec("psycopg") is not None,
     }
     checks["v6_only_scan"] = _scan_v6_only(root_dir)
-    checks["retired_generation_purge"] = _scan_retired_generation(root_dir)
+    checks["single_active_version_gate"] = _scan_retired_versions(root_dir)
+    checks["retired_generation_purge"] = checks["single_active_version_gate"]
+    checks["storage_lifecycle_gate"] = _storage_lifecycle_gate(root_dir, runtime)
     failures = []
     if not workspace_root.exists():
         failures.append("workspace root is missing")
@@ -45,8 +48,10 @@ def build_v6_system_check(root_dir: Path, config: dict[str, Any], strict_db: boo
             failures.append(f"{dependency} is false")
     if not checks["v6_only_scan"]["ok"]:
         failures.append("retired source references remain")
-    if not checks["retired_generation_purge"]["ok"]:
-        failures.append("retired generation residue remains in repository")
+    if not checks["single_active_version_gate"]["ok"]:
+        failures.append("retired version residue remains in repository")
+    if not checks["storage_lifecycle_gate"]["ok"]:
+        failures.append("storage lifecycle gate failed")
     if strict_db and not failures:
         try:
             from dev_orchestrator.v6.store import PostgresV6Store
@@ -67,6 +72,7 @@ def build_v6_system_check(root_dir: Path, config: dict[str, Any], strict_db: boo
         "root_dir": str(root_dir),
         "hosted_ready": not failures,
         "v6_only": checks["v6_only_scan"]["ok"],
+        "single_active_version": checks["single_active_version_gate"]["ok"],
         "retired_generation_purged": checks["retired_generation_purge"]["ok"],
         "failures": failures,
         "checks": checks,
@@ -113,15 +119,37 @@ def _scan_v6_only(root_dir: Path) -> dict[str, Any]:
     return {"ok": not matches, "patterns": list(patterns), "matches": matches[:100]}
 
 
-def _scan_retired_generation(root_dir: Path) -> dict[str, Any]:
-    retired_lower = "v" + "5"
-    retired_upper = "V" + "5"
-    patterns = (
-        retired_lower,
-        retired_upper,
-        "dev_orchestrator" + "." + retired_lower,
-        "/api/" + retired_lower,
-    )
+def _scan_retired_versions(root_dir: Path) -> dict[str, Any]:
+    versions = list(range(1, 6))
+    path_patterns: list[str] = []
+    line_patterns: list[str] = []
+    for version in versions:
+        upper = f"V{version}"
+        path_patterns.extend(
+            [
+                f"dev_orchestrator.v{version}",
+                f"/api/v{version}",
+                f"Dockerfile.v{version}",
+                f"docker-compose.v{version}",
+                f"requirements-v{version}",
+                f"test_v{version}",
+                f"test-v{version}",
+                f"v{version}-",
+                f"v{version}_",
+                f"v{version}.",
+            ]
+        )
+        line_patterns.extend(
+            [
+                upper,
+                f"dev_orchestrator.v{version}",
+                f"/api/v{version}",
+                f"Dockerfile.v{version}",
+                f"docker-compose.v{version}",
+                f"requirements-v{version}",
+                f"tests.test_v{version}",
+            ]
+        )
     ignored_dirs = {".git"}
     ignored_suffixes = {".pyc"}
     matches: list[dict[str, Any]] = []
@@ -138,10 +166,10 @@ def _scan_retired_generation(root_dir: Path) -> dict[str, Any]:
         except OSError:
             text = ""
         relative = str(path.relative_to(root_dir))
-        path_hit = any(pattern in relative for pattern in patterns)
+        path_hit = any(pattern in relative for pattern in path_patterns)
         line_hits = []
         for line_no, line in enumerate(text.splitlines(), start=1):
-            if any(pattern in line for pattern in patterns):
+            if any(pattern in line for pattern in line_patterns):
                 line_hits.append({"line": line_no, "text": line.strip()[:240]})
                 if len(line_hits) >= 5:
                     break
@@ -149,7 +177,7 @@ def _scan_retired_generation(root_dir: Path) -> dict[str, Any]:
             matches.append({"path": relative, "path_hit": path_hit, "line_hits": line_hits})
             if len(matches) >= 100:
                 break
-    return {"ok": not matches, "patterns": [retired_lower, retired_upper], "matches": matches}
+    return {"ok": not matches, "patterns": path_patterns[:10], "matches": matches}
 
 
 def _scan_database_for_retired_generation(store: Any) -> dict[str, Any]:
@@ -171,4 +199,41 @@ def _scan_database_for_retired_generation(store: Any) -> dict[str, Any]:
             if len(matches) >= 100:
                 break
     return {"ok": not matches, "matches": matches[:100]}
+
+
+def _storage_lifecycle_gate(root_dir: Path, runtime: dict[str, Any]) -> dict[str, Any]:
+    workspace_root = (root_dir / (runtime.get("runtime_root") or runtime.get("workspace_root", "workspace/projects"))).resolve()
+    logs_root = (root_dir / runtime.get("logs_path", "logs")).resolve()
+    policy = StorageLifecyclePolicy.from_runtime_config(runtime)
+    runtime_stats = directory_stats(workspace_root)
+    logs_stats = directory_stats(logs_root)
+    total_bytes = int(runtime_stats["bytes"]) + int(logs_stats["bytes"])
+    quota_ratio = total_bytes / policy.workspace_max_bytes if policy.workspace_max_bytes else 0.0
+    failures: list[str] = []
+    if not workspace_root.exists():
+        failures.append("runtime root is missing")
+    if not logs_root.exists():
+        failures.append("logs root is missing")
+    if policy.workspace_max_bytes <= 0:
+        failures.append("workspace max bytes must be positive")
+    if policy.exported_worktree_retention_days < 1:
+        failures.append("exported worktree retention must be at least one day")
+    if quota_ratio >= 0.9:
+        failures.append("managed runtime storage is above blocking quota")
+    return {
+        "ok": not failures,
+        "schema_version": "6.3",
+        "runtime_root": str(workspace_root),
+        "logs_root": str(logs_root),
+        "policy": policy.to_dict(),
+        "runtime_stats": runtime_stats,
+        "logs_stats": logs_stats,
+        "quota": {
+            "used_bytes": total_bytes,
+            "max_bytes": policy.workspace_max_bytes,
+            "ratio": round(quota_ratio, 6),
+            "status": "blocked" if quota_ratio >= 0.9 else ("warning" if quota_ratio >= 0.7 else "ok"),
+        },
+        "failures": failures,
+    }
 

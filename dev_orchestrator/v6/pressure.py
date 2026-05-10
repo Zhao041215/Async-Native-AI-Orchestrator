@@ -47,6 +47,8 @@ class PressureFaultConfig:
         default_factory=lambda: {
             "requirements_analysis": ("HTTP 429: rate limit",),
             "architecture_design": ("Remote disconnected without response: simulated provider disconnect",),
+            "package_scope_planning": ("Timed out after 90 seconds.",),
+            "package_wave_planning": ("Timed out after 90 seconds.",),
             "package_planning": ("Timed out after 90 seconds.",),
             "code_generation": ("HTTP 429: rate limit",),
             "integration_merge": ("Remote disconnected without response: simulated provider disconnect",),
@@ -124,6 +126,10 @@ class FaultInjectingLLMClient(OpenAICompatibleClient):
             ("requirements_agent", "requirements_analysis"),
             ("architecture_design", "architecture_design"),
             ("architect_agent", "architecture_design"),
+            ("package_scope_planning", "package_scope_planning"),
+            ("package_scope_planning_agent", "package_scope_planning"),
+            ("package_wave_planning", "package_wave_planning"),
+            ("package_wave_planning_agent", "package_wave_planning"),
             ("package_planning", "package_planning"),
             ("planner_agent", "package_planning"),
             ("integration_merge", "integration_merge"),
@@ -155,6 +161,8 @@ def build_pressure_benchmark_spec(project_path: str) -> PressureBenchmarkSpec:
     fault_schedule = {
         "requirements_analysis": ("HTTP 429: rate limit",),
         "architecture_design": ("Remote disconnected without response: simulated provider disconnect",),
+        "package_scope_planning": ("Timed out after 90 seconds.",),
+        "package_wave_planning": ("Timed out after 90 seconds.",),
         "package_planning": ("Timed out after 90 seconds.",),
         "code_generation": ("HTTP 429: rate limit",),
         "integration_merge": ("Remote disconnected without response: simulated provider disconnect",),

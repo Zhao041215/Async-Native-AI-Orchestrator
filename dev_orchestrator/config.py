@@ -39,6 +39,7 @@ class LLMConfig:
 
 @dataclass
 class RuntimeConfig:
+    runtime_root: str = ""
     workspace_root: str = "workspace/projects"
     db_path: str = "workspace/orchestrator.db"
     database_url: str = "postgresql+psycopg://orchestrator:orchestrator@localhost:5432/orchestrator"
@@ -53,6 +54,14 @@ class RuntimeConfig:
     deployment_mode: str = "docker-compose-v6"
     queue_mode: str = "postgres-durable"
     sandbox_mode: str = "tenant-governed-worktree"
+    workspace_max_bytes: int = 50 * 1024 * 1024 * 1024
+    gc_dry_run_default: bool = True
+    exported_worktree_retention_days: int = 7
+    artifact_retention_days: int = 30
+    failed_run_retention_days: int = 30
+    log_retention_days: int = 14
+    pressure_retention_days: int = 7
+    archive_enabled: bool = True
 
 
 @dataclass
@@ -88,7 +97,8 @@ class AppConfig:
 
     @property
     def workspace_root(self) -> Path:
-        return (self.root_dir / self.runtime.workspace_root).resolve()
+        configured = self.runtime.runtime_root or self.runtime.workspace_root
+        return (self.root_dir / configured).resolve()
 
     @property
     def db_path(self) -> Path:
@@ -400,7 +410,34 @@ def load_config(root_dir: Path) -> AppConfig:
     if env_supports_chat is not None:
         llm.supports_chat_completions = env_supports_chat
     runtime = RuntimeConfig(**_normalize_runtime_payload(_deep_get(payload, "runtime", {})))
+    env_runtime_root = os.environ.get("AI_AGENT_RUNTIME_ROOT")
+    env_workspace_max = _env_int(os.environ.get("AI_AGENT_WORKSPACE_MAX_BYTES"))
+    env_gc_dry_run = _env_bool(os.environ.get("AI_AGENT_GC_DRY_RUN_DEFAULT"))
+    env_exported_retention = _env_int(os.environ.get("AI_AGENT_EXPORTED_WORKTREE_RETENTION_DAYS"))
+    env_artifact_retention = _env_int(os.environ.get("AI_AGENT_ARTIFACT_RETENTION_DAYS"))
+    env_failed_retention = _env_int(os.environ.get("AI_AGENT_FAILED_RUN_RETENTION_DAYS"))
+    env_log_retention = _env_int(os.environ.get("AI_AGENT_LOG_RETENTION_DAYS"))
+    env_pressure_retention = _env_int(os.environ.get("AI_AGENT_PRESSURE_RETENTION_DAYS"))
+    env_archive_enabled = _env_bool(os.environ.get("AI_AGENT_ARCHIVE_ENABLED"))
     env_database_url = os.environ.get("V6_DATABASE_URL") or os.environ.get("DATABASE_URL")
+    if env_runtime_root:
+        runtime.runtime_root = env_runtime_root
+    if env_workspace_max is not None:
+        runtime.workspace_max_bytes = env_workspace_max
+    if env_gc_dry_run is not None:
+        runtime.gc_dry_run_default = env_gc_dry_run
+    if env_exported_retention is not None:
+        runtime.exported_worktree_retention_days = env_exported_retention
+    if env_artifact_retention is not None:
+        runtime.artifact_retention_days = env_artifact_retention
+    if env_failed_retention is not None:
+        runtime.failed_run_retention_days = env_failed_retention
+    if env_log_retention is not None:
+        runtime.log_retention_days = env_log_retention
+    if env_pressure_retention is not None:
+        runtime.pressure_retention_days = env_pressure_retention
+    if env_archive_enabled is not None:
+        runtime.archive_enabled = env_archive_enabled
     if env_database_url:
         runtime.database_url = env_database_url
     identity = IdentityConfig(**_normalize_identity_payload(_deep_get(payload, "identity", {})))

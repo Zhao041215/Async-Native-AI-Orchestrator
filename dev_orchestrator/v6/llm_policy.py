@@ -31,6 +31,12 @@ class AITaskBudget:
 AI_TASK_BUDGETS: dict[str, AITaskBudget] = {
     "requirements_analysis": AITaskBudget("requirements_analysis", 9000, 1600, 90, "medium", 3, "tier_strong", False, True),
     "architecture_design": AITaskBudget("architecture_design", 12000, 2400, 120, "high", 3, "tier_strong", False, True),
+    "architecture_surface": AITaskBudget("architecture_surface", 8000, 1400, 75, "medium", 2, "tier_strong", False, True),
+    "architecture_structure": AITaskBudget("architecture_structure", 10000, 1800, 90, "high", 2, "tier_strong", False, True),
+    "architecture_layout": AITaskBudget("architecture_layout", 7000, 900, 60, "medium", 2, "tier_strong", False, True),
+    "architecture_contracts": AITaskBudget("architecture_contracts", 8000, 1200, 65, "medium", 2, "tier_strong", False, True),
+    "package_scope_planning": AITaskBudget("package_scope_planning", 9000, 1500, 75, "medium", 2, "tier_strong", False, True),
+    "package_wave_planning": AITaskBudget("package_wave_planning", 8000, 1200, 75, "medium", 2, "tier_strong", False, True),
     "package_planning": AITaskBudget("package_planning", 10000, 2200, 90, "medium", 3, "tier_strong", False, True),
     "code_generation": AITaskBudget("code_generation", 16000, 4500, 150, "high", 3, "tier_strong", False, True),
     "test_generation": AITaskBudget("test_generation", 12000, 2600, 120, "medium", 3, "tier_standard", False, True),
@@ -56,8 +62,14 @@ def resolve_ai_task_budget(task_kind: str, scale_profile: dict | None = None) ->
     profile_limit = int(profile.get("context_budget_chars") or budget.max_input_chars)
     target_hint = int(profile.get("target_loc_hint") or 0)
     expanded_limit = _profile_task_input_limit(budget.task_kind, profile_limit, target_hint)
-    attempts = max(int(budget.retry_attempts), int(profile.get("ai_retry_attempts") or budget.retry_attempts))
+    attempts = _profile_retry_attempts(budget.task_kind, budget.retry_attempts, int(profile.get("ai_retry_attempts") or budget.retry_attempts), target_hint)
     return budget.with_input_limit(expanded_limit).with_retry_attempts(attempts)
+
+
+def _profile_retry_attempts(task_kind: str, default_attempts: int, profile_attempts: int, target_hint: int) -> int:
+    if target_hint <= 5000 and task_kind in {"architecture_design", "architecture_surface", "architecture_structure", "architecture_layout", "architecture_contracts", "package_scope_planning", "package_wave_planning", "package_planning", "security_review", "code_review", "release_notes"}:
+        return max(1, min(default_attempts, profile_attempts, 2))
+    return max(default_attempts, profile_attempts)
 
 
 def _profile_task_input_limit(task_kind: str, profile_limit: int, target_hint: int) -> int:
@@ -65,6 +77,12 @@ def _profile_task_input_limit(task_kind: str, profile_limit: int, target_hint: i
         fractions = {
             "requirements_analysis": 0.55,
             "architecture_design": 0.60,
+            "architecture_surface": 0.44,
+            "architecture_structure": 0.48,
+            "architecture_layout": 0.32,
+            "architecture_contracts": 0.36,
+            "package_scope_planning": 0.30,
+            "package_wave_planning": 0.24,
             "package_planning": 0.62,
             "code_generation": 0.46,
             "test_generation": 0.40,
@@ -79,6 +97,12 @@ def _profile_task_input_limit(task_kind: str, profile_limit: int, target_hint: i
         fractions = {
             "requirements_analysis": 0.46,
             "architecture_design": 0.52,
+            "architecture_surface": 0.38,
+            "architecture_structure": 0.42,
+            "architecture_layout": 0.28,
+            "architecture_contracts": 0.32,
+            "package_scope_planning": 0.28,
+            "package_wave_planning": 0.22,
             "package_planning": 0.54,
             "code_generation": 0.40,
             "test_generation": 0.34,

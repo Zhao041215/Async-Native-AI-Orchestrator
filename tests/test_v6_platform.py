@@ -55,6 +55,36 @@ class NativeFakeLLMClient:
         self.calls.append({"task": task, "system_prompt": system_prompt, "payload": payload, "kwargs": kwargs})
         if task == "requirements_analysis":
             return json.dumps({"status": "GO", "summary": "AI native knowledge base", "goals": ["articles", "search"], "acceptance_criteria": ["usable app"], "expected_terms": ["article", "category", "tag"]})
+        if task == "architecture_surface":
+            return json.dumps(
+                {
+                    "architecture_summary": "AI planned surface for a compact product system.",
+                    "technology_choices": ["plain web", "session auth", "sqlite"],
+                    "design_principles": ["Chinese UI", "inventory correctness", "small surface"],
+                    "primary_risks": ["inventory integrity", "session handling"],
+                    "scale_notes": ["compact architecture", "bounded CRUD"],
+                }
+            )
+        if task == "architecture_layout":
+            if self.layout_variant == "src":
+                layout = {"source_root": "src", "delivery_root": "deploy", "entrypoints": ["deploy/index.html"], "directories": [{"path": "src"}, {"path": "deploy"}, {"path": "spec"}], "validation_commands": ["python -c \"print('ok')\""]}
+            else:
+                layout = {"source_root": "app", "delivery_root": "web", "entrypoints": ["web/index.html"], "directories": [{"path": "app"}, {"path": "web"}, {"path": "database"}, {"path": "tests"}], "validation_commands": ["python -c \"print('ok')\""]}
+            return json.dumps({"project_layout": layout, "validation_commands": ["python -c \"print('ok')\""]})
+        if task == "architecture_contracts":
+            return json.dumps(
+                {
+                    "module_boundaries": [{"name": "inventory-core", "owner_package": "PKG-WEB"}],
+                    "integration_contracts": [{"type": "module_boundary", "name": "knowledge-base-boundary", "owner_package": "PKG-WEB"}],
+                    "implementation_notes": ["keep the delivery layout compact"],
+                }
+            )
+        if task == "architecture_structure":
+            if self.layout_variant == "src":
+                layout = {"source_root": "src", "delivery_root": "deploy", "entrypoints": ["deploy/index.html"], "directories": [{"path": "src"}, {"path": "deploy"}, {"path": "spec"}], "validation_commands": ["python -c \"print('ok')\""]}
+            else:
+                layout = {"source_root": "app", "delivery_root": "web", "entrypoints": ["web/index.html"], "directories": [{"path": "app"}, {"path": "web"}, {"path": "database"}, {"path": "tests"}], "validation_commands": ["python -c \"print('ok')\""]}
+            return json.dumps({"project_layout": layout, "module_boundaries": [{"name": "inventory-core", "owner_package": "PKG-WEB"}], "integration_contracts": [{"type": "module_boundary", "name": "knowledge-base-boundary", "owner_package": "PKG-WEB"}], "validation_commands": ["python -c \"print('ok')\""], "implementation_notes": ["keep the delivery layout compact"]})
         if task == "architecture_design":
             if self.layout_variant == "src":
                 layout = {"source_root": "src", "delivery_root": "deploy", "entrypoints": ["deploy/index.html"], "directories": [{"path": "src"}, {"path": "deploy"}, {"path": "spec"}], "validation_commands": ["python -c \"print('ok')\""]}
@@ -72,6 +102,27 @@ class NativeFakeLLMClient:
                 {"package_key": "PKG-SEC", "role": "security", "domain": "security", "subsystem": "review", "wave_key": "WAVE-002", "depends_on": ["PKG-WEB"], "allowed_paths": [f"{source_root}/security/**"], "objective": "Create AI generated security notes."},
             ]
             return json.dumps({"waves": [{"wave_key": "WAVE-001", "sequence": 1}, {"wave_key": "WAVE-002", "sequence": 2}], "packages": packages})
+        if task == "package_scope_planning":
+            source_root = payload["package_planning_seed"]["architecture"]["project_layout"]["source_root"]
+            delivery_root = payload["package_planning_seed"]["architecture"]["project_layout"]["delivery_root"]
+            test_root = "spec" if source_root == "src" else "tests"
+            packages = [
+                {"package_key": "PKG-DATA", "role": "db", "domain": "data", "subsystem": "schema", "allowed_paths": [f"{source_root}/data/**"], "objective": "Create AI generated domain data.", "expected_outputs": [{"type": "db_table", "name": "articles", "owner_package": "PKG-DATA"}]},
+                {"package_key": "PKG-WEB", "role": "frontend", "domain": "ui", "subsystem": "browser", "allowed_paths": [f"{delivery_root}/**"], "objective": "Create AI generated UI.", "expected_outputs": [{"type": "ui_route", "name": "/", "owner_package": "PKG-WEB"}]},
+                {"package_key": "PKG-QA", "role": "qa", "domain": "qa", "subsystem": "tests", "allowed_paths": [f"{test_root}/**"], "objective": "Create AI generated tests."},
+                {"package_key": "PKG-SEC", "role": "security", "domain": "security", "subsystem": "review", "allowed_paths": [f"{source_root}/security/**"], "objective": "Create AI generated security notes."},
+            ]
+            return json.dumps({"packages": packages})
+        if task == "package_wave_planning":
+            packages = payload["package_candidates"]
+            assignments = []
+            for package in packages:
+                wave_key = "WAVE-001" if package["role"] in {"db", "frontend"} else "WAVE-002"
+                depends_on = [] if package["role"] in {"db", "frontend"} else ["PKG-DATA", "PKG-WEB"]
+                if package["role"] == "security":
+                    depends_on = ["PKG-WEB"]
+                assignments.append({"package_key": package["package_key"], "wave_key": wave_key, "depends_on": depends_on})
+            return json.dumps({"waves": [{"wave_key": "WAVE-001", "sequence": 1}, {"wave_key": "WAVE-002", "sequence": 2}], "assignments": assignments})
         if task in {"code_generation", "test_generation", "security_review"}:
             package = payload["package"]
             allowed = package["allowed_paths"][0].replace("**", "").rstrip("/")
@@ -98,13 +149,17 @@ class NativeFakeLLMClient:
         raise AssertionError(f"unknown task {task}")
 
     def _task(self, prompt: str) -> str:
-        for task in ("requirements_analysis", "architecture_design", "package_planning", "code_generation", "test_generation", "security_review", "integration_merge", "code_review", "release_notes", "failure_analysis"):
+        for task in ("requirements_analysis", "architecture_surface", "architecture_layout", "architecture_contracts", "architecture_structure", "architecture_design", "package_scope_planning", "package_wave_planning", "package_planning", "code_generation", "test_generation", "security_review", "integration_merge", "code_review", "release_notes", "failure_analysis"):
             if task in prompt:
                 return task
         if "requirements_agent" in prompt:
             return "requirements_analysis"
         if "architect_agent" in prompt:
             return "architecture_design"
+        if "package_scope_planning_agent" in prompt:
+            return "package_scope_planning"
+        if "package_wave_planning_agent" in prompt:
+            return "package_wave_planning"
         if "planner_agent" in prompt:
             return "package_planning"
         if "integration_agent" in prompt:
@@ -127,6 +182,113 @@ class FailingLLMClient:
 
     def chat(self, system_prompt: str, messages: list[dict], **kwargs) -> str:
         raise LLMError("simulated upstream failure")
+
+
+class LargeScaleFakeLLMClient(NativeFakeLLMClient):
+    def chat(self, system_prompt: str, messages: list[dict], **kwargs) -> str:
+        task = self._task(system_prompt)
+        if task == "requirements_analysis":
+            return json.dumps(
+                {
+                    "status": "GO",
+                    "summary": "Enterprise multi-tenant analytics, billing, compliance, integrations, observability, rollback, and performance platform.",
+                    "goals": ["multi tenant admin", "analytics", "billing", "workflow", "integration", "audit"],
+                    "users": ["operator", "admin", "auditor", "customer"],
+                    "constraints": ["security", "performance", "compliance", "high availability", "backup", "monitoring"],
+                    "acceptance_criteria": ["e2e tests", "load tests", "rollback", "security review", "deployment guide", "api contracts"],
+                    "risks": ["data migration", "permission leakage", "provider outage", "large request payloads"],
+                    "expected_terms": ["tenant", "role", "invoice", "webhook", "report", "audit", "cache"],
+                }
+            )
+        if task == "architecture_surface":
+            return json.dumps(
+                {
+                    "architecture_summary": "Large AI planned distributed product architecture with security, testing, observability, integrations, and rollback.",
+                    "technology_choices": ["api", "frontend", "database", "queue", "cache", "monitoring", "docker"],
+                    "design_principles": ["wave-based delivery", "bounded packages", "fast recovery", "no template fallback"],
+                    "primary_risks": ["provider outage", "large request payloads", "contract drift"],
+                    "scale_notes": ["large fan-out", "parallel waves", "budgeted context"],
+                }
+            )
+        if task == "architecture_layout":
+            directories = [{"path": path} for path in ["app", "web", "database", "workers", "integrations", "security", "reports", "tests", "deploy", "docs", "packages", "ops"]]
+            return json.dumps({"project_layout": {"source_root": "app", "delivery_root": "web", "entrypoints": ["web/index.html", "app/main.py"], "directories": directories, "validation_commands": ["python -c \"print('ok')\""]}, "validation_commands": ["python -c \"print('ok')\""]})
+        if task == "architecture_contracts":
+            contracts = [{"type": "module_boundary", "name": f"contract-{index}", "owner_package": f"PKG-{index:03d}"} for index in range(24)]
+            return json.dumps(
+                {
+                    "module_boundaries": contracts,
+                    "integration_contracts": contracts,
+                    "implementation_notes": ["split by wave", "preserve recovery checkpoints"],
+                }
+            )
+        if task == "architecture_structure":
+            directories = [{"path": path} for path in ["app", "web", "database", "workers", "integrations", "security", "reports", "tests", "deploy", "docs"]]
+            contracts = [{"type": "module_boundary", "name": f"contract-{index}", "owner_package": f"PKG-{index:03d}"} for index in range(12)]
+            return json.dumps(
+                {
+                    "project_layout": {"source_root": "app", "delivery_root": "web", "entrypoints": ["web/index.html", "app/main.py"], "directories": directories, "validation_commands": ["python -c \"print('ok')\""]},
+                    "module_boundaries": contracts,
+                    "integration_contracts": contracts,
+                    "validation_commands": ["python -c \"print('ok')\""],
+                    "implementation_notes": ["split by wave", "preserve recovery checkpoints"],
+                }
+            )
+        if task == "architecture_design":
+            directories = [{"path": path} for path in ["app", "web", "database", "workers", "integrations", "security", "reports", "tests", "deploy", "docs"]]
+            contracts = [{"type": "module_boundary", "name": f"contract-{index}", "owner_package": f"PKG-{index:03d}"} for index in range(12)]
+            return json.dumps(
+                {
+                    "architecture_summary": "Large AI planned distributed product architecture with security, testing, observability, integrations, and rollback.",
+                    "technology_choices": ["api", "frontend", "database", "queue", "cache", "monitoring", "docker"],
+                    "project_layout": {"source_root": "app", "delivery_root": "web", "entrypoints": ["web/index.html", "app/main.py"], "directories": directories, "validation_commands": ["python -c \"print('ok')\""]},
+                    "module_boundaries": contracts,
+                    "integration_contracts": contracts,
+                }
+            )
+        if task == "package_planning":
+            roles = ["backend", "frontend", "qa", "security", "docs", "db"]
+            packages = []
+            for index in range(30):
+                packages.append(
+                    {
+                        "package_key": f"PKG-{index:03d}",
+                        "role": roles[index % len(roles)],
+                        "domain": f"domain-{index}",
+                        "subsystem": f"subsystem-{index}",
+                        "wave_key": f"WAVE-{(index % 9) + 1:03d}",
+                        "depends_on": [f"PKG-{index - 1:03d}"] if index else [],
+                        "allowed_paths": [f"app/pkg-{index}/**"],
+                        "objective": "large scale package",
+                        "requirements_mapping": ["enterprise"],
+                        "expected_outputs": [{"type": "module", "name": f"pkg-{index}", "owner_package": f"PKG-{index:03d}"}],
+                    }
+                )
+            return json.dumps({"waves": [{"wave_key": f"WAVE-{index:03d}", "sequence": index} for index in range(1, 10)], "packages": packages})
+        if task == "package_scope_planning":
+            roles = ["backend", "frontend", "qa", "security", "docs", "db"]
+            packages = []
+            for index in range(30):
+                packages.append(
+                    {
+                        "package_key": f"PKG-{index:03d}",
+                        "role": roles[index % len(roles)],
+                        "domain": f"domain-{index}",
+                        "subsystem": f"subsystem-{index}",
+                        "allowed_paths": [f"app/pkg-{index}/**"],
+                        "objective": "large scale package",
+                        "requirements_mapping": ["enterprise"],
+                        "expected_outputs": [{"type": "module", "name": f"pkg-{index}", "owner_package": f"PKG-{index:03d}"}],
+                    }
+                )
+            return json.dumps({"packages": packages})
+        if task == "package_wave_planning":
+            assignments = []
+            for index in range(30):
+                dependencies = [f"PKG-{index - 1:03d}"] if index else []
+                assignments.append({"package_key": f"PKG-{index:03d}", "wave_key": f"WAVE-{(index % 9) + 1:03d}", "depends_on": dependencies})
+            return json.dumps({"waves": [{"wave_key": f"WAVE-{index:03d}", "sequence": index} for index in range(1, 10)], "assignments": assignments})
+        return super().chat(system_prompt, messages, **kwargs)
 
 
 class ContractCheckLLMClient:
@@ -181,6 +343,41 @@ def drain_workers(service: V6Orchestrator, limit: int = 120) -> list[dict]:
 
 
 class V6AgentNativeTests(unittest.TestCase):
+    def test_auto_scale_starts_medium_and_upgrades_for_large_project(self) -> None:
+        with WorkspaceSandbox() as root:
+            service = build_service(root, LargeScaleFakeLLMClient())
+            project = service.create_project({"name": "auto-large", "title": "Auto Large", "description": "Build an enterprise platform.", "target_scale": "auto"})
+            run = service.create_run(project["id"])
+
+            self.assertEqual(project["config"]["target_scale"], "auto")
+            self.assertEqual(run["metadata"]["scale_profile"]["name"], "medium")
+            drain_workers(service, limit=12)
+            final_run = service.get_run(run["id"])
+
+            self.assertEqual(final_run["metadata"]["scale_profile"]["name"], "xlarge_100k")
+            self.assertTrue(final_run["metadata"]["scale_auto_upgrade_enabled"])
+            self.assertTrue(any(item.get("upgraded") for item in final_run["metadata"]["scale_inference_history"]))
+            self.assertTrue(any(event["kind"] == "scale_profile.upgraded" for event in service.list_events(run["id"])))
+
+    def test_explicit_small_scale_is_not_auto_upgraded(self) -> None:
+        with WorkspaceSandbox() as root:
+            service = build_service(root, LargeScaleFakeLLMClient())
+            project = service.create_project({"name": "explicit-small", "title": "Explicit Small", "description": "Build an enterprise platform.", "target_scale": "small"})
+            run = service.create_run(project["id"])
+
+            drain_workers(service, limit=12)
+            final_run = service.get_run(run["id"])
+
+            self.assertEqual(final_run["metadata"]["scale_profile"]["name"], "small")
+            self.assertFalse(final_run["metadata"]["scale_auto_upgrade_enabled"])
+
+    def test_package_role_aliases_are_normalized_to_claimable_workers(self) -> None:
+        with WorkspaceSandbox() as root:
+            service = build_service(root, NativeFakeLLMClient())
+            self.assertEqual(service._normalize_package_role("database_engineer", "data", "schema", "build domain tables"), "db")
+            self.assertEqual(service._normalize_package_role("frontend_engineer", "ui", "browser", "build screens"), "frontend")
+            self.assertEqual(service._normalize_package_role("qa_engineer", "quality", "tests", "build test coverage"), "qa")
+
     def test_ai_native_pipeline_generates_layout_files_patch_sets_and_release(self) -> None:
         with WorkspaceSandbox() as root:
             fake = NativeFakeLLMClient()
@@ -212,7 +409,7 @@ class V6AgentNativeTests(unittest.TestCase):
             gate_names = {gate["name"] for gate in quality["gates"]}
             self.assertTrue({"test_command_safety_gate", "test_execution_gate", "validation_command_coverage_gate", "code_index_freshness_gate", "cross_package_contract_gate"}.issubset(gate_names))
             task_kinds = {(item["payload"] or {}).get("task_kind") for item in artifacts if item["kind"] == "agent_run"}
-            self.assertTrue({"requirements_analysis", "architecture_design", "package_planning", "code_generation", "test_generation", "security_review", "integration_merge", "code_review", "release_notes"}.issubset(task_kinds))
+            self.assertTrue({"requirements_analysis", "architecture_surface", "architecture_layout", "architecture_contracts", "package_scope_planning", "package_wave_planning", "code_generation", "test_generation", "security_review", "integration_merge", "code_review", "release_notes"}.issubset(task_kinds))
 
     def test_agent_contract_violation_retries_once_then_recovers(self) -> None:
         with WorkspaceSandbox() as root:
@@ -398,6 +595,10 @@ class V6AgentNativeTests(unittest.TestCase):
     def test_agent_contract_schema_rules_reject_missing_content_action_and_layout(self) -> None:
         self.assertFalse(validate_agent_contract("file_manifest_patch", {"files": [{"path": "src/a.py", "action": "create"}]})["ok"])
         self.assertFalse(validate_agent_contract("file_manifest_patch", {"files": [{"path": "src/a.py", "action": "update", "content": "x"}]})["ok"])
+        self.assertFalse(validate_agent_contract("architecture_surface", {"technology_choices": []})["ok"])
+        self.assertFalse(validate_agent_contract("architecture_layout", {"project_layout": {"source_root": "src", "delivery_root": "src"}})["ok"])
+        self.assertFalse(validate_agent_contract("architecture_contracts", {"implementation_notes": []})["ok"])
+        self.assertFalse(validate_agent_contract("architecture_structure", {"project_layout": {"source_root": "src"}})["ok"])
         self.assertFalse(validate_agent_contract("architecture_design", {"project_layout": {"source_root": "src"}})["ok"])
         self.assertFalse(validate_agent_contract("code_review", {"ok": "true"})["ok"])
 
@@ -520,7 +721,7 @@ class V6AgentNativeTests(unittest.TestCase):
             self.assertIn("payload_limits", client.get("/api/v6/ai-policy").json())
             self.assertIn("parallel_policy", client.get("/api/v6/ai-policy").json())
             self.assertEqual(client.get("/api/v6/ai-slots").status_code, 200)
-            self.assertEqual(client.get("/api/" + "v4/health").status_code, 404)
+            self.assertEqual(client.get("/api/retired/health").status_code, 404)
             self.assertEqual(client.get(f"/api/v6/runs/{run['id']}/agent-runs").status_code, 200)
             self.assertEqual(client.get(f"/api/v6/runs/{run['id']}/patch-sets").status_code, 200)
             self.assertEqual(client.get(f"/api/v6/runs/{run['id']}/agent-contract-report").status_code, 200)
@@ -666,6 +867,18 @@ class V6AgentNativeTests(unittest.TestCase):
         self.assertEqual(running["status"], "running")
         self.assertIsNone(second_claim)
 
+    def test_claim_job_self_heals_legacy_role_aliases(self) -> None:
+        store = InMemoryV6Store()
+        store.bootstrap()
+        legacy = store.enqueue_job("local-workspace", {"job_type": "code_generation", "role": "backend", "run_id": "run-legacy", "resume_key": "run:run-legacy:package:legacy", "payload": {"objective": "build data"}})
+        store.jobs[legacy["id"]]["role"] = "database_engineer"
+
+        claimed = store.claim_job("local-workspace", "db", "worker-db", 30)
+
+        self.assertIsNotNone(claimed)
+        self.assertEqual(claimed["id"], legacy["id"])
+        self.assertEqual(claimed["role"], "db")
+
     def test_worker_status_registry_reports_process_shape(self) -> None:
         with WorkspaceSandbox() as root:
             registry = WorkerStatusRegistry(root / "workspace")
@@ -676,7 +889,7 @@ class V6AgentNativeTests(unittest.TestCase):
             self.assertEqual(workers[0]["role"], "backend")
             self.assertEqual(workers[0]["processed_job_count"], 2)
 
-    def test_system_check_reports_retired_generation_purge_gate(self) -> None:
+    def test_system_check_reports_single_active_version_gate(self) -> None:
         with WorkspaceSandbox() as root:
             (root / "workspace" / "projects").mkdir(parents=True)
             (root / "logs").mkdir(parents=True)
@@ -689,8 +902,8 @@ class V6AgentNativeTests(unittest.TestCase):
 
             report = build_v6_system_check(root, config, strict_db=False)
 
-            self.assertIn("retired_generation_purge", report["checks"])
-            self.assertTrue(report["checks"]["retired_generation_purge"]["ok"])
+            self.assertIn("single_active_version_gate", report["checks"])
+            self.assertTrue(report["checks"]["single_active_version_gate"]["ok"])
 
 
 if __name__ == "__main__":

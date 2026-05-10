@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, ValidationError, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, ValidationError, field_validator, model_validator
 
 
 class ContractModel(BaseModel):
@@ -44,6 +44,61 @@ class ArchitectureDesign(ContractModel):
     integration_contracts: list[Any] = Field(default_factory=list)
 
 
+class ArchitectureSurface(ContractModel):
+    architecture_summary: str = ""
+    technology_choices: list[Any] = Field(default_factory=list)
+    design_principles: list[Any] = Field(default_factory=list)
+    primary_risks: list[Any] = Field(default_factory=list)
+    scale_notes: list[Any] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _require_surface_content(self) -> "ArchitectureSurface":
+        if not str(self.architecture_summary or "").strip():
+            raise ValueError("architecture summary must not be empty")
+        if not self.technology_choices:
+            raise ValueError("technology choices must not be empty")
+        return self
+
+
+class ArchitectureStructure(ContractModel):
+    project_layout: ProjectLayout
+    module_boundaries: list[Any] = Field(default_factory=list)
+    integration_contracts: list[Any] = Field(default_factory=list)
+    validation_commands: list[str] = Field(default_factory=list)
+    implementation_notes: list[Any] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _require_structure_content(self) -> "ArchitectureStructure":
+        if not self.module_boundaries and not self.integration_contracts and not self.validation_commands:
+            raise ValueError("architecture structure must include boundaries, contracts, or validation commands")
+        return self
+
+
+class ArchitectureLayout(ContractModel):
+    project_layout: ProjectLayout
+    validation_commands: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _require_layout_content(self) -> "ArchitectureLayout":
+        if not self.project_layout.directories:
+            raise ValueError("architecture layout must include concrete directories")
+        if not (self.validation_commands or self.project_layout.validation_commands):
+            raise ValueError("architecture layout must include validation commands")
+        return self
+
+
+class ArchitectureContracts(ContractModel):
+    module_boundaries: list[Any] = Field(default_factory=list)
+    integration_contracts: list[Any] = Field(default_factory=list)
+    implementation_notes: list[Any] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _require_contract_content(self) -> "ArchitectureContracts":
+        if not self.module_boundaries and not self.integration_contracts:
+            raise ValueError("architecture contracts must include module boundaries or integration contracts")
+        return self
+
+
 class PackageContract(ContractModel):
     package_key: str
     role: str
@@ -59,9 +114,51 @@ class PackageContract(ContractModel):
     acceptance_gates: list[Any] = Field(default_factory=list)
 
 
+class PackageScopeItem(ContractModel):
+    package_key: str
+    role: str
+    allowed_paths: list[str]
+    objective: str
+    domain: str = ""
+    subsystem: str = ""
+    forbidden_paths: list[str] = Field(default_factory=list)
+    requirements_mapping: list[Any] = Field(default_factory=list)
+    expected_outputs: list[Any] = Field(default_factory=list)
+    acceptance_gates: list[Any] = Field(default_factory=list)
+
+
 class WaveContract(ContractModel):
     wave_key: str
     sequence: int = 1
+
+
+class PackageScopePlanning(ContractModel):
+    packages: list[PackageScopeItem]
+
+    @model_validator(mode="after")
+    def _require_package_scope(self) -> "PackageScopePlanning":
+        if not self.packages:
+            raise ValueError("package scope planning must include project-specific packages")
+        return self
+
+
+class PackageWaveAssignment(ContractModel):
+    package_key: str
+    wave_key: str
+    depends_on: list[str] = Field(default_factory=list)
+
+
+class PackageWavePlanning(ContractModel):
+    waves: list[WaveContract]
+    assignments: list[PackageWaveAssignment]
+
+    @model_validator(mode="after")
+    def _require_wave_assignments(self) -> "PackageWavePlanning":
+        if not self.waves:
+            raise ValueError("package wave planning must include waves")
+        if not self.assignments:
+            raise ValueError("package wave planning must include assignments")
+        return self
 
 
 class PackagePlanning(ContractModel):
@@ -135,7 +232,13 @@ class ReleaseNotes(ContractModel):
 
 TASK_CONTRACTS: dict[str, type[BaseModel]] = {
     "requirements_analysis": RequirementsAnalysis,
+    "architecture_surface": ArchitectureSurface,
+    "architecture_layout": ArchitectureLayout,
+    "architecture_contracts": ArchitectureContracts,
+    "architecture_structure": ArchitectureStructure,
     "architecture_design": ArchitectureDesign,
+    "package_scope_planning": PackageScopePlanning,
+    "package_wave_planning": PackageWavePlanning,
     "package_planning": PackagePlanning,
     "file_manifest_patch": FileManifestPatch,
     "code_generation": FileManifestPatch,

@@ -117,6 +117,7 @@ class DurableWorker:
             if not running_job:
                 raise RuntimeError("leased job could not transition to running")
             job = running_job
+            self._mark_run_running(job)
             self._status("running", current_job={"id": job["id"], "job_type": job["job_type"], "run_id": job.get("run_id")}, last_error="")
             self.service.store.heartbeat_job(job["id"], self.worker_id, self.lease_seconds)
             self._start_heartbeat(job["id"])
@@ -152,6 +153,26 @@ class DurableWorker:
                 error=error,
                 processed_job_count=self.processed_job_count,
             )
+
+    def _mark_run_running(self, job: dict[str, Any]) -> None:
+        run_id = str(job.get("run_id") or "")
+        if not run_id:
+            return
+        run = self.service.store.get_run(run_id)
+        if not run or run.get("status") not in {"queued", "recovering"}:
+            return
+        continuation = {
+            **dict(run.get("continuation") or {}),
+            "next_action": "job_running",
+            "active_job": {
+                "id": job.get("id", ""),
+                "job_type": job.get("job_type", ""),
+                "role": job.get("role", ""),
+                "worker_id": job.get("worker_id", ""),
+                "lease_until": job.get("lease_until", ""),
+            },
+        }
+        self.service.store.update_run(run_id, status="running", continuation=continuation)
 
     def run_forever(self, max_jobs: int | None = None) -> dict[str, Any]:
         started = iso_now()

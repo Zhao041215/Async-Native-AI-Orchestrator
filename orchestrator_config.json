@@ -25,6 +25,7 @@
     "retry_backoff_seconds": 4
   },
   "runtime": {
+    "runtime_root": "workspace/projects",
     "workspace_root": "workspace/projects",
     "db_path": "workspace/orchestrator.db",
     "database_url": "postgresql+psycopg://orchestrator:orchestrator@postgres:5432/orchestrator",
@@ -38,7 +39,15 @@
     "max_failures_per_task": 20,
     "deployment_mode": "docker-compose-v6",
     "queue_mode": "postgres-durable",
-    "sandbox_mode": "tenant-governed-worktree"
+    "sandbox_mode": "tenant-governed-worktree",
+    "workspace_max_bytes": 53687091200,
+    "gc_dry_run_default": true,
+    "exported_worktree_retention_days": 7,
+    "artifact_retention_days": 30,
+    "failed_run_retention_days": 30,
+    "log_retention_days": 14,
+    "pressure_retention_days": 7,
+    "archive_enabled": true
   },
   "identity": {
     "mode": "hosted-dev-session",

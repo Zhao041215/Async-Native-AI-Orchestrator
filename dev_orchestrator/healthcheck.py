@@ -6,7 +6,7 @@ from typing import Any
 from dev_orchestrator.v6.system_check import build_v6_system_check
 
 
-def build_system_check(root_dir: Path, config: dict[str, Any], v2_storage: object | None = None) -> dict[str, Any]:
+def build_system_check(root_dir: Path, config: dict[str, Any], retired_storage: object | None = None) -> dict[str, Any]:
     return build_v6_system_check(root_dir, config, strict_db=False)
 
 
