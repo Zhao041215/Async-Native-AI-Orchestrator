@@ -1,1 +1,1 @@
-"""V6 demand-driven autonomous delivery control plane."""
+"""V7 async-native AI delivery control plane."""

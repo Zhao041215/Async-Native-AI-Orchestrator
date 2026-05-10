@@ -3,15 +3,22 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>V6 AI-Agent Workbench</title>
-  <link rel="stylesheet" href="/static/styles.css?v=20260508h">
+  <title>AI-Agent Workbench</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css?v=20260510">
 </head>
 <body>
-  <main class="v6-shell">
+  <div class="scanlines"></div>
+  <main class="shell">
     <header class="topbar">
-      <div>
-        <p class="eyebrow">Dev Orchestrator V6</p>
-        <h1>AI-Agent Delivery Workbench</h1>
+      <div class="topbar-left">
+        <div class="logo-mark">AI</div>
+        <div>
+          <p class="eyebrow">Dev Orchestrator</p>
+          <h1>Workbench</h1>
+        </div>
       </div>
       <div class="status-strip">
         <span id="health-pill" class="pill">checking</span>
@@ -24,7 +31,7 @@
       <form id="project-form" class="panel create-panel">
         <div class="panel-title">
           <p class="eyebrow">Create</p>
-          <h2>Create and Dispatch</h2>
+          <h2>Dispatch Project</h2>
         </div>
         <label>Project name<input name="name" placeholder="knowledge-base"></label>
         <label>Project title<input name="title" placeholder="Knowledge Base Management"></label>
@@ -48,7 +55,7 @@
       <section class="panel projects-panel">
         <div class="panel-title">
           <p class="eyebrow">Projects</p>
-          <h2>Project Queue</h2>
+          <h2>Queue</h2>
         </div>
         <div class="project-toolbar">
           <label class="checkline"><input id="select-all-projects" type="checkbox"> Select all</label>
@@ -65,17 +72,32 @@
         <div id="run-summary" class="summary"></div>
         <div id="run-actions" class="action-strip"></div>
         <form id="delivery-export-form" class="export-strip">
-          <label>Export delivery path<input name="target_path" placeholder="exports/v6-test01 or E:\ProgramProjects\AI_Agent\deliveries\v6-test01"></label>
-          <label class="checkline export-overwrite"><input name="overwrite" type="checkbox"> Overwrite target</label>
-          <button id="export-delivery" type="submit" class="subtle">Export delivery</button>
+          <label>Export directory<input name="target_path" placeholder="/path/to/deployment or C:\exports\my-project"></label>
+          <label class="checkline export-overwrite"><input name="overwrite" type="checkbox"> Overwrite</label>
+          <button id="export-delivery" type="submit" class="subtle">Export</button>
           <div id="delivery-export-status" class="form-status" role="status" aria-live="polite"></div>
         </form>
 
-        <h3>V6 Control Plane</h3>
-        <div id="v6-summary" class="summary wide"></div>
+        <h3>Mission Health</h3>
+        <div id="mission-summary" class="summary wide"></div>
 
-        <h3>V6 Mission Kernel</h3>
-        <div id="v6-mission" class="summary wide"></div>
+        <h3>Active Blocker</h3>
+        <div id="mission-blocker" class="summary wide"></div>
+
+        <h3>Mission Kernel</h3>
+        <div id="mission-kernel" class="summary wide"></div>
+
+        <h3>Execution Plan</h3>
+        <div id="execution-plan" class="summary wide"></div>
+
+        <h3>Implementation Plan</h3>
+        <div id="implementation-plan" class="summary wide"></div>
+
+        <h3>Stability Report</h3>
+        <div id="stability-report" class="summary wide"></div>
+
+        <h3>Frontend Quality</h3>
+        <div id="frontend-quality" class="summary wide"></div>
 
         <h3>Contract Validation</h3>
         <div id="contract-validation" class="summary wide"></div>
@@ -120,7 +142,7 @@
       <form id="model-settings-form" class="panel model-settings-panel">
         <div class="panel-title">
           <p class="eyebrow">Model</p>
-          <h2>Third-party API</h2>
+          <h2>API Provider</h2>
         </div>
         <label>Provider<input name="model_provider" value="custom"></label>
         <label>Base URL<input name="base_url" value="https://deepkey.top/v1"></label>
@@ -154,12 +176,12 @@
       <section class="panel workers-panel">
         <div class="panel-title">
           <p class="eyebrow">Workers</p>
-          <h2>Worker Processes</h2>
+          <h2>Process Pool</h2>
         </div>
         <div id="worker-list" class="list compact"></div>
       </section>
     </section>
   </main>
-  <script src="/static/app.js?v=20260508h"></script>
+  <script src="/static/app.js?v=20260510"></script>
 </body>
 </html>

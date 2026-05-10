@@ -1,7 +1,0 @@
-fastapi>=0.115
-uvicorn[standard]>=0.30
-pydantic>=2.8
-sqlalchemy>=2.0
-psycopg[binary]>=3.2
-pytest>=8.0
-ruff>=0.6

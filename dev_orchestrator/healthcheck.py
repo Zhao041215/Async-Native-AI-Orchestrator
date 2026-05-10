@@ -3,11 +3,11 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from dev_orchestrator.v6.system_check import build_v6_system_check
+from dev_orchestrator.v7.system_check import build_v7_system_check
 
 
 def build_system_check(root_dir: Path, config: dict[str, Any], retired_storage: object | None = None) -> dict[str, Any]:
-    return build_v6_system_check(root_dir, config, strict_db=False)
+    return build_v7_system_check(root_dir, config)
 
 
 def build_acceptance_check(results: list[dict]) -> dict:

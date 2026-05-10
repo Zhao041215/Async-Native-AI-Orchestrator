@@ -1,0 +1,84 @@
+"""V7 Release Phase - release notes and release candidate."""
+from __future__ import annotations
+
+import json
+from typing import Any
+
+from dev_orchestrator.v7.models import AITaskBudget
+from dev_orchestrator.v7.observability import get_logger
+
+log = get_logger(__name__)
+
+RELEASE_NOTES_PROMPT = "You are release_agent. Return strict JSON only. Return summary, deploy_steps, validation_steps, rollback_plan."
+RELEASE_CANDIDATE_PROMPT = "You are release_candidate_agent. Return strict JSON only. Return ok, summary, checklist (list of {item, status, notes})."
+
+
+class ReleasePhase:
+    def __init__(self, *, scheduler: Any, store: Any, artifacts: Any) -> None:
+        self._scheduler = scheduler
+        self._store = store
+        self._artifacts = artifacts
+
+    async def execute(self, job: dict[str, Any], run: dict[str, Any], project: dict[str, Any], *, tenant_id: str, heartbeat: Any | None = None) -> dict[str, Any]:
+        metadata = dict(run.get("metadata") or {})
+        scale_profile = metadata.get("scale_profile") or {}
+        budget = self._build_budget(scale_profile)
+
+        is_candidate = job.get("job_type") == "release_candidate"
+        system_prompt = RELEASE_CANDIDATE_PROMPT if is_candidate else RELEASE_NOTES_PROMPT
+        task_kind = "release_candidate" if is_candidate else "release_notes"
+
+        packages = await self._store.list_work_packages(run["id"])
+        artifacts = await self._store.list_artifacts(run["id"])
+        quality_report = _latest_payload(artifacts, "quality_report")
+
+        result = await self._scheduler.call(
+            run_id=run["id"], role="release", job_id=job["id"],
+            task_kind=task_kind, system_prompt=system_prompt,
+            user_payload={"project": {"name": project.get("name", ""), "title": project.get("title", "")}, "requirements": metadata.get("requirements_analysis", {}), "quality_report": quality_report, "package_count": len(packages), "completed": len([p for p in packages if p.get("status") == "completed"])},
+            budget=budget, store=self._store, tenant_id=tenant_id, heartbeat_callback=heartbeat,
+        )
+
+        if not result.ok:
+            return {"status": "blocked", "error": result.error, "error_kind": result.error_kind, "retryable": result.retryable}
+
+        output = _json_or_empty(result.raw_response)
+        await self._artifacts.write(project["id"], run["id"], job["id"], task_kind, f"{task_kind}.json", output)
+        log.info(f"{task_kind}_completed", run_id=run["id"])
+        return {"status": "ok", "output": output}
+
+    def next_job(self, run: dict[str, Any], result: dict[str, Any]) -> dict[str, Any] | None:
+        return None
+
+    @staticmethod
+    def _build_budget(sp: dict[str, Any]) -> AITaskBudget:
+        return AITaskBudget(task_kind="release_notes", max_input_chars=int(sp.get("context_budget_chars", 36000)), max_output_tokens=4000, timeout_seconds=120, reasoning_effort="high", retry_attempts=2)
+
+
+def _latest_payload(artifacts: list[dict[str, Any]], kind: str) -> dict[str, Any]:
+    for a in reversed(artifacts):
+        if a.get("kind") == kind:
+            content = a.get("content", "")
+            if isinstance(content, str) and content:
+                try:
+                    parsed = json.loads(content)
+                    if isinstance(parsed, dict):
+                        return parsed
+                except (json.JSONDecodeError, TypeError):
+                    pass
+            elif isinstance(content, dict):
+                return content
+    return {}
+
+
+def _json_or_empty(raw: Any) -> dict[str, Any]:
+    if isinstance(raw, dict):
+        return raw
+    text = str(raw or "").strip()
+    if not text:
+        return {}
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
+        return {"raw_text": text}
+    return parsed if isinstance(parsed, dict) else {"value": parsed}

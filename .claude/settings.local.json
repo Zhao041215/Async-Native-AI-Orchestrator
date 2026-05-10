@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c ' *)",
+      "Bash(docker compose *)",
+      "Bash(curl -s http://127.0.0.1:8787/api/v7/projects)",
+      "Bash(python3 -c ' *)",
+      "Bash(curl -s \"http://127.0.0.1:8787/api/v7/runs/857d03ef-134c-40fd-93a2-0817cadceedb\")",
+      "Bash(curl -s \"http://127.0.0.1:8787/api/v7/runs/857d03ef-134c-40fd-93a2-0817cadceedb/jobs\")",
+      "Bash(grep -v '^$')",
+      "Bash(python3)",
+      "Bash(curl -s http://127.0.0.1:8787/api/v7/health)",
+      "Bash(curl -s \"http://127.0.0.1:8787/api/v7/projects/bda4a721-6e37-46e0-917f-1b61215b8770/runs\")"
+    ]
+  }
+}

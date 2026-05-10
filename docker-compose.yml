@@ -1,0 +1,23 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ai-agent-v7:local
+    working_dir: /app
+    command: python run_server.py --v7-api --host 0.0.0.0 --port 8787
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_API_BASE: ${OPENAI_API_BASE:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-}
+      OPENAI_WIRE_API: ${OPENAI_WIRE_API:-}
+      OPENAI_PROVIDER_PROFILE: ${OPENAI_PROVIDER_PROFILE:-}
+      OPENAI_API_PATH: ${OPENAI_API_PATH:-}
+      OPENAI_REASONING_EFFORT: ${OPENAI_REASONING_EFFORT:-}
+      OPENAI_DISABLE_RESPONSE_STORAGE: ${OPENAI_DISABLE_RESPONSE_STORAGE:-}
+      AI_AGENT_RUNTIME_ROOT: ${AI_AGENT_RUNTIME_ROOT:-workspace/projects}
+      AI_AGENT_WORKSPACE_MAX_BYTES: ${AI_AGENT_WORKSPACE_MAX_BYTES:-53687091200}
+    ports:
+      - "8787:8787"
+    volumes:
+      - .:/app

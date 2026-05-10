@@ -22,7 +22,8 @@
     "max_tokens": 3200,
     "timeout_seconds": 90,
     "retry_attempts": 2,
-    "retry_backoff_seconds": 4
+    "retry_backoff_seconds": 4,
+    "max_request_body_bytes": 950000
   },
   "runtime": {
     "runtime_root": "workspace/projects",
@@ -37,7 +38,7 @@
     "max_conflicts_per_task": 16,
     "max_resume_attempts_per_task": 20,
     "max_failures_per_task": 20,
-    "deployment_mode": "docker-compose-v6",
+    "deployment_mode": "docker-compose",
     "queue_mode": "postgres-durable",
     "sandbox_mode": "tenant-governed-worktree",
     "workspace_max_bytes": 53687091200,
@@ -62,7 +63,7 @@
   "production": {
     "queue_backend": "postgres-durable",
     "worker_model": "multi-process-worker",
-    "deployment_target": "docker-compose-v6",
+    "deployment_target": "docker-compose",
     "diagnostics_enabled": true,
     "future_auth_enabled": false
   }

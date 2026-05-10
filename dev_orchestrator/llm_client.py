@@ -1,13 +1,15 @@
+"""Async LLM client using httpx with connection pooling and proper error handling."""
 from __future__ import annotations
 
+import asyncio
 import json
-import http.client
-import socket
+import random
 import time
-import urllib.error
-import urllib.request
 from dataclasses import asdict, dataclass
+from typing import Any
 from urllib.parse import urlparse
+
+import httpx
 
 from dev_orchestrator.config import LLMConfig
 
@@ -68,7 +70,6 @@ PROVIDER_PROFILES: dict[str, ProviderProfile] = {
         supports_chat_completions=False,
     ),
 }
-
 
 PROFILE_ALIASES = {
     "chat": "openai-chat-completions",
@@ -226,7 +227,6 @@ def _extract_chat_completions_content(response_payload: dict) -> str:
 def _extract_responses_content(response_payload: dict) -> str:
     if isinstance(response_payload.get("output_text"), str) and response_payload["output_text"].strip():
         return response_payload["output_text"].strip()
-
     outputs = response_payload.get("output") or []
     text_chunks: list[str] = []
     for output_item in outputs:
@@ -241,11 +241,175 @@ def _extract_responses_content(response_payload: dict) -> str:
     combined = "".join(text_chunks).strip()
     if combined:
         return combined
-
     preview = json.dumps(response_payload, ensure_ascii=True)[:800]
     raise LLMError(f"Responses API payload did not contain usable text output. Response preview: {preview}")
 
 
+class AsyncLLMClient:
+    """Async LLM client with httpx connection pooling and proper error handling."""
+
+    def __init__(self, config: LLMConfig) -> None:
+        self.config = config
+        self._client: httpx.AsyncClient | None = None
+        self._client_lock = asyncio.Lock()
+
+    async def _get_client(self) -> httpx.AsyncClient:
+        if self._client is not None and not self._client.is_closed:
+            return self._client
+        async with self._client_lock:
+            # Double-check after acquiring lock
+            if self._client is not None and not self._client.is_closed:
+                return self._client
+            timeout_val = float(self.config.timeout_seconds or 90)
+            self._client = httpx.AsyncClient(
+                timeout=httpx.Timeout(
+                    connect=10.0,
+                    read=timeout_val,
+                    write=10.0,
+                    pool=5.0,
+                ),
+                limits=httpx.Limits(
+                    max_connections=20,
+                    max_keepalive_connections=10,
+                    keepalive_expiry=30.0,
+                ),
+                follow_redirects=True,
+            )
+            return self._client
+
+    def provider_identity(self) -> str:
+        try:
+            profile = resolve_provider_profile(self.config)
+            return profile.id
+        except LLMError:
+            parts = (self.config.api_base or "unknown").split("/")
+            return parts[2] if len(parts) > 2 else "unknown"
+
+    async def chat(
+        self,
+        system_prompt: str,
+        messages: list[dict[str, str]],
+        *,
+        max_tokens: int | None = None,
+        timeout: int | None = None,
+        reasoning_effort: str | None = None,
+        temperature: float | None = None,
+        retry_attempts: int | None = None,
+    ) -> str:
+        if self.config.use_mock:
+            raise LLMError("Mock mode is enabled; remote chat should not be called.")
+        if not self.config.api_base or not self.config.api_key:
+            raise LLMError("Missing API base or API key.")
+
+        profile = resolve_provider_profile(self.config)
+        wire_api = _effective_wire_api(self.config, profile)
+        supports_chat = _effective_capability(self.config.supports_chat_completions, profile.supports_chat_completions)
+        supports_responses = _effective_capability(self.config.supports_responses, profile.supports_responses)
+        if wire_api == "responses" and not supports_responses:
+            raise LLMError(f"Provider profile {profile.id} does not support the Responses wire API.")
+        if wire_api == "chat_completions" and not supports_chat:
+            raise LLMError(f"Provider profile {profile.id} does not support the Chat Completions wire API.")
+
+        effective_max_tokens = max_tokens or self.config.max_tokens
+        effective_timeout = timeout or self.config.timeout_seconds
+
+        payload = _build_payload(
+            self.config, wire_api, system_prompt, messages,
+            effective_max_tokens, reasoning_effort=reasoning_effort, temperature=temperature,
+        )
+        url = _build_url(self.config, profile)
+        headers = _build_headers(self.config)
+
+        data = json.dumps(payload).encode("utf-8")
+        max_body = int(getattr(self.config, "max_request_body_bytes", 0) or 0)
+        if max_body > 0 and len(data) > max_body:
+            raise LLMError(f"Request body too large: {len(data)} bytes exceeds configured limit {max_body} bytes.")
+
+        attempts = max(1, int(retry_attempts if retry_attempts is not None else self.config.retry_attempts or 1))
+        last_error: Exception | None = None
+
+        for attempt in range(1, attempts + 1):
+            try:
+                client = await self._get_client()
+                response = await client.post(url, content=data, headers=headers, timeout=float(effective_timeout))
+                response.raise_for_status()
+                response_payload = response.json()
+                if wire_api == "responses":
+                    return _extract_responses_content(response_payload)
+                return _extract_chat_completions_content(response_payload)
+            except httpx.HTTPStatusError as exc:
+                body = ""
+                try:
+                    body = exc.response.text[:2000]
+                except Exception:
+                    pass
+                last_error = LLMError(f"HTTP {exc.response.status_code}: {body}")
+            except httpx.ConnectError as exc:
+                last_error = LLMError(f"Connection error: {exc}")
+            except httpx.ReadTimeout as exc:
+                last_error = LLMError(f"Timed out after {effective_timeout} seconds: {exc}")
+            except httpx.WriteTimeout as exc:
+                last_error = LLMError(f"Write timed out: {exc}")
+            except httpx.PoolTimeout as exc:
+                last_error = LLMError(f"Pool timeout: {exc}")
+            except json.JSONDecodeError:
+                last_error = LLMError("Model endpoint returned non-JSON response.")
+            except LLMError:
+                raise
+            except Exception as exc:
+                last_error = LLMError(f"Unexpected error: {exc}")
+
+            if attempt < attempts:
+                backoff = float(self.config.retry_backoff_seconds or 3)
+                jitter = random.uniform(0.5, 1.5)
+                await asyncio.sleep(backoff * jitter)
+
+        if last_error is not None:
+            raise last_error
+        raise LLMError("All retry attempts exhausted with no error captured.")
+
+    async def test_connection(self) -> dict[str, Any]:
+        started = time.time()
+        try:
+            profile = resolve_provider_profile(self.config)
+            response_text = await self.chat(
+                "Reply with a short JSON object confirming model connectivity.",
+                [{"role": "user", "content": 'Return {"ok": true, "message": "connected"}.'}],
+                max_tokens=min(int(self.config.max_tokens or 64), 64),
+                timeout=min(int(self.config.timeout_seconds or 30), 30),
+            )
+            return {
+                "ok": True,
+                "profile": profile.to_dict(),
+                "wire_api": _effective_wire_api(self.config, profile),
+                "url": _build_url(self.config, profile),
+                "model": self.config.model,
+                "elapsed_ms": round((time.time() - started) * 1000),
+                "response_preview": response_text[:600],
+            }
+        except (LLMError, Exception) as exc:
+            profile = None
+            try:
+                profile = resolve_provider_profile(self.config).to_dict()
+            except LLMError:
+                profile = {}
+            return {
+                "ok": False,
+                "profile": profile,
+                "wire_api": self.config.wire_api,
+                "url": "",
+                "model": self.config.model,
+                "elapsed_ms": round((time.time() - started) * 1000),
+                "error": str(exc),
+            }
+
+    async def close(self) -> None:
+        if self._client and not self._client.is_closed:
+            await self._client.aclose()
+            self._client = None
+
+
+# Keep synchronous client for backward compatibility during transition
 class OpenAICompatibleClient:
     def __init__(self, config: LLMConfig) -> None:
         self.config = config
@@ -279,13 +443,8 @@ class OpenAICompatibleClient:
         effective_timeout = timeout_override or self.config.timeout_seconds
 
         payload = _build_payload(
-            self.config,
-            wire_api,
-            system_prompt,
-            messages,
-            effective_max_tokens,
-            reasoning_effort=reasoning_effort_override,
-            temperature=temperature_override,
+            self.config, wire_api, system_prompt, messages,
+            effective_max_tokens, reasoning_effort=reasoning_effort_override, temperature=temperature_override,
         )
         url = _build_url(self.config, profile)
         headers = _build_headers(self.config)
@@ -300,40 +459,37 @@ class OpenAICompatibleClient:
         last_error: Exception | None = None
         for attempt in range(1, attempts + 1):
             try:
-                request = urllib.request.Request(
-                    url=url,
-                    data=data,
-                    method="POST",
-                    headers=headers,
-                )
-                with urllib.request.urlopen(request, timeout=effective_timeout) as response:
-                    raw_response = response.read().decode("utf-8")
-                    response_payload = json.loads(raw_response)
+                with httpx.Client(timeout=float(effective_timeout)) as client:
+                    response = client.post(url, content=data, headers=headers)
+                    response.raise_for_status()
+                    response_payload = response.json()
                 if wire_api == "responses":
                     return _extract_responses_content(response_payload)
                 return _extract_chat_completions_content(response_payload)
-            except urllib.error.HTTPError as exc:
-                body = exc.read().decode("utf-8", errors="replace")
-                exc.close()
-                last_error = LLMError(f"HTTP {exc.code}: {body}")
-            except urllib.error.URLError as exc:
-                last_error = LLMError(str(exc))
-            except http.client.RemoteDisconnected as exc:
-                last_error = LLMError(f"Remote disconnected without response: {exc}")
-            except (TimeoutError, socket.timeout) as exc:
-                last_error = LLMError(f"Timed out after {effective_timeout} seconds.")
+            except httpx.HTTPStatusError as exc:
+                body = ""
+                try:
+                    body = exc.response.text[:2000]
+                except Exception:
+                    pass
+                last_error = LLMError(f"HTTP {exc.response.status_code}: {body}")
+            except httpx.ConnectError as exc:
+                last_error = LLMError(f"Connection error: {exc}")
+            except httpx.TimeoutException as exc:
+                last_error = LLMError(f"Timed out after {effective_timeout} seconds: {exc}")
             except json.JSONDecodeError:
                 last_error = LLMError("Model endpoint returned non-JSON response.")
-            except LLMError as exc:
-                last_error = exc
-            except OSError as exc:
-                last_error = LLMError(str(exc))
+            except LLMError:
+                raise
+            except Exception as exc:
+                last_error = LLMError(f"Unexpected error: {exc}")
 
             if attempt < attempts:
                 time.sleep(max(0, int(self.config.retry_backoff_seconds or 0)))
 
-        assert last_error is not None
-        raise last_error
+        if last_error is not None:
+            raise last_error
+        raise LLMError("All retry attempts exhausted.")
 
     def build_request_preview(
         self,
@@ -347,12 +503,8 @@ class OpenAICompatibleClient:
         wire_api = _effective_wire_api(self.config, profile)
         max_tokens = max_tokens_override or self.config.max_tokens
         payload = _build_payload(
-            self.config,
-            wire_api,
-            system_prompt,
-            messages or [],
-            max_tokens,
-            reasoning_effort=reasoning_effort_override,
+            self.config, wire_api, system_prompt, messages or [],
+            max_tokens, reasoning_effort=reasoning_effort_override,
         )
         headers = _build_headers(self.config)
         masked_headers = {
@@ -371,27 +523,22 @@ class OpenAICompatibleClient:
         started = time.time()
         try:
             profile = resolve_provider_profile(self.config)
-            preview = self.build_request_preview(
-                "Reply with a short JSON object confirming model connectivity.",
-                [{"role": "user", "content": "Return {\"ok\": true, \"message\": \"connected\"}."}],
-                max_tokens_override=min(int(self.config.max_tokens or 64), 64),
-            )
             response_text = self.chat(
                 "Reply with a short JSON object confirming model connectivity.",
-                [{"role": "user", "content": "Return {\"ok\": true, \"message\": \"connected\"}."}],
+                [{"role": "user", "content": 'Return {"ok": true, "message": "connected"}.'}],
                 max_tokens_override=min(int(self.config.max_tokens or 64), 64),
                 timeout_override=min(int(self.config.timeout_seconds or 30), 30),
             )
             return {
                 "ok": True,
                 "profile": profile.to_dict(),
-                "wire_api": preview["wire_api"],
-                "url": preview["url"],
+                "wire_api": _effective_wire_api(self.config, profile),
+                "url": _build_url(self.config, profile),
                 "model": self.config.model,
                 "elapsed_ms": round((time.time() - started) * 1000),
                 "response_preview": response_text[:600],
             }
-        except LLMError as exc:
+        except (LLMError, Exception) as exc:
             profile = None
             try:
                 profile = resolve_provider_profile(self.config).to_dict()

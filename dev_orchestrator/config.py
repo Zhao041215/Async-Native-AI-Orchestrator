@@ -51,7 +51,7 @@ class RuntimeConfig:
     max_conflicts_per_task: int = 8
     max_resume_attempts_per_task: int = 6
     max_failures_per_task: int = 8
-    deployment_mode: str = "docker-compose-v6"
+    deployment_mode: str = "docker-compose"
     queue_mode: str = "postgres-durable"
     sandbox_mode: str = "tenant-governed-worktree"
     workspace_max_bytes: int = 50 * 1024 * 1024 * 1024
@@ -80,7 +80,7 @@ class IdentityConfig:
 class ProductionScaffoldConfig:
     queue_backend: str = "postgres-durable"
     worker_model: str = "multi-process-worker"
-    deployment_target: str = "docker-compose-v6"
+    deployment_target: str = "docker-compose"
     diagnostics_enabled: bool = True
     future_auth_enabled: bool = True
 
@@ -257,8 +257,8 @@ def _normalize_production_payload(payload: dict) -> dict:
         "hosted-worker": "multi-process-worker",
     }
     deployment_aliases = {
-        "local-dev": "docker-compose-v6",
-        "local": "docker-compose-v6",
+        "local-dev": "docker-compose",
+        "local": "docker-compose",
     }
     normalized["queue_backend"] = queue_aliases.get(
         str(normalized.get("queue_backend", "")).strip().lower(),
@@ -419,7 +419,7 @@ def load_config(root_dir: Path) -> AppConfig:
     env_log_retention = _env_int(os.environ.get("AI_AGENT_LOG_RETENTION_DAYS"))
     env_pressure_retention = _env_int(os.environ.get("AI_AGENT_PRESSURE_RETENTION_DAYS"))
     env_archive_enabled = _env_bool(os.environ.get("AI_AGENT_ARCHIVE_ENABLED"))
-    env_database_url = os.environ.get("V6_DATABASE_URL") or os.environ.get("DATABASE_URL")
+    env_database_url = os.environ.get("DATABASE_URL")
     if env_runtime_root:
         runtime.runtime_root = env_runtime_root
     if env_workspace_max is not None:

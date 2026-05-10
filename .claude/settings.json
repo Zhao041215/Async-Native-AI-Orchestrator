@@ -1,0 +1,26 @@
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://token-plan-cn.xiaomimimo.com/anthropic",
+    "ANTHROPIC_AUTH_TOKEN": "tp-c2gp7ajsua6jud254oe4oee5deltf0drae584a21xt4ljoif",
+    "ANTHROPIC_MODEL": "mimo-v2.5-pro",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "mimo-v2.5-pro",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "mimo-v2.5-pro",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "mimo-v2.5-pro"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c ' *)",
+      "Bash(curl -s http://127.0.0.1:8787/api/v7/projects/bda4a721-6e37-46e0-917f-1b61215b8770/runs)",
+      "Bash(curl -s http://127.0.0.1:8787/api/v7/runs/__TRACKED_VAR__/jobs)",
+      "Bash(curl -s http://127.0.0.1:8787/api/v7/workers)",
+      "Bash(python3 -c \"import sys,json; print\\(json.dumps\\(json.load\\(sys.stdin\\), indent=2\\)\\)\")",
+      "Bash(python3 -c \"import sys,json; print\\(json.dumps\\(json.load\\(sys.stdin\\), indent=2\\)[:500]\\)\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(type\\(d\\).__name__, len\\(d\\) if isinstance\\(d,list\\) else json.dumps\\(d\\)[:200]\\)\")",
+      "Bash(curl -s http://127.0.0.1:8787/)",
+      "Bash(curl -s -X POST http://127.0.0.1:8787/api/v7/projects -H 'Content-Type: application/json' -d '{\"name\":\"test-format\",\"title\":\"Format Test\"}')",
+      "Bash(curl -s http://127.0.0.1:8787/api/v7/projects/d9fb969a-5ebf-4a5a-952f-389f174b08e0/runs)",
+      "Bash(curl -s -X POST http://127.0.0.1:8787/api/v7/projects/batch-delete -H 'Content-Type: application/json' -d '{\"project_ids\":[\"d9fb969a-5ebf-4a5a-952f-389f174b08e0\"]}')",
+      "Bash(curl -s http://127.0.0.1:8787/api/v7/runs/4ad14b65-9ed7-46ab-bb35-47c848ea6304/jobs)"
+    ]
+  }
+}

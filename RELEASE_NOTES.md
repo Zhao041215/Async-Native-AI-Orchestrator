@@ -1,16 +1,35 @@
-# V6.4.0 Release Notes
+# V7.0.0 Release Notes
 
-This release hardens the V6-only repository policy.
+Complete architectural rewrite from V6 to V7.
 
 ## What changed
 
-- V6 is the sole active kernel and `/api/v6/*` remains the only supported control surface.
-- Architecture execution was split into surface, layout, contracts, and deterministic merge stages.
-- Package planning was split into package scope planning and wave planning to avoid a single oversized planner prompt.
-- Retired generation documentation was removed instead of being carried forward as compatibility baggage.
-- The version marker now reads `v6.4.0-100k-split-planning-single-active-version`.
+- **Async-first**: replaced `urllib.request` + threading with `asyncio` + `httpx`
+- **Module decomposition**: 3085-line God Object split into 33 focused modules
+- **Typed contracts**: all `dict[str, Any]` replaced with Pydantic v2 `extra="forbid"` models
+- **Wave-parallel pipeline**: architecture sub-phases concurrent, packages within waves concurrent
+- **Three-level concurrency**: global → provider → run `asyncio.Semaphore`, never bypassed
+- **Circuit breaker**: three-state machine with jittered exponential backoff, error classification by exception type
+- **Structured logging**: `structlog` with contextvars for correlation IDs
+- **Event sourcing**: checkpoint/resume for crash recovery
+- **Server-Sent Events**: real-time frontend progress updates
+- **Graceful shutdown**: SIGINT/SIGTERM signal handlers drain in-flight work
+- **Frontend redesign**: dark industrial command-center aesthetic
 
-## Notes
+## Breaking changes
 
-- Provider URLs and model endpoints remain compatible with the configured OpenAI-style provider.
-- Runtime workspaces, logs, and artifacts are still managed by the V6 storage lifecycle policies.
+- All `/api/v6/*` endpoints removed — use `/api/v7/*`
+- `V6_DATABASE_URL` env var removed — use `DATABASE_URL`
+- `docker-compose.v6.yml` renamed to `docker-compose.yml`
+- `Dockerfile.v6` renamed to `Dockerfile`
+- `requirements-v6.txt` renamed to `requirements.txt`
+
+## Migration
+
+```powershell
+# Old
+docker compose -f docker-compose.v6.yml up -d --build
+
+# New
+docker compose up -d --build
+```
