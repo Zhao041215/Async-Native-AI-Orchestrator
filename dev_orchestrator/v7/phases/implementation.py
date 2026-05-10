@@ -11,12 +11,24 @@ from dev_orchestrator.v7.observability import get_logger
 log = get_logger(__name__)
 
 CODE_GEN_PROMPT = (
-    "You are {role}_agent. Return strict JSON only using the file-manifest patch protocol. "
-    "Return agent, status, summary, files, commands, evidence. "
-    "files must be AI-produced content with path, action create|replace|delete, and content."
+    "You are {role}_agent. Return strict JSON only. "
+    "Be VERY CONCISE. Generate minimal, working code. "
+    "Return: {{\"agent\": str, \"status\": \"ok\", \"summary\": str, "
+    "\"files\": [{{\"path\": str, \"action\": \"create\", \"content\": str}}], "
+    "\"commands\": [str]}}. "
+    "Keep total response under 4000 chars. Each file under 80 lines. Max 3 files."
 )
-TEST_GEN_PROMPT = "You are qa_agent. Return strict JSON only. Generate tests. Return agent, status, summary, files, commands, evidence. files must contain test paths with action create."
-SECURITY_PROMPT = "You are security_agent. Return strict JSON only. Return ok, summary, findings (list of {severity, description, file})."
+TEST_GEN_PROMPT = (
+    "You are qa_agent. Return strict JSON only. Be CONCISE. "
+    "Return: {{\"agent\": str, \"status\": \"ok\", \"summary\": str, "
+    "\"files\": [{{\"path\": str, \"action\": \"create\", \"content\": str}}]}}. "
+    "Keep total response under 5000 chars."
+)
+SECURITY_PROMPT = (
+    "You are security_agent. Return strict JSON only. Be CONCISE. "
+    "Return: {{\"ok\": bool, \"summary\": str, \"findings\": [{{\"severity\": str, \"description\": str}}]}}. "
+    "Keep response under 2000 chars."
+)
 
 ROLE_TASK_MAP = {"qa": "test_generation", "security": "security_review", "docs": "code_generation", "release": "release_notes"}
 
@@ -55,12 +67,10 @@ class ImplementationPhase:
             run_id=run["id"], role=role, job_id=job["id"],
             task_kind=task_kind, system_prompt=system_prompt,
             user_payload={
-                "project": {"name": project.get("name", ""), "title": project.get("title", "")},
-                "context": {"requirements": metadata.get("requirements_analysis", {}), "architecture": metadata.get("architecture_design", {}), "project_layout": metadata.get("project_layout", {}), "package_contract": {"package_key": package.get("package_key", ""), "allowed_paths": allowed_paths, "forbidden_paths": forbidden_paths, "objective": objective, "expected_outputs": expected_outputs}},
-                "package": {"package_key": package.get("package_key", ""), "role": role, "domain": package.get("domain", ""), "allowed_paths": allowed_paths, "forbidden_paths": forbidden_paths, "depends_on": package.get("depends_on", []), "objective": objective, "expected_outputs": expected_outputs, "acceptance_gates": package.get("acceptance_gates", [])},
-                "cross_package_context": cross_context,
-                "mission_memory": pkg_memory,
-                "output_protocol": {"files": [{"path": "relative/path", "action": "create|replace|delete", "content": "full file content"}]},
+                "project": {"name": project.get("name", ""), "description": project.get("description", "")},
+                "package": {"package_key": package.get("package_key", ""), "role": role, "domain": package.get("domain", ""), "allowed_paths": allowed_paths, "objective": objective, "expected_outputs": expected_outputs},
+                "requirements_summary": (metadata.get("requirements_analysis") or {}).get("summary", ""),
+                "architecture_summary": (metadata.get("architecture_design") or {}).get("architecture_summary", ""),
             },
             budget=budget, store=self._store, tenant_id=tenant_id, heartbeat_callback=heartbeat,
         )
@@ -96,8 +106,8 @@ class ImplementationPhase:
 
     @staticmethod
     def _build_budget(sp: dict[str, Any], role: str) -> AITaskBudget:
-        timeout = 180 if role in ("backend", "frontend", "db") else 120
-        return AITaskBudget(task_kind="code_generation", max_input_chars=int(sp.get("context_budget_chars", 36000)), max_output_tokens=8000, timeout_seconds=timeout, reasoning_effort="high", retry_attempts=int(sp.get("ai_retry_attempts", 3)))
+        timeout = 90 if role in ("backend", "frontend", "db") else 60
+        return AITaskBudget(task_kind="code_generation", max_input_chars=int(sp.get("context_budget_chars", 36000)), max_output_tokens=2000, timeout_seconds=timeout, reasoning_effort="low", retry_attempts=int(sp.get("ai_retry_attempts", 3)))
 
     async def _build_cross_package_context(self, run_id: str, current_package: dict[str, Any]) -> list[dict[str, Any]]:
         """Build context from sibling packages in the same wave.

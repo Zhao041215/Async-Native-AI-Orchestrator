@@ -285,6 +285,7 @@ class RunMetadata(StrictModel):
     package_plan: PackageDAG | None = None
     context_snapshot_hash: str = ""
     mission_memory_hash: str = ""
+    retry_counts: dict[str, int] = Field(default_factory=dict)
 
 
 class Project(StrictModel):

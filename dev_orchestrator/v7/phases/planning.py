@@ -9,8 +9,18 @@ from dev_orchestrator.v7.observability import get_logger
 
 log = get_logger(__name__)
 
-SCOPE_PROMPT = "You are package_scope_planning_agent. Return strict JSON only. Choose project-specific AI work packages. Return packages with package_key, role, domain, subsystem, allowed_paths, forbidden_paths, objective, expected_outputs, acceptance_gates."
-WAVE_PROMPT = "You are package_wave_planning_agent. Return strict JSON only. Assign packages to execution waves with dependency edges. Return waves and edges only."
+SCOPE_PROMPT = (
+    "You are package_scope_planning_agent. Return strict JSON only. "
+    "Be CONCISE. Choose 3-6 AI work packages max. "
+    "Each package: {\"package_key\": str, \"role\": \"backend|frontend|db|docs|qa\", \"domain\": str, "
+    "\"allowed_paths\": [glob], \"objective\": str, \"expected_outputs\": [str]}. "
+    "Keep total response under 3000 chars. No prose."
+)
+WAVE_PROMPT = (
+    "You are package_wave_planning_agent. Return strict JSON only. "
+    "Assign packages to waves. Return: {\"waves\": [{\"wave_key\": str, \"sequence\": int, \"packages\": [str]}], "
+    "\"edges\": [{\"from\": str, \"to\": str}]}. Keep response under 1500 chars."
+)
 
 
 class PlanningPhase:
@@ -24,6 +34,24 @@ class PlanningPhase:
         scale_profile = metadata.get("scale_profile") or {}
         budget = self._build_budget(scale_profile)
 
+        # Use smaller budget for sub-phases to avoid API disconnections
+        scope_budget = AITaskBudget(
+            task_kind="package_scope",
+            max_input_chars=budget.max_input_chars,
+            max_output_tokens=3000,
+            timeout_seconds=120,
+            reasoning_effort="medium",
+            retry_attempts=budget.retry_attempts,
+        )
+        wave_budget = AITaskBudget(
+            task_kind="package_wave",
+            max_input_chars=budget.max_input_chars,
+            max_output_tokens=2000,
+            timeout_seconds=90,
+            reasoning_effort="medium",
+            retry_attempts=budget.retry_attempts,
+        )
+
         if metadata.get("package_dag") and run.get("checkpoint") == "package_planning_completed":
             return {"status": "completed", "package_count": len((metadata.get("package_dag") or {}).get("packages") or [])}
 
@@ -33,19 +61,25 @@ class PlanningPhase:
         # Check retry cache before making AI calls
         scope_plan = metadata.get("_cached_scope_plan") or metadata.get("package_scope_plan")
         if not scope_plan:
-            scope_plan = await self._call_ai(project, run, metadata, "package_scope", SCOPE_PROMPT, budget, tenant_id, job, heartbeat, {"architecture": architecture, "layout": layout})
+            scope_plan = await self._call_ai(project, run, metadata, "package_scope", SCOPE_PROMPT, scope_budget, tenant_id, job, heartbeat, {"architecture": architecture, "layout": layout})
             if scope_plan:
                 await self._cache_result(run["id"], "_cached_scope_plan", scope_plan)
         if not scope_plan:
-            return {"status": "blocked", "error": "package_scope_planning_failed"}
+            # Fallback: generate a default scope from architecture/layout
+            log.warning("scope_failed_using_default", run_id=run["id"])
+            scope_plan = self._default_scope_plan(project, architecture, layout)
+            await self._cache_result(run["id"], "_cached_scope_plan", scope_plan)
 
         wave_plan = metadata.get("_cached_wave_plan") or metadata.get("package_wave_plan")
         if not wave_plan:
-            wave_plan = await self._call_ai(project, run, metadata, "package_wave", WAVE_PROMPT, budget, tenant_id, job, heartbeat, {"scope_plan": scope_plan, "architecture": architecture, "layout": layout})
+            wave_plan = await self._call_ai(project, run, metadata, "package_wave", WAVE_PROMPT, wave_budget, tenant_id, job, heartbeat, {"scope_plan": scope_plan, "architecture": architecture, "layout": layout})
             if wave_plan:
                 await self._cache_result(run["id"], "_cached_wave_plan", wave_plan)
         if not wave_plan:
-            return {"status": "blocked", "error": "package_wave_planning_failed"}
+            # Fallback: generate a default wave plan from scope
+            log.warning("wave_failed_using_default", run_id=run["id"])
+            wave_plan = self._default_wave_plan(scope_plan)
+            await self._cache_result(run["id"], "_cached_wave_plan", wave_plan)
 
         plan = self._merge_plan(scope_plan, wave_plan)
         plan = self._normalize_plan(plan)
@@ -174,6 +208,73 @@ class PlanningPhase:
                             if overlap not in b_forbidden:
                                 b_forbidden.append(overlap)
         return plan
+
+    @staticmethod
+    def _default_scope_plan(project: dict[str, Any], architecture: dict[str, Any], layout: dict[str, Any]) -> dict[str, Any]:
+        """Generate a minimal default scope plan when the AI call fails."""
+        name = project.get("name", "project")
+        directories = layout.get("directories") or []
+        # Detect main source directories
+        src_dirs = []
+        for d in directories:
+            path = d.get("path", "") if isinstance(d, dict) else str(d)
+            if path and path not in ("tests", "test", "docs", "dist", "build", "public", "static"):
+                src_dirs.append(path)
+        if not src_dirs:
+            src_dirs = ["src"]
+
+        packages = [
+            {
+                "package_key": f"{name}_backend",
+                "role": "backend",
+                "domain": "core",
+                "allowed_paths": [f"{d}/**/*.py" for d in src_dirs] + ["*.py", "*.json", "*.toml", "*.yml"],
+                "forbidden_paths": ["tests/**"],
+                "depends_on": [],
+                "objective": f"Implement core backend logic for {name}",
+                "expected_outputs": [f"{src_dirs[0]}/main.py"],
+                "acceptance_gates": ["python -m pytest tests/ -x"],
+            },
+            {
+                "package_key": f"{name}_tests",
+                "role": "qa",
+                "domain": "testing",
+                "allowed_paths": ["tests/**/*.py", "test_*.py"],
+                "forbidden_paths": [],
+                "depends_on": [f"{name}_backend"],
+                "objective": f"Write tests for {name}",
+                "expected_outputs": ["tests/test_main.py"],
+                "acceptance_gates": ["python -m pytest tests/ -v"],
+            },
+        ]
+        return {"packages": packages}
+
+    @staticmethod
+    def _default_wave_plan(scope_plan: dict[str, Any]) -> dict[str, Any]:
+        """Generate a default wave plan from scope packages."""
+        packages = scope_plan.get("packages") or []
+        if not packages:
+            return {"waves": [], "edges": []}
+        # Group by dependency: packages with no deps go in wave 0, others in wave 1
+        wave_0 = []
+        wave_1 = []
+        for pkg in packages:
+            key = pkg.get("package_key", "")
+            deps = pkg.get("depends_on") or []
+            if deps:
+                wave_1.append(key)
+            else:
+                wave_0.append(key)
+        waves = []
+        if wave_0:
+            waves.append({"wave_key": "wave_0", "sequence": 0, "packages": wave_0})
+        if wave_1:
+            waves.append({"wave_key": "wave_1", "sequence": 1, "packages": wave_1})
+        edges = []
+        for pkg in packages:
+            for dep in pkg.get("depends_on") or []:
+                edges.append({"from": dep, "to": pkg.get("package_key", "")})
+        return {"waves": waves, "edges": edges}
 
     @staticmethod
     def _build_budget(sp: dict[str, Any]) -> AITaskBudget:

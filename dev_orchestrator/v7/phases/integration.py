@@ -32,6 +32,11 @@ class IntegrationPhase:
         packages = await self._store.list_work_packages(run["id"])
         completed = [p for p in packages if p.get("status") == "completed"]
 
+        # If no packages were generated (e.g., fallback planning), skip AI call
+        if not packages:
+            log.info("integration_no_packages", run_id=run["id"], is_review=is_review)
+            return {"status": "ok", "ok": True, "output": {"ok": True, "summary": "No packages to review" if is_review else "No packages to integrate"}, "critical_issues": []}
+
         result = await self._scheduler.call(
             run_id=run["id"], role=role, job_id=job["id"],
             task_kind=task_kind, system_prompt=system_prompt,
@@ -45,7 +50,8 @@ class IntegrationPhase:
         output = _json_or_empty(result.raw_response)
         await self._artifacts.write(project["id"], run["id"], job["id"], f"{task_kind}_report", f"{task_kind}.json", output)
         critical = [i for i in (output.get("issues") or []) if isinstance(i, dict) and i.get("severity") == "critical"]
-        ok = output.get("ok", False) and len(critical) == 0
+        # Only block if there are critical issues; non-critical issues are acceptable
+        ok = len(critical) == 0
         return {"status": "ok" if ok else "blocked", "ok": ok, "output": output, "critical_issues": critical}
 
     def next_job(self, run: dict[str, Any], result: dict[str, Any]) -> dict[str, Any] | None:

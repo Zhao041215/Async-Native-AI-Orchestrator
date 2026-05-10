@@ -248,26 +248,60 @@ class PipelineOrchestrator:
         if new_checkpoint and status == "ok":
             await self._update_run_state(job.run_id, checkpoint=new_checkpoint)
 
+        # Store phase results in run metadata so downstream phases (quality gates) can access them
+        if status == "ok":
+            await self._persist_phase_result(job, result)
+
+        # Update work package status when implementation completes
+        if job.work_package_id and status == "ok" and job.job_type in (JobType.code_generation, JobType.test_generation, JobType.security_review):
+            try:
+                await self.store.update_work_package(job.work_package_id, status=JobStatus.completed)
+                self.log.info("pipeline.package_completed", run_id=job.run_id, package_id=job.work_package_id)
+            except Exception as exc:
+                self.log.warning("pipeline.package_status_update_failed", run_id=job.run_id, package_id=job.work_package_id, error=str(exc))
+
         # Retry failed phases if attempts remain
         if status not in ("ok", "completed", ""):
-            if job.attempts < job.max_attempts:
+            # Don't retry circuit breaker rejections — wait for recovery
+            error_kind = result.get("error_kind", "")
+            if error_kind == "circuit_open":
+                self.log.warning("pipeline.phase_circuit_blocked", run_id=job.run_id, job_type=job.job_type.value,
+                                 error=result.get("error", ""))
+                await self._update_run_state(job.run_id, status=RunStatus.blocked)
+                return
+
+            # Track retry count per phase in run metadata to prevent infinite loops
+            run = await self.store.get_run(job.run_id)
+            if not run:
+                self.log.error("pipeline.retry_run_not_found", run_id=job.run_id)
+                return
+
+            metadata = run.metadata
+            retry_counts = dict(metadata.retry_counts) if metadata.retry_counts else {}
+            phase_key = job.job_type.value
+            current_retries = retry_counts.get(phase_key, 0)
+            max_retries = job.max_attempts - 1  # max_attempts includes the initial attempt
+
+            if current_retries < max_retries:
+                # Increment retry count and persist
+                retry_counts[phase_key] = current_retries + 1
+                new_metadata = metadata.model_copy(update={"retry_counts": retry_counts})
+                await self.store.update_run(job.run_id, metadata=new_metadata)
+
                 self.log.info("pipeline.phase_retry", run_id=job.run_id, job_type=job.job_type.value,
-                              status=status, attempts=job.attempts, max_attempts=job.max_attempts)
-                run = await self.store.get_run(job.run_id)
-                if run:
-                    retry_job = await self._enqueue_phase_job(run, job.job_type, is_retry=True)
-                    if retry_job:
-                        self.log.info("pipeline.retry_enqueued_confirmed", run_id=job.run_id,
-                                      retry_job_id=retry_job.id, retry_status=retry_job.status.value,
-                                      retry_resume_key=retry_job.resume_key)
-                    else:
-                        self.log.error("pipeline.retry_enqueue_failed", run_id=job.run_id, job_type=job.job_type.value)
+                              status=status, retry=current_retries + 1, max_retries=max_retries)
+                retry_job = await self._enqueue_phase_job(run, job.job_type, is_retry=True)
+                if retry_job:
+                    self.log.info("pipeline.retry_enqueued_confirmed", run_id=job.run_id,
+                                  retry_job_id=retry_job.id, retry_status=retry_job.status.value,
+                                  retry_resume_key=retry_job.resume_key)
                 else:
-                    self.log.error("pipeline.retry_run_not_found", run_id=job.run_id)
+                    self.log.error("pipeline.retry_enqueue_failed", run_id=job.run_id, job_type=job.job_type.value)
                 return  # skip advance_run — retry job will re-enter this path
             else:
                 self.log.warning("pipeline.phase_blocked", run_id=job.run_id, job_type=job.job_type.value,
-                                 status=status, error=result.get("error", ""))
+                                 status=status, error=result.get("error", ""),
+                                 retries=current_retries, max_retries=max_retries)
                 await self._update_run_state(job.run_id, status=RunStatus.blocked)
                 return
 
@@ -373,10 +407,15 @@ class PipelineOrchestrator:
         checkpoint = run.checkpoint
         self.log.info("advance_run.checkpoint", run_id=run_id, checkpoint=checkpoint)
 
-        # Wave execution path
-        if checkpoint in ("package_planning_completed", "wave_queued", "package_completed"):
+        # Wave execution path (loop until checkpoint moves past wave states)
+        while checkpoint in ("package_planning_completed", "wave_queued", "package_completed"):
             await self._advance_wave_execution(run)
-            return
+            # Re-read run — wave execution may have advanced the checkpoint
+            run = await self.store.get_run(run_id)
+            if not run or run.checkpoint == checkpoint:
+                return  # No progress — stop
+            checkpoint = run.checkpoint
+            self.log.info("advance_run.checkpoint_updated", run_id=run_id, checkpoint=checkpoint)
 
         # Release-ready terminal
         if checkpoint == "release_candidate_completed":
@@ -447,6 +486,34 @@ class PipelineOrchestrator:
         return state
 
     # ------------------------------------------------------------------
+    # Phase result persistence
+    # ------------------------------------------------------------------
+
+    async def _persist_phase_result(self, job: Job, result: dict[str, Any]) -> None:
+        """Store phase output in run metadata so downstream phases can access it."""
+        _PHASE_METADATA_KEYS = {
+            JobType.requirements_analysis: "requirements",
+            JobType.architecture_design: "architecture",
+            JobType.package_planning: "package_plan",
+        }
+        meta_key = _PHASE_METADATA_KEYS.get(job.job_type)
+        if not meta_key:
+            return
+        # Extract the relevant data from the result
+        data = result.get(f"{meta_key}_analysis") or result.get(f"{meta_key}_design") or result.get(meta_key) or result.get("package_dag")
+        if data is None:
+            return
+        try:
+            run = await self.store.get_run(job.run_id)
+            if not run:
+                return
+            metadata = run.metadata.model_copy(update={meta_key: data})
+            await self.store.update_run(job.run_id, metadata=metadata)
+            self.log.info("pipeline.phase_result_persisted", run_id=job.run_id, job_type=job.job_type.value, meta_key=meta_key)
+        except Exception as exc:
+            self.log.warning("pipeline.persist_phase_result_failed", run_id=job.run_id, job_type=job.job_type.value, error=str(exc))
+
+    # ------------------------------------------------------------------
     # Run state update helper
     # ------------------------------------------------------------------
 
@@ -502,6 +569,15 @@ class PipelineOrchestrator:
 
         if not waves:
             self.log.warning("advance_run.no_waves", run_id=run.id)
+            # No waves means all packages done (or none existed) — advance to wave_completed
+            await self._update_run_state(
+                run.id,
+                checkpoint="wave_completed",
+                continuation=ContinuationState(
+                    next_action="integration",
+                    checkpoint="wave_completed",
+                ),
+            )
             return
 
         # Build lookup: package_key -> WorkPackage for dependency resolution
