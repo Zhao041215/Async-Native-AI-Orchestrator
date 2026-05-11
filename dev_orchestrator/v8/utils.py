@@ -6,15 +6,33 @@ from typing import Any
 
 
 def json_or_empty(raw: Any) -> dict[str, Any]:
-    """Parse JSON string to dict; return {"raw_text": raw} on failure."""
+    """Parse JSON string to dict; strips markdown code fences if present."""
     if isinstance(raw, dict):
         return raw
     if not isinstance(raw, str) or not raw.strip():
         return {}
+    text = raw.strip()
+    # Strip markdown code fences: ```json ... ``` or ``` ... ```
+    if text.startswith("```"):
+        lines = text.splitlines()
+        # Remove first line (```json or ```) and last line (```)
+        inner = lines[1:] if len(lines) > 1 else lines
+        if inner and inner[-1].strip() == "```":
+            inner = inner[:-1]
+        text = "\n".join(inner).strip()
     try:
-        parsed = json.loads(raw)
+        parsed = json.loads(text)
         return parsed if isinstance(parsed, dict) else {"raw_text": raw}
     except (json.JSONDecodeError, ValueError):
+        # Try to find first { ... } block as fallback
+        start = text.find("{")
+        end = text.rfind("}")
+        if start != -1 and end > start:
+            try:
+                parsed = json.loads(text[start:end + 1])
+                return parsed if isinstance(parsed, dict) else {"raw_text": raw}
+            except (json.JSONDecodeError, ValueError):
+                pass
         return {"raw_text": raw}
 
 

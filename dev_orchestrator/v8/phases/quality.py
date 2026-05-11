@@ -138,7 +138,12 @@ class QualityPhase:
 
     @staticmethod
     async def _gate_dag(metadata: dict[str, Any], observation_only: bool = False) -> dict[str, Any]:
-        dag = metadata.get("package_dag") or metadata.get("package_plan") or {}
+        dag = (
+            metadata.get("package_dag")
+            or metadata.get("package_plan")
+            or (metadata.get("cache") or {}).get("_cached_scope_plan")
+            or {}
+        )
         ok = len(dag.get("packages") or []) > 0
         severity = "info" if observation_only else "critical"
         return {

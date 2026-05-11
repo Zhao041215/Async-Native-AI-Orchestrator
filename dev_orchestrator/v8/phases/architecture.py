@@ -11,6 +11,7 @@ from typing import Any
 
 from dev_orchestrator.v8.models import AITaskBudget
 from dev_orchestrator.v8.observability import get_logger
+from dev_orchestrator.v8.skill_loader import load_skills_for_role
 from dev_orchestrator.v8.utils import json_or_empty, project_summary
 
 log = get_logger(__name__)
@@ -30,6 +31,13 @@ _SEED_KEY = "_cached_architecture_seed"
 _SURFACE_KEY = "_cached_architecture_surface"
 _LAYOUT_KEY = "_cached_architecture_layout"
 _CONTRACTS_KEY = "_cached_architecture_contracts"
+
+# Load architect skill once at module level — shared by all 4 sub-phases
+_ARCH_SKILL = load_skills_for_role("architect", max_chars_per_skill=1500)
+
+
+def _with_skill(base: str) -> str:
+    return f"{_ARCH_SKILL}\n\n{base}" if _ARCH_SKILL else base
 
 
 class ArchitecturePhase:
@@ -177,7 +185,7 @@ class ArchitecturePhase:
     ) -> dict[str, Any] | None:
         result = await self._scheduler.call(
             run_id=run["id"], role="architect", job_id=job["id"],
-            task_kind=task_kind, system_prompt=system_prompt,
+            task_kind=task_kind, system_prompt=_with_skill(system_prompt),
             user_payload={
                 "project": project_summary(project),
                 "requirements": metadata.get("requirements") or metadata.get("requirements_analysis") or {},

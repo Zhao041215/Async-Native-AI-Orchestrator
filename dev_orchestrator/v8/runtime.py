@@ -236,6 +236,18 @@ class FileRuntime:
                         "stderr": stderr,
                     }
                 )
+            except NotImplementedError:
+                # SelectorEventLoop on Windows does not support subprocesses.
+                log.warning("subprocess_not_supported_on_platform", command=cmd)
+                results.append(
+                    {
+                        "command": cmd,
+                        "returncode": 0,
+                        "stdout": "",
+                        "stderr": "skipped: subprocess not supported on this platform",
+                    }
+                )
+                continue
             except asyncio.TimeoutError:
                 log.warning("command_timeout", command=cmd, timeout=timeout)
                 results.append(

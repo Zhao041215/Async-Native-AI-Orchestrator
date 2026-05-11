@@ -10,6 +10,7 @@ from typing import Any
 from dev_orchestrator.v8.memory import build_layered_memory, memory_for_package
 from dev_orchestrator.v8.models import AITaskBudget
 from dev_orchestrator.v8.observability import get_logger
+from dev_orchestrator.v8.skill_loader import load_skills_for_role
 from dev_orchestrator.v8.utils import json_or_empty
 
 log = get_logger(__name__)
@@ -154,10 +155,15 @@ class ImplementationPhase:
     @staticmethod
     def _prompt_for(role: str) -> str:
         if role == "qa":
-            return TEST_GEN_PROMPT
-        if role == "security":
-            return SECURITY_PROMPT
-        return CODE_GEN_PROMPT.format(role=role)
+            base = TEST_GEN_PROMPT
+        elif role == "security":
+            base = SECURITY_PROMPT
+        else:
+            base = CODE_GEN_PROMPT.format(role=role)
+        skill_content = load_skills_for_role(role)
+        if skill_content:
+            return f"{skill_content}\n\n{base}"
+        return base
 
     @staticmethod
     def _build_budget(sp: dict[str, Any], role: str) -> AITaskBudget:

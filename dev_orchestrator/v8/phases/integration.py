@@ -5,12 +5,18 @@ from typing import Any
 
 from dev_orchestrator.v8.models import AITaskBudget
 from dev_orchestrator.v8.observability import get_logger
+from dev_orchestrator.v8.skill_loader import load_skills_for_role
 from dev_orchestrator.v8.utils import json_or_empty
 
 log = get_logger(__name__)
 
 INTEGRATION_PROMPT = "You are integration_agent. Return strict JSON only. Review merged project state. Return ok, summary, issues (list of {severity, file, line, message}), suggestions."
 CODE_REVIEW_PROMPT = "You are code_review_agent. Return strict JSON only. Return ok, summary, issues (list of {severity, file, line, message}), suggestions."
+
+
+def _with_skill(role: str, base: str) -> str:
+    skill = load_skills_for_role(role)
+    return f"{skill}\n\n{base}" if skill else base
 
 
 class IntegrationPhase:
@@ -33,7 +39,8 @@ class IntegrationPhase:
         budget = self._build_budget(scale_profile)
 
         is_review = job.get("job_type") == "code_review"
-        system_prompt = CODE_REVIEW_PROMPT if is_review else INTEGRATION_PROMPT
+        base_prompt = CODE_REVIEW_PROMPT if is_review else INTEGRATION_PROMPT
+        system_prompt = _with_skill("review", base_prompt)
         task_kind = "code_review" if is_review else "integration"
         role = "review" if is_review else "integration"
 

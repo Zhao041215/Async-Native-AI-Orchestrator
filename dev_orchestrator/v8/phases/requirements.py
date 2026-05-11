@@ -5,9 +5,16 @@ from typing import Any
 
 from dev_orchestrator.v8.models import AITaskBudget
 from dev_orchestrator.v8.observability import get_logger
+from dev_orchestrator.v8.skill_loader import load_skills_for_role
 from dev_orchestrator.v8.utils import compact_text, json_or_empty
 
 log = get_logger(__name__)
+
+
+def _with_skill(role: str, base: str) -> str:
+    skill = load_skills_for_role(role)
+    return f"{skill}\n\n{base}" if skill else base
+
 
 REQUIREMENTS_SYSTEM_PROMPT = (
     "You are requirements_agent in a multi-agent delivery system. Return strict JSON only. "
@@ -43,7 +50,7 @@ class RequirementsPhase:
         result = await self._scheduler.call(
             run_id=run["id"], role="requirements", job_id=job["id"],
             task_kind="requirements",  # V8: canonical task_kind (contract registered)
-            system_prompt=REQUIREMENTS_SYSTEM_PROMPT,
+            system_prompt=_with_skill("requirements", REQUIREMENTS_SYSTEM_PROMPT),
             user_payload={
                 "project": {
                     "name": project.get("name", ""),

@@ -1,0 +1,21 @@
+E:\ProgramProjects\AI_Agent\run_server.py:12: DeprecationWarning: 'asyncio.WindowsSelectorEventLoopPolicy' is deprecated and slated for removal in Python 3.16
+  asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+E:\ProgramProjects\AI_Agent\run_server.py:12: DeprecationWarning: 'asyncio.set_event_loop_policy' is deprecated and slated for removal in Python 3.16
+  asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+{"host": "127.0.0.1", "port": 8787, "event": "v8_api_starting", "level": "info", "logger": "v8_server", "timestamp": "2026-05-10T23:58:18.384410Z"}
+INFO:     Started server process [94868]
+INFO:     Waiting for application startup.
+{"url": "localhost:5432/orchestrator", "event": "postgres_store_bootstrapped", "level": "info", "logger": "store_pg", "timestamp": "2026-05-10T23:58:18.449043Z"}
+{"event": "store.bootstrapped", "level": "info", "logger": "api", "timestamp": "2026-05-10T23:58:18.449409Z"}
+{"worker_id": "api-4dd4591b", "event": "bg_worker_started", "level": "info", "logger": "api", "timestamp": "2026-05-10T23:58:18.449589Z"}
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8787 (Press CTRL+C to quit)
+INFO:     127.0.0.1:50264 - "GET /api/v8/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50304 - "GET /api/v8/runs/55adac90-fc93-4007-9f05-8dda5ae204c3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50316 - "GET /api/v8/runs/55adac90-fc93-4007-9f05-8dda5ae204c3/jobs HTTP/1.1" 200 OK
+{"run_id": "55adac90-fc93-4007-9f05-8dda5ae204c3", "checkpoint": "wave_queued", "event": "advance_run.checkpoint", "level": "info", "logger": "pipeline", "timestamp": "2026-05-10T23:58:55.462665Z"}
+{"run_id": "55adac90-fc93-4007-9f05-8dda5ae204c3", "wave_id": "baa36dec-fe6d-4845-ac49-b673db126565", "package_id": "db6687df-4464-4729-a675-8f26f7235737", "job_type": "code_generation", "event": "pipeline.wave_job_enqueued", "level": "info", "logger": "pipeline", "timestamp": "2026-05-10T23:58:55.478964Z"}
+INFO:     127.0.0.1:58748 - "POST /api/v8/runs/55adac90-fc93-4007-9f05-8dda5ae204c3/requeue-blocked HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58830 - "GET /api/v8/runs/55adac90-fc93-4007-9f05-8dda5ae204c3/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60150 - "GET /api/v8/runs/55adac90-fc93-4007-9f05-8dda5ae204c3/jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53403 - "GET /api/v8/runs/55adac90-fc93-4007-9f05-8dda5ae204c3/jobs HTTP/1.1" 200 OK

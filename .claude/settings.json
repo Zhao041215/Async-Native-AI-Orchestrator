@@ -1,7 +1,7 @@
 {
   "env": {
     "ANTHROPIC_BASE_URL": "https://api.aipaibox.com/",
-    "ANTHROPIC_AUTH_TOKEN": "sk-54jE3ELmeqQHFxRbMyvHXnXpDSrlqhDhDICVSh063bvf69yp",
+    "ANTHROPIC_AUTH_TOKEN": "sk-FbzrOuHBGA50xaNXadwbgX9ZY4gcy4oRIfACdgzzmgHJIHSE",
     "ANTHROPIC_MODEL": "claude-sonnet-4-6",
     "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-sonnet-4-6",
     "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus-4-7",

@@ -16,6 +16,7 @@ log = get_logger(__name__)
 SCOPE_PROMPT = (
     "You are package_scope_planning_agent. Return strict JSON only. "
     "Be CONCISE. Choose 3-6 AI work packages max. "
+    "Return a JSON object with key \"packages\" (array). "
     "Each package: {\"package_key\": str, \"role\": \"backend|frontend|db|docs|qa\", \"domain\": str, "
     "\"allowed_paths\": [glob], \"objective\": str, \"expected_outputs\": [str]}. "
     "Keep total response under 3000 chars. No prose."
@@ -63,10 +64,15 @@ class PlanningPhase:
             retry_attempts=budget.retry_attempts,
         )
 
-        if metadata.get("package_dag") and run.get("checkpoint") == "package_planning_completed":
+        existing_dag = metadata.get("package_dag") or {}
+        if (
+            existing_dag
+            and run.get("checkpoint") == "package_planning_completed"
+            and len(existing_dag.get("packages") or []) > 0
+        ):
             return {
                 "status": "completed",
-                "package_count": len((metadata.get("package_dag") or {}).get("packages") or []),
+                "package_count": len(existing_dag.get("packages") or []),
             }
 
         layout = (
@@ -91,6 +97,11 @@ class PlanningPhase:
             log.warning("scope_failed_using_default", run_id=run["id"])
             scope_plan = self._default_scope_plan(project, architecture, layout)
             await self._cache_result(run["id"], "_cached_scope_plan", scope_plan)
+
+        # Log scope_plan keys for diagnostics
+        scope_keys = list(scope_plan.keys()) if isinstance(scope_plan, dict) else []
+        pkg_count_scope = len(scope_plan.get("packages") or scope_plan.get("work_packages") or scope_plan.get("scope_packages") or [])
+        log.info("scope_plan_received", run_id=run["id"], keys=scope_keys, pkg_count=pkg_count_scope)
 
         wave_plan = cache.get("_cached_wave_plan") or metadata.get("_cached_wave_plan")
         if not wave_plan:
@@ -201,7 +212,7 @@ class PlanningPhase:
 
     @staticmethod
     def _merge_plan(scope: dict[str, Any], waves: dict[str, Any]) -> dict[str, Any]:
-        packages = scope.get("packages") or []
+        packages = scope.get("packages") or scope.get("work_packages") or scope.get("scope_packages") or []
         wave_list = waves.get("waves") or []
         assignment = {}
         for w in wave_list:
@@ -347,10 +358,13 @@ def _find_path_overlaps(paths_a: list[str], paths_b: list[str]) -> list[str]:
         a_norm = a.rstrip("/").lower()
         for b in paths_b:
             b_norm = b.rstrip("/").lower()
-            if a_norm.startswith(b_norm) or b_norm.startswith(a_norm):
-                overlaps.append(a if len(a) <= len(b) else b)
-            a_parts = a_norm.split("/")
-            b_parts = b_norm.split("/")
+            # Skip glob patterns in startswith check to avoid false positives.
+            if "*" not in a_norm and "*" not in b_norm:
+                if a_norm.startswith(b_norm) or b_norm.startswith(a_norm):
+                    overlaps.append(a if len(a) <= len(b) else b)
+            # Only count non-glob path segments as common prefix.
+            a_parts = [p for p in a_norm.split("/") if "*" not in p]
+            b_parts = [p for p in b_norm.split("/") if "*" not in p]
             common = [pa for pa, pb in zip(a_parts, b_parts) if pa == pb]
             if common and len(common) >= 2:
                 overlaps.append("/".join(common))

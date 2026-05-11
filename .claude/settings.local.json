@@ -5,7 +5,9 @@
       "Bash(*)",
       "Read(*)",
       "Write(*)",
-      "Edit(*)"
+      "Edit(*)",
+      "Bash(mkdir -p \"e:/ProgramProjects/AI_Agent/.claude/skills/frontend-design\")",
+      "Bash(cp \"e:/ProgramProjects/AI_Agent/.claude/skills/SKILL.md\" \"e:/ProgramProjects/AI_Agent/.claude/skills/frontend-design/SKILL.md\")"
     ],
     "additionalDirectories": [
       "\\tmp"

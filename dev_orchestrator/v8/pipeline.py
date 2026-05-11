@@ -455,7 +455,7 @@ class PipelineOrchestrator:
         _PHASE_METADATA_KEYS = {
             JobType.requirements_analysis: "requirements",
             JobType.architecture_design: "architecture",
-            JobType.package_planning: "package_dag",
+            JobType.package_planning: "package_plan",
         }
         meta_key = _PHASE_METADATA_KEYS.get(job.job_type)
         if not meta_key:
@@ -465,7 +465,7 @@ class PipelineOrchestrator:
             result.get(meta_key)
             or result.get(f"{meta_key}_analysis")
             or result.get(f"{meta_key}_design")
-            or (result.get("package_dag") if meta_key == "package_dag" else None)
+            or result.get("package_dag")
         )
         if data is None:
             return
