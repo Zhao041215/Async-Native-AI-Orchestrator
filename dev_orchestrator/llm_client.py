@@ -15,7 +15,11 @@ from dev_orchestrator.config import LLMConfig
 
 
 class LLMError(RuntimeError):
-    pass
+    """LLM call failure. Carries an optional HTTP status_code for structured error classification."""
+
+    def __init__(self, message: str, status_code: int | None = None) -> None:
+        super().__init__(message)
+        self.status_code: int | None = status_code
 
 
 @dataclass(frozen=True)
@@ -345,7 +349,7 @@ class AsyncLLMClient:
                     body = exc.response.text[:2000]
                 except Exception:
                     pass
-                last_error = LLMError(f"HTTP {exc.response.status_code}: {body}")
+                last_error = LLMError(f"HTTP {exc.response.status_code}: {body}", status_code=exc.response.status_code)
             except httpx.ConnectError as exc:
                 last_error = LLMError(f"Connection error: {exc}")
             except httpx.ReadTimeout as exc:
@@ -474,7 +478,7 @@ class OpenAICompatibleClient:
                     body = exc.response.text[:2000]
                 except Exception:
                     pass
-                last_error = LLMError(f"HTTP {exc.response.status_code}: {body}")
+                last_error = LLMError(f"HTTP {exc.response.status_code}: {body}", status_code=exc.response.status_code)
             except httpx.ConnectError as exc:
                 last_error = LLMError(f"Connection error: {exc}")
             except httpx.TimeoutException as exc:

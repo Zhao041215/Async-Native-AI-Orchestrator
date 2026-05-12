@@ -116,7 +116,7 @@ class IntegrationPhase:
         }
 
     async def _collect_file_samples(self, run_id: str, max_chars: int) -> list[dict[str, Any]]:
-        """Read patch_set artifacts and extract file path + first 500 chars of content."""
+        """Extract file path + first 500 chars from patch_set artifact content (PG-safe)."""
         samples: list[dict[str, Any]] = []
         total = 0
         try:
@@ -124,12 +124,19 @@ class IntegrationPhase:
             for a in artifacts:
                 if total >= max_chars:
                     break
-                path_str = a.get("path", "")
-                if not path_str:
+                # PG store: content is the JSON blob; filesystem store: fall back to path
+                raw = a.get("content") or ""
+                if not raw:
+                    path_str = a.get("path", "")
+                    if path_str:
+                        try:
+                            raw = Path(path_str).read_text(encoding="utf-8", errors="replace")
+                        except Exception:
+                            continue
+                if not raw:
                     continue
                 try:
-                    content = Path(path_str).read_text(encoding="utf-8", errors="replace")
-                    parsed = json.loads(content)
+                    parsed = json.loads(raw) if isinstance(raw, str) else raw
                     for f in (parsed.get("files") or []):
                         if total >= max_chars:
                             break

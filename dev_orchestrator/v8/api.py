@@ -174,6 +174,7 @@ def build_v8_app(
     from contextlib import asynccontextmanager
 
     _shutdown_bg = asyncio.Event()
+    _active_job_tasks: set[asyncio.Task] = set()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -187,6 +188,16 @@ def build_v8_app(
         task = asyncio.create_task(_background_worker(), name="bg-worker")
         yield
         _shutdown_bg.set()
+        # Graceful drain: wait up to 30s for in-flight jobs to complete.
+        if _active_job_tasks:
+            log.info("shutdown_draining", active_jobs=len(_active_job_tasks))
+            try:
+                await asyncio.wait_for(
+                    asyncio.gather(*_active_job_tasks, return_exceptions=True),
+                    timeout=30.0,
+                )
+            except asyncio.TimeoutError:
+                log.warning("shutdown_drain_timeout", remaining=len(_active_job_tasks))
         task.cancel()
 
     app = FastAPI(title="Dev Orchestrator V8", version="8.0.0", lifespan=lifespan)
@@ -417,9 +428,58 @@ def build_v8_app(
         except Exception:
             return {}
 
+    @app.post("/api/v8/providers/{provider_name}/reset")
+    async def reset_provider(provider_name: str):
+        """Reset a circuit-breaker-blocked provider back to healthy state."""
+        try:
+            state = await pipeline.scheduler.circuit_breaker.reset(provider_name)
+            return {"ok": True, "provider": provider_name, "status": state.status.value}
+        except Exception as exc:
+            return {"ok": False, "provider": provider_name, "error": str(exc)}
+
     @app.get("/api/v8/workers")
     async def list_workers(limit: int = 12):
-        return {"items": []}
+        active = [
+            {"worker_id": t.get_name(), "status": "running", "job_id": None}
+            for t in _active_job_tasks
+        ]
+        return {"items": active[:limit], "total": len(active)}
+
+    @app.get("/metrics")
+    async def prometheus_metrics():
+        from fastapi.responses import PlainTextResponse
+        try:
+            snap = pipeline.scheduler._circuit_breaker.snapshot if hasattr(pipeline.scheduler, "_circuit_breaker") else None
+            cb_snap = await snap() if snap else {}
+        except Exception:
+            cb_snap = {}
+        lines = [
+            "# HELP ai_calls_total Total AI/LLM calls made",
+            "# TYPE ai_calls_total counter",
+            f"ai_calls_total 0",
+            "# HELP jobs_active Currently executing jobs",
+            "# TYPE jobs_active gauge",
+            f"jobs_active {len(_active_job_tasks)}",
+            "# HELP circuit_breaker_open Providers with open circuit breaker",
+            "# TYPE circuit_breaker_open gauge",
+            f"circuit_breaker_open {sum(1 for s in cb_snap.values() if getattr(s, 'status', None) and s.status.value in ('circuit_open', 'blocked'))}",
+        ]
+        return PlainTextResponse("\n".join(lines) + "\n", media_type="text/plain; version=0.0.4")
+
+    @app.get("/api/v8/queue-depth")
+    async def queue_depth():
+        try:
+            counts = await store.count_jobs_by_status()
+        except Exception:
+            counts = {}
+        return {
+            "queued": counts.get("queued", 0),
+            "running": counts.get("running", 0),
+            "retry": counts.get("retry", 0),
+            "dead_letter": counts.get("dead_letter", 0),
+            "completed": counts.get("completed", 0),
+            "failed": counts.get("failed", 0),
+        }
 
     # ─── Model Settings ───
     @app.get("/api/v8/model-settings")
@@ -670,7 +730,20 @@ def build_v8_app(
 
                 # Execute all claimed jobs concurrently
                 async def _run_job(job: Any) -> None:
+                    current_task = asyncio.current_task()
+                    if current_task:
+                        _active_job_tasks.add(current_task)
                     log.info("bg_worker_executing", job_id=job.id, job_type=job.job_type.value)
+
+                    async def _heartbeat_loop() -> None:
+                        while True:
+                            await asyncio.sleep(60)
+                            try:
+                                await store.heartbeat_job(job.id, worker_id, lease_seconds=300)
+                            except Exception:
+                                break
+
+                    hb_task = asyncio.create_task(_heartbeat_loop())
                     try:
                         result = await pipeline.execute_job(job)
                         await store.finish_job(job.id, worker_id, result or {})
@@ -686,6 +759,11 @@ def build_v8_app(
                             await store.fail_job(job.id, worker_id, error_msg, True)
                         except Exception:
                             pass
+                    finally:
+                        hb_task.cancel()
+                        current_task = asyncio.current_task()
+                        if current_task:
+                            _active_job_tasks.discard(current_task)
 
                 if jobs:
                     await asyncio.gather(*[_run_job(j) for j in jobs])

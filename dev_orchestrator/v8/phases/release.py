@@ -10,7 +10,20 @@ from dev_orchestrator.v8.utils import json_or_empty
 
 log = get_logger(__name__)
 
-RELEASE_NOTES_PROMPT = "You are release_agent. Return strict JSON only. Return summary, deploy_steps, validation_steps, rollback_plan."
+RELEASE_NOTES_PROMPT = (
+    "You are release_agent. Return strict JSON only. No markdown outside JSON. "
+    "Based on the project architecture, technology stack, and completed packages, produce a detailed release document. "
+    "Return: {"
+    "\"summary\": str, "
+    "\"deploy_steps\": [str] (SPECIFIC shell commands with actual paths, ports, env var names — not generic descriptions), "
+    "\"validation_steps\": [str] (SPECIFIC curl/test commands to verify the deployment), "
+    "\"rollback_plan\": str, "
+    "\"env_vars\": [{\"name\": str, \"description\": str, \"example\": str, \"required\": bool}], "
+    "\"ports\": [{\"port\": int, \"service\": str, \"protocol\": \"http|https|tcp\"}], "
+    "\"startup_commands\": [str] (ordered list of exact shell commands to start the project from scratch)"
+    "}. "
+    "Use the actual technology stack from the project — do not use generic placeholders."
+)
 RELEASE_CANDIDATE_PROMPT = "You are release_candidate_agent. Return strict JSON only. Return ok, summary, checklist (list of {item, status, notes})."
 
 
@@ -47,6 +60,7 @@ class ReleasePhase:
             user_payload={
                 "project": {"name": project.get("name", ""), "title": project.get("title", "")},
                 "requirements": metadata.get("requirements") or metadata.get("requirements_analysis") or {},
+                "architecture": metadata.get("architecture") or metadata.get("architecture_design") or {},
                 "quality_report": quality_report,
                 "package_count": len(packages),
                 "completed": len([p for p in packages if p.get("status") == "completed"]),

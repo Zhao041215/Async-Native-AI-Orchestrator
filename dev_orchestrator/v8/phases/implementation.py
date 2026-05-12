@@ -16,18 +16,33 @@ from dev_orchestrator.v8.utils import json_or_empty
 log = get_logger(__name__)
 
 CODE_GEN_PROMPT = (
-    "You are {role}_agent. Return strict JSON only. "
-    "Be VERY CONCISE. Generate minimal, working code. "
-    "Return: {{\"agent\": str, \"status\": \"ok\", \"summary\": str, "
-    "\"files\": [{{\"path\": str, \"action\": \"create\", \"content\": str}}], "
-    "\"commands\": [str]}}. "
-    "Keep total response under 4000 chars. Each file under 80 lines. Max 3 files."
+    "You are {role}_agent in a multi-agent software delivery system. "
+    "Return strict JSON only. No markdown, no explanation outside JSON. "
+    "Output format: "
+    '{{\"agent\": \"{role}_agent\", \"status\": \"ok\", \"summary\": \"one-line description\", '
+    '"files\": [{{\"path\": \"relative/path\", \"action\": \"create\", \"content\": \"FULL file content\"}}], '
+    '"commands\": [\"shell command\"]}}. '
+    "Rules: "
+    "(1) action=create is idempotent — it overwrites if the file already exists. "
+    "(2) Generate COMPLETE, RUNNABLE files — no placeholders, no TODO, no '...', no truncation. "
+    "(3) Use parameterized queries for ALL database operations — never string interpolation. "
+    "(4) Validate all user inputs at API boundaries — reject invalid data with proper HTTP status codes. "
+    "(5) Include proper error handling: try/except or try/catch with meaningful error responses. "
+    "(6) Match the technology stack from architecture_summary exactly. "
+    "(7) If role=infrastructure: MUST generate package.json or requirements.txt or pyproject.toml "
+    "(whichever fits the stack), Dockerfile, docker-compose.yml, .env.example, and README.md in Chinese. "
+    "(8) Generate as many files as needed to fully implement the package objective — do not truncate for brevity."
 )
 TEST_GEN_PROMPT = (
-    "You are qa_agent. Return strict JSON only. Be CONCISE. "
-    "Return: {{\"agent\": str, \"status\": \"ok\", \"summary\": str, "
-    "\"files\": [{{\"path\": str, \"action\": \"create\", \"content\": str}}]}}. "
-    "Keep total response under 5000 chars."
+    "You are qa_agent in a multi-agent software delivery system. "
+    "Return strict JSON only. No markdown outside JSON. "
+    'Output: {{\"agent\": \"qa_agent\", \"status\": \"ok\", \"summary\": str, '
+    '"files\": [{{\"path\": str, \"action\": \"create\", \"content\": str}}]}}. '
+    "Rules: "
+    "(1) action=create is idempotent. "
+    "(2) Write complete, runnable test files — no placeholders, no TODO. "
+    "(3) Cover happy path, edge cases, and error cases. "
+    "(4) Use the test framework appropriate for the project stack."
 )
 SECURITY_PROMPT = (
     "You are security_agent. Return strict JSON only. Be CONCISE. "
@@ -114,7 +129,13 @@ class ImplementationPhase:
             }
 
         output = json_or_empty(result.raw_response)
-        apply_result = await self._runtime.apply_file_manifest(
+        # Use a run-scoped runtime so each project/run writes to its own directory.
+        scoped_runtime = (
+            self._runtime.for_run(project["id"], run["id"])
+            if hasattr(self._runtime, "for_run")
+            else self._runtime
+        )
+        apply_result = await scoped_runtime.apply_file_manifest(
             files=output.get("files") or [],
             allowed_paths=allowed_paths,
             forbidden_paths=forbidden_paths,
@@ -123,7 +144,7 @@ class ImplementationPhase:
         commands = output.get("commands") or []
         cmd_results = []
         if commands:
-            cmd_results = (await self._runtime.apply_commands(commands)).get("results") or []
+            cmd_results = (await scoped_runtime.apply_commands(commands)).get("results") or []
 
         await self._artifacts.write(
             project["id"], run["id"], job["id"],

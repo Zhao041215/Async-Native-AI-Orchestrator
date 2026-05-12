@@ -290,6 +290,15 @@ class PostgresStore:
             await conn.execute(_MIGRATION_SQL)
         log.info("postgres_store_bootstrapped", url=self._url.split("@")[-1])
 
+    async def ping(self) -> bool:
+        """Return True if the database connection is healthy."""
+        try:
+            async with await self._conn(timeout=5.0) as conn:
+                await conn.execute("SELECT 1")
+            return True
+        except Exception:
+            return False
+
     async def _conn(self, timeout: float = 10.0):  # type: ignore[return]
         if self._pool is None:
             raise StoreError("PostgresStore not bootstrapped — call bootstrap() first")
@@ -345,6 +354,7 @@ class PostgresStore:
                 """
                 INSERT INTO runs (id, tenant_id, project_id, status, checkpoint, continuation, metadata, created_at, updated_at)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (id) DO NOTHING
                 """,
                 (run.id, tenant_id, project_id, run.status.value, run.checkpoint,
                  json.dumps(run.continuation.model_dump()),
@@ -362,38 +372,39 @@ class PostgresStore:
 
     async def update_run(self, run_id: str, **fields: object) -> Run:
         async with await self._conn() as conn:
-            async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
-                await cur.execute("SELECT * FROM runs WHERE id = %s FOR UPDATE", (run_id,))
-                row = await cur.fetchone()
-                if row is None:
-                    raise StoreError(f"run not found: {run_id}")
+            async with conn.transaction():
+                async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+                    await cur.execute("SELECT * FROM runs WHERE id = %s FOR UPDATE", (run_id,))
+                    row = await cur.fetchone()
+                    if row is None:
+                        raise StoreError(f"run not found: {run_id}")
 
-                run = _row_to_run(row)
-                now = utc_now()
+                    run = _row_to_run(row)
+                    now = utc_now()
 
-                # Apply field updates with type coercion
-                for key, value in fields.items():
-                    if key == "status" and isinstance(value, str):
-                        value = RunStatus(value)
-                    if key == "metadata":
-                        if isinstance(value, dict):
-                            value = RunMetadata.model_validate(value)
-                        if isinstance(value, RunMetadata):
+                    # Apply field updates with type coercion
+                    for key, value in fields.items():
+                        if key == "status" and isinstance(value, str):
+                            value = RunStatus(value)
+                        if key == "metadata":
+                            if isinstance(value, dict):
+                                value = RunMetadata.model_validate(value)
+                            if isinstance(value, RunMetadata):
+                                setattr(run, key, value)
+                                continue
+                        if hasattr(run, key):
                             setattr(run, key, value)
-                            continue
-                    if hasattr(run, key):
-                        setattr(run, key, value)
-                run.updated_at = now
+                    run.updated_at = now
 
-                meta_json = json.dumps(run.metadata.model_dump())
-                cont_json = json.dumps(run.continuation.model_dump())
-                await cur.execute(
-                    """
-                    UPDATE runs SET status=%s, checkpoint=%s, continuation=%s, metadata=%s, updated_at=%s
-                    WHERE id=%s
-                    """,
-                    (run.status.value, run.checkpoint, cont_json, meta_json, now, run_id),
-                )
+                    meta_json = json.dumps(run.metadata.model_dump())
+                    cont_json = json.dumps(run.continuation.model_dump())
+                    await cur.execute(
+                        """
+                        UPDATE runs SET status=%s, checkpoint=%s, continuation=%s, metadata=%s, updated_at=%s
+                        WHERE id=%s
+                        """,
+                        (run.status.value, run.checkpoint, cont_json, meta_json, now, run_id),
+                    )
         return run
 
     async def list_runs(self, project_id: str) -> list[Run]:
@@ -513,6 +524,13 @@ class PostgresStore:
                 )
                 row = await cur.fetchone()
         if row is None:
+            # Idempotent: if already completed by this or another worker, return current state.
+            async with await self._conn() as conn:
+                async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+                    await cur.execute("SELECT * FROM jobs WHERE id=%s", (job_id,))
+                    existing = await cur.fetchone()
+            if existing and existing["status"] in ("completed", "failed", "dead_letter"):
+                return _row_to_job(existing)
             raise StoreError(f"job not found or not owned: {job_id}")
         return _row_to_job(row)
 
@@ -582,6 +600,16 @@ class PostgresStore:
                 )
                 row = await cur.fetchone()
         return row[0] if row else 0
+
+    async def count_jobs_by_status(self) -> dict[str, int]:
+        """Return a global count of jobs grouped by status."""
+        async with await self._conn() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    "SELECT status, COUNT(*) FROM jobs GROUP BY status"
+                )
+                rows = await cur.fetchall()
+        return {row[0]: row[1] for row in rows} if rows else {}
 
     async def requeue_expired_jobs(self, tenant_id: str) -> int:
         now = utc_now()
@@ -725,22 +753,24 @@ class PostgresStore:
     async def add_event(self, event: Event) -> Event:
         event.created_at = utc_now()
         async with await self._conn() as conn:
-            async with conn.cursor() as cur:
-                await cur.execute(
-                    "SELECT COALESCE(MAX(sequence), 0) + 1 FROM events WHERE run_id=%s",
-                    (event.run_id,),
-                )
-                seq = (await cur.fetchone())[0]  # type: ignore[index]
-                event.sequence = seq
-                await cur.execute(
-                    """
-                    INSERT INTO events (id, tenant_id, run_id, event_type, payload, sequence, created_at)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s)
-                    ON CONFLICT (id) DO NOTHING
-                    """,
-                    (event.id, event.tenant_id, event.run_id, event.event_type,
-                     json.dumps(event.payload), seq, event.created_at),
-                )
+            async with conn.transaction():
+                async with conn.cursor() as cur:
+                    # Use SELECT ... FOR UPDATE to serialize sequence assignment and avoid duplicates.
+                    await cur.execute(
+                        "SELECT COALESCE(MAX(sequence), 0) + 1 FROM events WHERE run_id=%s FOR UPDATE",
+                        (event.run_id,),
+                    )
+                    seq = (await cur.fetchone())[0]  # type: ignore[index]
+                    event.sequence = seq
+                    await cur.execute(
+                        """
+                        INSERT INTO events (id, tenant_id, run_id, event_type, payload, sequence, created_at)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s)
+                        ON CONFLICT (id) DO NOTHING
+                        """,
+                        (event.id, event.tenant_id, event.run_id, event.event_type,
+                         json.dumps(event.payload), seq, event.created_at),
+                    )
         return event
 
     async def list_events(self, run_id: str, event_type: str | None = None) -> list[Event]:

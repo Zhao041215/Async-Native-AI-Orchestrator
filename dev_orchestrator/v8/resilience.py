@@ -120,12 +120,14 @@ def classify_error(error: Exception) -> ErrorClassification:
     # --- LLMError wrapping HTTP status codes ------------------------------
     if isinstance(error, LLMError):
         msg = str(error)
-        # Parse "HTTP {status}: {body}" pattern from llm_client
-        if msg.startswith("HTTP "):
+        # Prefer structured status_code attribute; fall back to string parsing.
+        status: int = getattr(error, "status_code", None) or 0
+        if not status and msg.startswith("HTTP "):
             try:
                 status = int(msg.split(":")[0].split()[1])
             except (IndexError, ValueError):
                 status = 0
+        if status:
             if status == 429:
                 return ErrorClassification(error_kind="rate_limited", retryable=True, backoff_seconds=12.0, reason=msg[:200])
             if status in (500, 502, 503, 504):

@@ -35,6 +35,16 @@ class FileRuntime:
     def __init__(self, project_root: Path) -> None:
         self._root = project_root.resolve()
 
+    def for_run(self, project_id: str, run_id: str) -> "FileRuntime":
+        """Return a new FileRuntime scoped to a specific project/run directory.
+
+        Files are written to <base>/<project_id>/<run_id>/ so that each run
+        has its own isolated workspace and projects never overwrite each other.
+        """
+        scoped_root = self._root / project_id / run_id
+        scoped_root.mkdir(parents=True, exist_ok=True)
+        return FileRuntime(scoped_root)
+
     def project_root(self, project: dict | None = None) -> Path:
         """Return the project root directory."""
         if project and project.get("project_path"):
@@ -132,8 +142,8 @@ class FileRuntime:
             action: str = entry.get("action", "")
             content: str = entry.get("content", "")
 
-            # Validate action.
-            if action not in ("create", "replace", "delete"):
+            # Validate action.  "upsert" is an alias for idempotent create-or-overwrite.
+            if action not in ("create", "replace", "delete", "upsert"):
                 errors.append(f"unknown action '{action}' for {path_str}")
                 continue
 
@@ -164,10 +174,8 @@ class FileRuntime:
                     applied += 1
                     touched.append(path_str)
 
-                elif action == "create":
-                    if target.exists():
-                        errors.append(f"file already exists for create: {path_str}")
-                        continue
+                elif action in ("create", "upsert"):
+                    # Idempotent: create if absent, overwrite if present.
                     target.parent.mkdir(parents=True, exist_ok=True)
                     target.write_text(content, encoding="utf-8")
                     applied += 1

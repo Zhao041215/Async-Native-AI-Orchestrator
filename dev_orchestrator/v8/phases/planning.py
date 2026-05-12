@@ -15,11 +15,17 @@ log = get_logger(__name__)
 
 SCOPE_PROMPT = (
     "You are package_scope_planning_agent. Return strict JSON only. "
-    "Be CONCISE. Choose 3-6 AI work packages max. "
+    "Choose up to {max_packages} AI work packages. "
     "Return a JSON object with key \"packages\" (array). "
-    "Each package: {\"package_key\": str, \"role\": \"backend|frontend|db|docs|qa\", \"domain\": str, "
-    "\"allowed_paths\": [glob], \"objective\": str, \"expected_outputs\": [str]}. "
-    "Keep total response under 3000 chars. No prose."
+    "Each package: {{\"package_key\": str, \"role\": \"infrastructure|backend|frontend|db|docs|qa|security\", "
+    "\"domain\": str, \"allowed_paths\": [glob], \"forbidden_paths\": [glob], "
+    "\"objective\": str, \"expected_outputs\": [str], \"depends_on\": [package_key]}}. "
+    "REQUIRED: Always include exactly one package with role=\"infrastructure\" in wave_1 (no depends_on). "
+    "The infrastructure package MUST generate: package.json or requirements.txt or pyproject.toml "
+    "(whichever fits the tech stack), Dockerfile, docker-compose.yml, .env.example, README.md (Chinese). "
+    "Its allowed_paths must include root-level files: [\"*.json\", \"*.toml\", \"*.txt\", \"*.yml\", \"*.yaml\", \"*.md\", \"*.sh\", \"*.bat\", \"Dockerfile\", \".env.example\"]. "
+    "IMPORTANT: forbidden_paths must NOT overlap with allowed_paths for the same package. "
+    "No prose outside JSON."
 )
 WAVE_PROMPT = (
     "You are package_wave_planning_agent. Return strict JSON only. "
@@ -85,10 +91,14 @@ class PlanningPhase:
         # Bug 1 fix: read cache from run.metadata.cache
         cache = self._get_cache(run)
 
+        # P1-3: dynamic package count from scale profile
+        max_packages = int(scale_profile.get("max_packages_per_plan", 12))
+        scope_prompt = SCOPE_PROMPT.format(max_packages=max_packages)
+
         scope_plan = cache.get("_cached_scope_plan") or metadata.get("_cached_scope_plan")
         if not scope_plan:
             scope_plan = await self._call_ai(
-                project, run, metadata, "package_scope", SCOPE_PROMPT, scope_budget,
+                project, run, metadata, "package_scope", scope_prompt, scope_budget,
                 tenant_id, job, heartbeat, {"architecture": architecture, "layout": layout},
             )
             if scope_plan:
@@ -118,6 +128,8 @@ class PlanningPhase:
 
         plan = self._merge_plan(scope_plan, wave_plan)
         plan = self._normalize_plan(plan)
+        plan = self._ensure_infrastructure_package(plan)
+        plan = self._fix_path_conflicts(plan)
         plan = self._resolve_path_overlaps(plan)
 
         await self._artifacts.write(
@@ -246,6 +258,86 @@ class PlanningPhase:
                 if not pkg.get("wave_key"):
                     pkg["wave_key"] = first_wave_key
                     waves[0].setdefault("packages", []).append(pkg.get("package_key", ""))
+        return plan
+
+    @staticmethod
+    def _ensure_infrastructure_package(plan: dict[str, Any]) -> dict[str, Any]:
+        """P1-2: Inject an infrastructure package if none exists.
+
+        The infrastructure package generates all project-level dependency files
+        (package.json / requirements.txt / Dockerfile / .env.example / README.md).
+        It is always placed in the first wave with no dependencies.
+        """
+        packages = plan.get("packages", [])
+        has_infra = any(p.get("role") == "infrastructure" for p in packages)
+        if has_infra:
+            return plan
+
+        waves = plan.get("waves", [])
+        first_wave_key = waves[0].get("wave_key", "wave_0") if waves else "wave_0"
+        if not waves:
+            waves = [{"wave_key": "wave_0", "sequence": 0, "packages": []}]
+            plan["waves"] = waves
+
+        infra_pkg = {
+            "package_key": "infrastructure_setup",
+            "role": "infrastructure",
+            "domain": "infrastructure",
+            "wave_key": first_wave_key,
+            "allowed_paths": [
+                "*.json", "*.toml", "*.txt", "*.yml", "*.yaml",
+                "*.md", "*.sh", "*.bat", "Dockerfile", ".env.example",
+                "docker-compose.yml", "requirements*.txt", "package*.json",
+            ],
+            "forbidden_paths": [],
+            "depends_on": [],
+            "objective": (
+                "Generate all project-level infrastructure files: "
+                "package.json or requirements.txt or pyproject.toml (matching the tech stack), "
+                "Dockerfile, docker-compose.yml, .env.example, README.md (Chinese, with setup and run instructions)."
+            ),
+            "expected_outputs": [
+                "Dockerfile", "docker-compose.yml", ".env.example", "README.md",
+            ],
+            "acceptance_gates": [],
+        }
+        packages.insert(0, infra_pkg)
+        waves[0].setdefault("packages", []).insert(0, "infrastructure_setup")
+        log.info("infrastructure_package_injected", wave=first_wave_key)
+        return plan
+
+    @staticmethod
+    def _fix_path_conflicts(plan: dict[str, Any]) -> dict[str, Any]:
+        """P1-4: Remove forbidden_paths entries that overlap with allowed_paths in the same package.
+
+        When allowed and forbidden globs overlap, the AI cannot write any files.
+        This removes the conflicting forbidden entries to unblock code generation.
+        """
+        for pkg in plan.get("packages", []):
+            allowed = pkg.get("allowed_paths") or []
+            forbidden = pkg.get("forbidden_paths") or []
+            if not allowed or not forbidden:
+                continue
+
+            def _prefix(g: str) -> str:
+                return g.rstrip("/*").lower()
+
+            safe_forbidden = []
+            for f in forbidden:
+                f_prefix = _prefix(f)
+                conflict = any(
+                    f_prefix.startswith(_prefix(a)) or _prefix(a).startswith(f_prefix)
+                    for a in allowed
+                )
+                if conflict:
+                    log.debug(
+                        "forbidden_path_conflict_removed",
+                        package=pkg.get("package_key", ""),
+                        forbidden=f,
+                    )
+                else:
+                    safe_forbidden.append(f)
+            pkg["forbidden_paths"] = safe_forbidden
         return plan
 
     @staticmethod

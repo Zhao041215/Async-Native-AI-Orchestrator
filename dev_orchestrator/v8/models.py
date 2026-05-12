@@ -231,6 +231,8 @@ class ScaleProfileData(StrictModel):
     # Code generation quality tuning
     max_output_tokens_code: int = 8000
     reasoning_effort_code: str = "medium"
+    # Planning: maximum work packages per plan (scales with project size)
+    max_packages_per_plan: int = 12
 
 
 class ProjectConfig(StrictModel):

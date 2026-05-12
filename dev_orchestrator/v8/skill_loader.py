@@ -1,24 +1,45 @@
 import re
 from pathlib import Path
 
-SKILL_SEARCH_PATHS = [
-    Path(".claude/skills"),  # project-local skills (relative to cwd)
-    Path(__file__).parent.parent.parent / ".claude" / "skills",  # repo-root local skills
-    Path("~/.claude/plugins/cache/superpowers-dev/superpowers/5.1.0/skills").expanduser(),
-    Path("~/.claude/plugins/cache/claude-plugins-official/skills").expanduser(),
-]
+
+def _versioned_superpowers_path() -> Path | None:
+    """Return the skills dir from the highest-versioned superpowers cache entry."""
+    cache = Path("~/.claude/plugins/cache/superpowers-dev/superpowers").expanduser()
+    if not cache.exists():
+        return None
+    candidates = sorted(
+        (d / "skills" for d in cache.iterdir() if d.is_dir() and (d / "skills").is_dir()),
+        key=lambda p: p.parent.name,
+    )
+    return candidates[-1] if candidates else None
+
+
+def _build_search_paths() -> list[Path]:
+    paths = [
+        Path(".claude/skills"),
+        Path(__file__).parent.parent.parent / ".claude" / "skills",
+        Path("~/.claude/plugins/cache/claude-plugins-official/skills").expanduser(),
+    ]
+    versioned = _versioned_superpowers_path()
+    if versioned:
+        paths.insert(2, versioned)
+    return paths
+
+
+SKILL_SEARCH_PATHS = _build_search_paths()
 
 SKILL_MAP: dict[str, list[str]] = {
-    "frontend":     ["frontend-design"],
-    "backend":      ["test-driven-development"],
-    "db":           ["test-driven-development"],
-    "qa":           ["test-driven-development", "systematic-debugging"],
-    "architect":    ["brainstorming", "writing-plans"],
-    "requirements": ["brainstorming"],
-    "review":       ["requesting-code-review", "receiving-code-review"],
-    "security":     ["systematic-debugging"],
-    "docs":         ["writing-skills"],
-    "repair":       ["systematic-debugging"],
+    "frontend":       ["frontend-design"],
+    "backend":        ["test-driven-development"],
+    "db":             ["test-driven-development"],
+    "qa":             ["test-driven-development", "systematic-debugging"],
+    "architect":      ["brainstorming", "writing-plans"],
+    "requirements":   ["brainstorming"],
+    "review":         ["requesting-code-review", "receiving-code-review"],
+    "security":       ["systematic-debugging"],
+    "docs":           ["writing-skills"],
+    "repair":         ["systematic-debugging"],
+    "infrastructure": ["writing-plans"],
 }
 
 _FRONTMATTER_RE = re.compile(r"^---.*?---\s*", re.DOTALL)

@@ -71,6 +71,10 @@ class AsyncAIScheduler:
         self._run_sems: dict[str, asyncio.Semaphore] = {}
         self._run_sem_lock = asyncio.Lock()
 
+    @property
+    def circuit_breaker(self) -> "ProviderCircuitBreaker":
+        return self._circuit_breaker
+
     # -- context budget enforcement ----------------------------------------
 
     @staticmethod
