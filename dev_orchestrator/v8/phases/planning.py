@@ -145,9 +145,6 @@ class PlanningPhase:
             "wave_count": len(plan.get("waves", [])),
         }
 
-    def next_job(self, run: dict[str, Any], result: dict[str, Any]) -> dict[str, Any] | None:
-        return None
-
     async def _call_ai(
         self, project: dict[str, Any], run: dict[str, Any], metadata: dict[str, Any],
         task_kind: str, system_prompt: str, budget: AITaskBudget,

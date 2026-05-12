@@ -161,7 +161,7 @@ def _save_local_llm_secrets(root_dir: Path, secrets: dict[str, str]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     existing = _load_local_llm_secrets(root_dir)
     existing.update({key: value for key, value in secrets.items() if value})
-    path.write_text(json.dumps(existing, indent=2, ensure_ascii=True), encoding="utf-8")
+    path.write_text(json.dumps(existing, indent=2, ensure_ascii=False), encoding="utf-8")
     try:
         os.chmod(path, 0o600)
     except OSError:
@@ -458,7 +458,7 @@ def load_config(root_dir: Path) -> AppConfig:
 def save_config(config: AppConfig) -> None:
     ensure_paths(config)
     config.config_path.write_text(
-        json.dumps(config.to_persisted_dict(), indent=2, ensure_ascii=True),
+        json.dumps(config.to_persisted_dict(), indent=2, ensure_ascii=False),
         encoding="utf-8",
     )
 

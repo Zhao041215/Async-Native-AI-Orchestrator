@@ -70,9 +70,6 @@ class ReleasePhase:
         log.info(f"{task_kind}_completed", run_id=run["id"])
         return {"status": "ok", "output": output}
 
-    def next_job(self, run: dict[str, Any], result: dict[str, Any]) -> dict[str, Any] | None:
-        return None
-
     @staticmethod
     def _get_metadata(run: Any) -> dict[str, Any]:
         if hasattr(run, "metadata"):

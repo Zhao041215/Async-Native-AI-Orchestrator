@@ -130,7 +130,7 @@ def run_v8_system_check() -> None:
         "database_url_set": bool(database_url),
         "config": config.to_dict() if hasattr(config, "to_dict") else {},
     }
-    print(json.dumps(check, indent=2, ensure_ascii=True))
+    print(json.dumps(check, indent=2, ensure_ascii=False))
 
 
 def main() -> None:

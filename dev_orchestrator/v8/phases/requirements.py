@@ -86,17 +86,6 @@ class RequirementsPhase:
                  goals_count=len(analysis.get("goals", [])))
         return {"status": "ok", "requirements": analysis}
 
-    def next_job(self, run: dict[str, Any], result: dict[str, Any]) -> dict[str, Any] | None:
-        if result.get("status") == "NO_GO":
-            return None
-        return {
-            "job_type": "architecture_design",
-            "role": "architect",
-            "run_id": run["id"],
-            "resume_key": f"run:{run['id']}:architecture_design",
-            "payload": {},
-        }
-
     @staticmethod
     def _build_budget(scale_profile: dict[str, Any]) -> AITaskBudget:
         return AITaskBudget(

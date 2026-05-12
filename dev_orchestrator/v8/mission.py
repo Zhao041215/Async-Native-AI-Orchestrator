@@ -27,10 +27,10 @@ def build_mission_state(
     artifact_counts = _counts(artifacts, "kind")
     dead_letters = [job for job in jobs if job.get("status") == "dead_letter"]
     return {
-        "schema_version": "7.0",
-        "kernel": "v7",
-        "kernel_generation": "v7_ai_native",
-        "mission_contract_version": profile.get("mission_contract_version", "7.0"),
+        "schema_version": "8.0",
+        "kernel": "v8",
+        "kernel_generation": "v8_pg_native",
+        "mission_contract_version": profile.get("mission_contract_version", "8.0"),
         "tenant_id": run.get("tenant_id", ""),
         "project_id": project.get("id", ""),
         "project_name": project.get("name", ""),

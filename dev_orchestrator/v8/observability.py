@@ -136,6 +136,8 @@ class MetricsCollector:
         self.ai_calls_total += 1
         self.ai_latency_sum_ms += latency_ms
         self._latency_samples.append(latency_ms)
+        if len(self._latency_samples) > 10000:
+            self._latency_samples = self._latency_samples[-10000:]
         if success:
             self.ai_calls_success += 1
         else:

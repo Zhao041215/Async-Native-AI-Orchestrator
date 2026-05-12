@@ -1,6 +1,8 @@
 """V8 Integration & Code Review Phase."""
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Any
 
 from dev_orchestrator.v8.models import AITaskBudget
@@ -10,8 +12,17 @@ from dev_orchestrator.v8.utils import json_or_empty
 
 log = get_logger(__name__)
 
-INTEGRATION_PROMPT = "You are integration_agent. Return strict JSON only. Review merged project state. Return ok, summary, issues (list of {severity, file, line, message}), suggestions."
-CODE_REVIEW_PROMPT = "You are code_review_agent. Return strict JSON only. Return ok, summary, issues (list of {severity, file, line, message}), suggestions."
+INTEGRATION_PROMPT = (
+    "You are integration_agent. Return strict JSON only. "
+    "Review the merged project state including actual generated files. "
+    "Return ok, summary, issues (list of {severity, file, line, message}), suggestions, "
+    "integration_conflicts (list of {file, packages, description})."
+)
+CODE_REVIEW_PROMPT = (
+    "You are code_review_agent. Return strict JSON only. "
+    "Review the generated code for correctness, security, and consistency. "
+    "Return ok, summary, issues (list of {severity, file, line, message}), suggestions."
+)
 
 
 def _with_skill(role: str, base: str) -> str:
@@ -55,6 +66,9 @@ class IntegrationPhase:
                 "critical_issues": [],
             }
 
+        # Read actual generated file content from patch_set artifacts
+        file_samples = await self._collect_file_samples(run["id"], budget.max_input_chars // 3)
+
         result = await self._scheduler.call(
             run_id=run["id"], role=role, job_id=job["id"],
             task_kind=task_kind, system_prompt=system_prompt,
@@ -63,9 +77,15 @@ class IntegrationPhase:
                 "requirements": metadata.get("requirements") or metadata.get("requirements_analysis") or {},
                 "architecture": metadata.get("architecture") or metadata.get("architecture_design") or {},
                 "package_summaries": [
-                    {"package_key": p.get("package_key", ""), "role": p.get("role", "")}
+                    {
+                        "package_key": p.get("package_key", ""),
+                        "role": p.get("role", ""),
+                        "domain": p.get("domain", ""),
+                        "allowed_paths": p.get("allowed_paths") or [],
+                    }
                     for p in completed
                 ],
+                "generated_files": file_samples,
             },
             budget=budget, store=self._store, tenant_id=tenant_id, heartbeat_callback=heartbeat,
         )
@@ -95,16 +115,33 @@ class IntegrationPhase:
             "critical_issues": critical,
         }
 
-    def next_job(self, run: dict[str, Any], result: dict[str, Any]) -> dict[str, Any] | None:
-        if result.get("status") != "ok":
-            return None
-        return {
-            "job_type": "quality",
-            "role": "qa",
-            "run_id": run["id"],
-            "resume_key": f"run:{run['id']}:quality",
-            "payload": {},
-        }
+    async def _collect_file_samples(self, run_id: str, max_chars: int) -> list[dict[str, Any]]:
+        """Read patch_set artifacts and extract file path + first 500 chars of content."""
+        samples: list[dict[str, Any]] = []
+        total = 0
+        try:
+            artifacts = await self._store.list_artifacts(run_id, kind="patch_set")
+            for a in artifacts:
+                if total >= max_chars:
+                    break
+                path_str = a.get("path", "")
+                if not path_str:
+                    continue
+                try:
+                    content = Path(path_str).read_text(encoding="utf-8", errors="replace")
+                    parsed = json.loads(content)
+                    for f in (parsed.get("files") or []):
+                        if total >= max_chars:
+                            break
+                        file_path = f.get("path", "")
+                        file_content = str(f.get("content", ""))[:500]
+                        samples.append({"path": file_path, "preview": file_content})
+                        total += len(file_content) + len(file_path)
+                except Exception:
+                    continue
+        except Exception:
+            pass
+        return samples
 
     @staticmethod
     def _get_metadata(run: Any) -> dict[str, Any]:
@@ -119,7 +156,7 @@ class IntegrationPhase:
             task_kind="integration",
             max_input_chars=int(sp.get("context_budget_chars", 36000)),
             max_output_tokens=8000,
-            timeout_seconds=120,
+            timeout_seconds=180,
             reasoning_effort="high",
             retry_attempts=int(sp.get("ai_retry_attempts", 3)),
         )

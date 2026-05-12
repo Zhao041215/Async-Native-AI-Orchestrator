@@ -149,9 +149,6 @@ class ImplementationPhase:
             "command_results": cmd_results,
         }
 
-    def next_job(self, run: dict[str, Any], result: dict[str, Any]) -> dict[str, Any] | None:
-        return None
-
     @staticmethod
     def _prompt_for(role: str) -> str:
         if role == "qa":
@@ -167,13 +164,15 @@ class ImplementationPhase:
 
     @staticmethod
     def _build_budget(sp: dict[str, Any], role: str) -> AITaskBudget:
-        timeout = 90 if role in ("backend", "frontend", "db") else 60
+        timeout = 180 if role in ("backend", "frontend", "db") else 120
+        max_tokens = int(sp.get("max_output_tokens_code", 8000))
+        effort = sp.get("reasoning_effort_code", "medium")
         return AITaskBudget(
             task_kind="code_generation",
             max_input_chars=int(sp.get("context_budget_chars", 36000)),
-            max_output_tokens=2000,
+            max_output_tokens=max_tokens,
             timeout_seconds=timeout,
-            reasoning_effort="low",
+            reasoning_effort=effort,
             retry_attempts=int(sp.get("ai_retry_attempts", 3)),
         )
 

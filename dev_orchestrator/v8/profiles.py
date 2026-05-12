@@ -6,8 +6,8 @@ from typing import Any
 
 from dev_orchestrator.v8.models import ScaleProfileData
 
-KERNEL_GENERATION = "v7_ai_native"
-MISSION_CONTRACT_VERSION = "7.0"
+KERNEL_GENERATION = "v8_pg_native"
+MISSION_CONTRACT_VERSION = "8.0"
 
 DEFAULT_JOB_ATTEMPTS = MappingProxyType({
     "requirements_analysis": 3,
@@ -38,6 +38,12 @@ XLARGE_WORKER_CONCURRENCY = MappingProxyType({
     "integration": 1, "review": 1, "repair": 1, "release": 1, "docs": 2,
 })
 
+ENTERPRISE_WORKER_CONCURRENCY = MappingProxyType({
+    "requirements": 1, "architect": 2, "planner": 1, "db": 3,
+    "backend": 5, "frontend": 5, "qa": 4, "security": 3,
+    "integration": 2, "review": 2, "repair": 2, "release": 1, "docs": 3,
+})
+
 QUALITY_GATES_SMALL = (
     "scale_profile_gate", "mission_state_contract_gate",
     "package_dag_acyclic_gate", "package_ownership_gate",
@@ -60,6 +66,11 @@ QUALITY_GATES_100K = tuple(dict.fromkeys(QUALITY_GATES_MEDIUM + (
     "parallel_execution_safety_gate", "provider_circuit_recovery_gate",
 )))
 
+QUALITY_GATES_ENTERPRISE = tuple(dict.fromkeys(QUALITY_GATES_100K + (
+    "cross_subsystem_contract_gate", "incremental_delivery_gate",
+    "rollback_materials_gate", "multi_provider_failover_gate",
+)))
+
 SCALE_PROFILES = MappingProxyType({
     "small": ScaleProfileData(
         name="small", label="Small product (5k LOC)",
@@ -70,6 +81,7 @@ SCALE_PROFILES = MappingProxyType({
         contract_density="standard", qa_depth="focused", security_depth="baseline",
         recovery_policy="checkpoint_retry_then_repair", checkpoint_interval_packages=2,
         provider_failover_required=False,
+        max_output_tokens_code=4000, reasoning_effort_code="medium",
         job_attempts={**DEFAULT_JOB_ATTEMPTS, "architecture_design": 2, "package_planning": 2},
         worker_role_concurrency=dict(DEFAULT_WORKER_CONCURRENCY),
         required_quality_gates=list(QUALITY_GATES_SMALL),
@@ -83,6 +95,7 @@ SCALE_PROFILES = MappingProxyType({
         contract_density="dense", qa_depth="broad", security_depth="threat_model",
         recovery_policy="checkpoint_retry_dead_letter_requeue", checkpoint_interval_packages=2,
         provider_failover_required=False,
+        max_output_tokens_code=8000, reasoning_effort_code="medium",
         job_attempts={**DEFAULT_JOB_ATTEMPTS, "quality": 3, "release_notes": 3},
         worker_role_concurrency={**dict(DEFAULT_WORKER_CONCURRENCY), "backend": 2, "frontend": 2, "qa": 2},
         required_quality_gates=list(QUALITY_GATES_MEDIUM),
@@ -96,6 +109,7 @@ SCALE_PROFILES = MappingProxyType({
         contract_density="dense", qa_depth="system", security_depth="abuse_and_dependency_review",
         recovery_policy="checkpoint_retry_dead_letter_recovery_wave", checkpoint_interval_packages=1,
         provider_failover_required=True,
+        max_output_tokens_code=12000, reasoning_effort_code="high",
         job_attempts={**DEFAULT_JOB_ATTEMPTS, "code_generation": 4, "test_generation": 4, "security_review": 4, "code_review": 4},
         worker_role_concurrency={**dict(XLARGE_WORKER_CONCURRENCY), "backend": 2, "frontend": 2, "qa": 2},
         required_quality_gates=list(QUALITY_GATES_100K),
@@ -110,9 +124,40 @@ SCALE_PROFILES = MappingProxyType({
         security_depth="full_review_with_rollback_materials",
         recovery_policy="event_replay_checkpoint_dead_letter_recovery_wave",
         checkpoint_interval_packages=1, provider_failover_required=True,
+        max_output_tokens_code=16000, reasoning_effort_code="high",
         job_attempts={**DEFAULT_JOB_ATTEMPTS, "code_generation": 4, "test_generation": 4, "security_review": 4, "integration": 4, "code_review": 4, "repair": 3},
         worker_role_concurrency=dict(XLARGE_WORKER_CONCURRENCY),
         required_quality_gates=list(QUALITY_GATES_100K),
+    ),
+    "xxlarge_300k": ScaleProfileData(
+        name="xxlarge_300k", label="300k LOC super-scale profile",
+        kernel_generation=KERNEL_GENERATION, mission_contract_version=MISSION_CONTRACT_VERSION,
+        target_loc_hint=300000, package_loc_target=2000, recursive_decomposition_depth=6,
+        max_waves=30, wave_parallelism=8, ai_provider_concurrency=6, ai_run_concurrency=5,
+        ai_slot_wait_seconds=90, context_budget_chars=100000, ai_retry_attempts=5,
+        contract_density="exhaustive", qa_depth="system_performance_security",
+        security_depth="full_review_with_rollback_materials",
+        recovery_policy="event_replay_checkpoint_dead_letter_recovery_wave",
+        checkpoint_interval_packages=1, provider_failover_required=True,
+        max_output_tokens_code=16000, reasoning_effort_code="high",
+        job_attempts={**DEFAULT_JOB_ATTEMPTS, "code_generation": 5, "test_generation": 5, "security_review": 5, "integration": 5, "code_review": 5, "repair": 4},
+        worker_role_concurrency=dict(ENTERPRISE_WORKER_CONCURRENCY),
+        required_quality_gates=list(QUALITY_GATES_ENTERPRISE),
+    ),
+    "enterprise_1m": ScaleProfileData(
+        name="enterprise_1m", label="Enterprise 1M+ LOC profile",
+        kernel_generation=KERNEL_GENERATION, mission_contract_version=MISSION_CONTRACT_VERSION,
+        target_loc_hint=1000000, package_loc_target=2000, recursive_decomposition_depth=8,
+        max_waves=60, wave_parallelism=10, ai_provider_concurrency=8, ai_run_concurrency=6,
+        ai_slot_wait_seconds=120, context_budget_chars=120000, ai_retry_attempts=5,
+        contract_density="exhaustive", qa_depth="system_performance_security",
+        security_depth="full_review_with_rollback_materials",
+        recovery_policy="event_replay_checkpoint_dead_letter_recovery_wave",
+        checkpoint_interval_packages=1, provider_failover_required=True,
+        max_output_tokens_code=16000, reasoning_effort_code="high",
+        job_attempts={**DEFAULT_JOB_ATTEMPTS, "code_generation": 5, "test_generation": 5, "security_review": 5, "integration": 5, "code_review": 5, "repair": 5},
+        worker_role_concurrency=dict(ENTERPRISE_WORKER_CONCURRENCY),
+        required_quality_gates=list(QUALITY_GATES_ENTERPRISE),
     ),
 })
 
@@ -122,6 +167,8 @@ SCALE_ALIASES = {
     "medium": "medium", "m": "medium",
     "large": "large", "l": "large",
     "xlarge": "xlarge_100k", "xl": "xlarge_100k", "100k": "xlarge_100k", "xlarge_100k": "xlarge_100k",
+    "xxlarge": "xxlarge_300k", "xxl": "xxlarge_300k", "300k": "xxlarge_300k",
+    "enterprise": "enterprise_1m", "1m": "enterprise_1m",
 }
 
 

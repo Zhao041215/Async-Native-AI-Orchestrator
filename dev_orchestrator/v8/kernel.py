@@ -6,8 +6,8 @@ from typing import Any
 
 from dev_orchestrator.v8.models import Event, Run, Job, Wave, WorkPackage, sha256_bytes, stable_json
 
-SCHEMA_VERSION = "7.0"
-KERNEL_GENERATION = "v7_ai_native"
+SCHEMA_VERSION = "8.0"
+KERNEL_GENERATION = "v8_pg_native"
 
 CHECKPOINT_TO_ACTION: dict[str, str] = {
     "run_created": "requirements_analysis",
@@ -157,7 +157,7 @@ def build_mission_graph(
         for dep in pkg.get("depends_on") or []:
             edges.append({"from": f"pkg:{dep}", "to": pkg_id, "type": "depends_on"})
 
-    for job in jobs[:200]:
+    for job in jobs[:2000]:
         job_id = f"job:{job.get('id', '')}"
         nodes.append({
             "id": job_id,

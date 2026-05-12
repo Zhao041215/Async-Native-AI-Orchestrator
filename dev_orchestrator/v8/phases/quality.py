@@ -82,17 +82,6 @@ class QualityPhase:
         log.info("quality_completed", run_id=run["id"], ok=ok, gates=len(results))
         return {"status": "ok" if ok else "blocked", "quality_report": report}
 
-    def next_job(self, run: dict[str, Any], result: dict[str, Any]) -> dict[str, Any] | None:
-        if result.get("status") != "ok":
-            return None
-        return {
-            "job_type": "release_notes",
-            "role": "release",
-            "run_id": run["id"],
-            "resume_key": f"run:{run['id']}:release_notes",
-            "payload": {},
-        }
-
     async def _ai_gate(
         self, run: dict[str, Any], project: dict[str, Any],
         metadata: dict[str, Any], tenant_id: str, job: dict[str, Any], heartbeat: Any | None,
@@ -114,7 +103,8 @@ class QualityPhase:
                 "details": {"error": result.error, "note": "AI gate is informational only"},
             }
         output = json_or_empty(result.raw_response)
-        return {"name": "ai_quality_gate", "ok": True, "severity": "info", "details": output}
+        ai_ok = output.get("ok", True)
+        return {"name": "ai_quality_gate", "ok": ai_ok, "severity": "info", "details": output}
 
     @staticmethod
     def _get_metadata(run: Any) -> dict[str, Any]:

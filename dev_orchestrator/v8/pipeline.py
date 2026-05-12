@@ -34,6 +34,10 @@ from dev_orchestrator.v8.observability import get_logger
 from dev_orchestrator.v8.profiles import resolve_scale_profile, scale_job_attempts
 from dev_orchestrator.v8.role_aliases import canonical_worker_role
 from dev_orchestrator.v8.runtime import FileRuntime
+from dev_orchestrator.v8.scale_inference import (
+    choose_larger_scale, infer_scale_from_requirements, infer_scale_from_architecture,
+    infer_scale_from_package_plan, merge_inference_history,
+)
 from dev_orchestrator.v8.scheduler import AsyncAIScheduler
 from dev_orchestrator.v8.scheduler import AbstractStore
 
@@ -94,11 +98,11 @@ class _StoreAdapter:
     async def list_work_packages(self, run_id: str) -> list[dict]:
         return [p.model_dump() for p in await self._store.list_work_packages(run_id)]
 
-    async def list_artifacts(self, run_id: str) -> list[dict]:
-        results = [a.model_dump() for a in await self._store.list_artifacts(run_id)]
+    async def list_artifacts(self, run_id: str, kind: str | None = None) -> list[dict]:
+        results = [a.model_dump() for a in await self._store.list_artifacts(run_id, kind=kind)]
         if not results and self._artifacts:
             try:
-                fs_artifacts = await self._artifacts.list_artifacts(run_id)
+                fs_artifacts = await self._artifacts.list_artifacts(run_id, kind=kind)
                 results = [{"kind": str(p.parent.name), "name": p.name, "path": str(p)} for p in fs_artifacts]
             except Exception:
                 pass
@@ -474,6 +478,38 @@ class PipelineOrchestrator:
             if not run:
                 return
             metadata = run.metadata.model_copy(update={meta_key: data})
+
+            # Scale inference: auto-upgrade profile based on phase output
+            if run.metadata.scale_profile and run.metadata.scale_profile.name in ("", "auto", "medium"):
+                inference: dict[str, Any] | None = None
+                if job.job_type == JobType.requirements_analysis:
+                    inference = infer_scale_from_requirements(
+                        data, run.metadata.requirements_text or ""
+                    )
+                elif job.job_type == JobType.architecture_design:
+                    inference = infer_scale_from_architecture(
+                        data, result.get("project_layout") or {}
+                    )
+                elif job.job_type == JobType.package_planning:
+                    inference = infer_scale_from_package_plan(data)
+
+                if inference:
+                    inferred = inference.get("selected_scale", "")
+                    current = run.metadata.scale_profile.name
+                    upgraded = choose_larger_scale(current, inferred)
+                    if upgraded != current:
+                        new_profile = ScaleProfileData(**resolve_scale_profile({"target_scale": upgraded}))
+                        history = merge_inference_history(
+                            getattr(run.metadata, "scale_inference_history", None), inference
+                        )
+                        metadata = metadata.model_copy(update={
+                            "scale_profile": new_profile,
+                            "scale_inference_history": history,
+                        })
+                        self.log.info("pipeline.scale_upgraded", run_id=job.run_id,
+                                      from_scale=current, to_scale=upgraded,
+                                      stage=inference.get("stage", ""))
+
             await self.store.update_run(job.run_id, metadata=metadata)
             self.log.info("pipeline.phase_result_persisted", run_id=job.run_id,
                           job_type=job.job_type.value, meta_key=meta_key)

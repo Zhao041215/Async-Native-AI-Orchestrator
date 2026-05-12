@@ -96,6 +96,6 @@ class ArtifactWriter:
             kind=kind,
             key=key,
             content_type=content_type,
-            content=_json.dumps(payload, ensure_ascii=True, sort_keys=True, indent=2),
+            content=_json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2),
         )
         return await self.write(artifact)

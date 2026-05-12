@@ -242,9 +242,9 @@ class FileRuntime:
                 results.append(
                     {
                         "command": cmd,
-                        "returncode": 0,
+                        "returncode": -1,
                         "stdout": "",
-                        "stderr": "skipped: subprocess not supported on this platform",
+                        "stderr": "subprocess_not_supported_on_this_platform",
                     }
                 )
                 continue

@@ -29,6 +29,10 @@ ADVISORY_CONTRACT_KINDS: frozenset[str] = frozenset({
     "repair_report",
     "release_notes",
     "package_self_review",
+    "code_generation",
+    "test_generation",
+    "security_review",
+    "integration",
 })
 
 

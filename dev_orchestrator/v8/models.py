@@ -135,7 +135,7 @@ def new_id() -> str:
 
 
 def stable_json(payload: Any) -> str:
-    return json.dumps(payload, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
+    return json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
 def sha256_bytes(data: bytes) -> str:
@@ -228,6 +228,9 @@ class ScaleProfileData(StrictModel):
     job_attempts: dict[str, int] = Field(default_factory=dict)
     worker_role_concurrency: dict[str, int] = Field(default_factory=dict)
     required_quality_gates: list[str] = Field(default_factory=list)
+    # Code generation quality tuning
+    max_output_tokens_code: int = 8000
+    reasoning_effort_code: str = "medium"
 
 
 class ProjectConfig(StrictModel):

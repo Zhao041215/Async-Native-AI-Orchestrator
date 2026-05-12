@@ -105,7 +105,8 @@ class AsyncAIScheduler:
         _walk(payload, [])
         paths.sort(key=lambda x: x[1], reverse=True)
 
-        result = json.loads(json.dumps(payload))
+        import copy
+        result = copy.deepcopy(payload)
         budget_over = len(serialized) - max_chars
 
         for path, length in paths:
@@ -272,6 +273,10 @@ class AsyncAIScheduler:
             elapsed_ms = int((time.monotonic() - started_at) * 1000)
             classification = classify_error(exc)
             await self._circuit_breaker.record_failure(provider, str(exc), classification)
+            try:
+                await store.record_provider_failure(provider, str(exc), classification.error_kind)
+            except Exception:
+                pass
             await self._safe_release_slot(store, slot_id)
             log.warning("ai_call_failed", error=str(exc)[:500],
                         error_kind=classification.error_kind, run_id=run_id, elapsed_ms=elapsed_ms)
@@ -290,6 +295,10 @@ class AsyncAIScheduler:
 
         elapsed_ms = int((time.monotonic() - started_at) * 1000)
         await self._circuit_breaker.record_success(provider)
+        try:
+            await store.record_provider_success(provider)
+        except Exception:
+            pass
         await self._safe_release_slot(store, slot_id)
 
         # Bug 6 fix: validate AI output against the registered contract

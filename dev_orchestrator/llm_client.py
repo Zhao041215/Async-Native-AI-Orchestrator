@@ -207,7 +207,7 @@ def _extract_message_content(message: dict) -> str:
                 return text.strip()
     tool_calls = message.get("tool_calls")
     if tool_calls:
-        return json.dumps({"done": False, "summary": "", "artifacts": [], "tool_calls": tool_calls}, ensure_ascii=True)
+        return json.dumps({"done": False, "summary": "", "artifacts": [], "tool_calls": tool_calls}, ensure_ascii=False)
     return ""
 
 

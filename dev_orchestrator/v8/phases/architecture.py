@@ -136,17 +136,6 @@ class ArchitecturePhase:
             "seed": seed, "surface": surface, "layout": layout, "contracts": contracts,
         }
 
-    def next_job(self, run: dict[str, Any], result: dict[str, Any]) -> dict[str, Any] | None:
-        if result.get("status") != "ok":
-            return None
-        return {
-            "job_type": "package_planning",
-            "role": "planner",
-            "run_id": run["id"],
-            "resume_key": f"run:{run['id']}:package_planning",
-            "payload": {},
-        }
-
     async def _cached_or_call(
         self, cached: Any, project: dict[str, Any], run: dict[str, Any],
         metadata: dict[str, Any], task_kind: str, system_prompt: str,

@@ -42,7 +42,7 @@ services:
       - "8787:8787"
     volumes:
       - .:/app
-      - E:\ProgramProjects\V7_test01:/exports
+      - ${AI_AGENT_EXPORT_PATH:-./exports}:/exports
 
 volumes:
   postgres_data:
